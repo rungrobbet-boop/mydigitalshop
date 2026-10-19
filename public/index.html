@@ -9829,6 +9829,17 @@ git push -u origin main</pre>
 
         async importProductsToFirestore() {
           if (this.isImporting) return;
+
+          // Guard: FirebaseBridge dan batchWriteFirestore harus sudah terdefinisi
+          if (
+            !window.FirebaseBridge ||
+            typeof window.FirebaseBridge.batchWriteFirestore !== 'function'
+          ) {
+            this.showToast('Sistem Firebase belum siap. Silakan refresh halaman.');
+            this.isImporting = false;
+            return;
+          }
+
           this.isImporting = true;
           this.csvImportResult = null;
           try {
