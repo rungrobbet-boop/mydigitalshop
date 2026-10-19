@@ -5994,6 +5994,7 @@ git push -u origin main</pre>
                 }
               }
               const docRef = doc(collection(firestoreDb, collectionName));
+              console.log("DATA YANG AKAN DIKIRIM:", cleanData);
               batch.set(docRef, cleanData);
             });
             await batch.commit();

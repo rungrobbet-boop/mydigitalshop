@@ -15,3 +15,7 @@ public/firebase-config.js
 # Cloudflare Wrangler
 .dev.vars
 .wrangler/
+
+# Bun lockfile (hindari Cloudflare Pages mencoba bun install)
+bun.lock
+bun.lockb
