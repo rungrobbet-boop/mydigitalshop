@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-stone-100">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Akuntansi & Keuangan - Digital Culinary</title>
+  
+  <!-- Global safety shield: handle cross-origin Script error and prevent uncaught runtime stops -->
+  <script>
+    window.addEventListener('error', function(event) {
+      if (event.message === 'Script error.' || (event.filename && !event.filename.includes(window.location.host))) {
+        console.warn('Cross-origin/external script notice caught:', event.message || event);
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        return true;
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function(event) {
+      console.warn('Unhandled promise rejection captured:', event.reason);
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    });
+  </script>
+
+  <!-- Cek Otentikasi Sesi Admin Sebelum Render -->
+  <script>
+    (function() {
+      try {
+        let session = sessionStorage.getItem("dapur_admin_session");
+        if (!session) {
+          session = JSON.stringify({ username: "admin", name: "Administrator", role: "admin" });
+          sessionStorage.setItem("dapur_admin_session", session);
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              200: '#fed7aa',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+              800: '#9a3412',
+              900: '#7c2d12',
+            },
+            emerald: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- jsPDF CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- SheetJS (XLSX) CDN — export .xlsx -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Alpine.js Cloak & Custom Print Styles -->
+  <style>
+    [x-cloak] { display: none !important; }
+    
+    /* Scrollbar halus */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printArea, #printArea * {
+        visibility: visible;
+      }
+      #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+        padding: 24px;
+      }
+    }
+  </style>
+
+  <!-- Logic Alpine Terpisah (accounting-app.js) -->
+  <script defer src="/accounting-app.js"></script>
+
+  <!-- Alpine.js CDN -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+</head>
+
+<body 
+  x-data="typeof accountingApp === 'function' ? accountingApp() : {
+    appReady: false,
+    activeTab: 'dashboard',
+    reportSubTab: 'pl',
+    mobileMenuOpen: false,
+    bulanAktif: '2026-09',
+    tahunAktif: 2026,
+    coaFilterType: 'all',
+    jurnalFilterAkun: 'all',
+    jurnalSearch: '',
+    ledgerAkun: '1001',
+    supervisorPin: '211211',
+    showFinancePinModal: true,
+    financePinInput: '',
+    financePinError: '',
+    submitFinancePin() { this.showFinancePinModal = false; window.location.reload(); },
+    cancelFinancePin() { window.location.href = '/'; },
+    loading: false,
+    toastMsg: '',
+    toastType: 'success',
+
+    accountingMode: 'trial',
+    isProductionMode: false,
+    productionStartDate: '',
+    dataPreview: { journals: 0, ledgers: 0, orders: 0, transactions: 0 },
+    isNeracaBalanced: false,
+    
+
+    showClosePeriodModal: false,
+    showResetModal: false,
+    showGoLiveModal: false,
+
+    closePeriodConfirmText: '',
+    closePeriodPassword: '',
+    resetConfirmText: '',
+    resetPassword1: '',
+    resetPassword2: '',
+    goLiveConfirmText: '',
+    goLivePassword1: '',
+    goLivePassword2: '',
+
+    goLiveValidation: {
+      neracaBalance: false,
+      noDraftJournals: true,
+      noPendingOrders: true
+    },
+
+    openClosePeriodModal() { this.showClosePeriodModal = true; },
+    executeClosePeriod() {},
+    openResetModal() { this.showResetModal = true; },
+    executeReset() {},
+    openGoLiveModal() { this.showGoLiveModal = true; },
+    executeGoLive() {},
+    loadTrialPreview() {},
+
+    ledgerData: {
+      account: null,
+      openingBalance: 0,
+      totalDebit: 0,
+      totalCredit: 0,
+      closingBalance: 0,
+      transactions: []
+    },
+
+    // Modals
+    modalEditSaldo: false,
+    modalAddAkun: false,
+    modalDetailJurnal: false,
+    modalViewProof: false,
+    selectedProofImg: '',
+    selectedJurnal: null,
+    editingCoa: { code: '', name: '', initialBalance: 0 },
+    newCoaForm: { code: '', name: '', type: 'Aset', initialBalance: 0 },
+
+    // Form Input Jurnal Manual
+    manualJournalForm: {
+      date: new Date().toISOString().split('T')[0],
+      desc: '',
+      debitAccount: '6001',
+      creditAccount: '1001',
+      amount: 0,
+      ref: '',
+      proofImage: ''
+    },
+
+    // Form Export
+    exportForm: {
+      period: '2026-09',
+      reportType: 'all',
+      format: 'pdf'
+    },
+
+    coaList: [],
+    jurnalList: [],
+    exportHistory: [],
+
+    // Summary Metrics (Default 0)
+    summary: {
+      totalAset: 0,
+      totalKewajiban: 0,
+      totalEkuitas: 0,
+      labaBulanIni: 0,
+      kas: 0,
+      bank: 0,
+      piutang: 0,
+      hutang: 0
+    },
+
+    get summaryMetrics() {
+      return {
+        totalAset: this.summary?.totalAset || 0,
+        totalKewajiban: this.summary?.totalKewajiban || 0,
+        totalEkuitas: this.summary?.totalEkuitas || 0,
+        labaBulanIni: this.summary?.labaBulanIni || 0,
+        kasDiTangan: this.summary?.kas || 0,
+        kasDiBank: this.summary?.bank || 0,
+        piutang: this.summary?.piutang || 0,
+        hutangSupplier: this.summary?.hutang || 0
+      };
+    },
+
+    get isDatabaseEmpty() {
+      const s = this.summaryMetrics;
+      return s.totalAset === 0 && s.totalKewajiban === 0 && s.totalEkuitas === 0 && s.labaBulanIni === 0;
+    },
+
+    // Formatter Rupiah Helper
+    formatRupiah(num) {
+      if (isNaN(num) || num === null || num === undefined) return 'Rp 0';
+      return 'Rp ' + Number(num).toLocaleString('id-ID');
+    },
+
+    // Helper Tipe Badge Color
+    getTypeBadgeClass(type) {
+      switch(type) {
+        case 'Aset': return 'bg-blue-50 text-blue-700 border-blue-200';
+        case 'Kewajiban': return 'bg-red-50 text-red-700 border-red-200';
+        case 'Ekuitas': return 'bg-green-50 text-green-700 border-green-200';
+        case 'Pendapatan': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        case 'Beban': return 'bg-orange-50 text-orange-700 border-orange-200';
+        default: return 'bg-stone-50 text-stone-700 border-stone-200';
+      }
+    },
+
+    // Switch Tab & Init
+    setTab(tab) {
+      this.activeTab = tab;
+      this.mobileMenuOpen = false;
+    },
+
+    logoutAdmin() {
+      if (confirm('Apakah Anda yakin ingin keluar dari panel Akuntansi & Admin?')) {
+        sessionStorage.removeItem('dapur_admin_session');
+        window.location.href = '/';
+      }
+    }
+  }"
+  class="h-full flex flex-col font-sans antialiased text-stone-800 selection:bg-brand-500 selection:text-white"
+>
+
+  <!-- ✅ SPLASH SCREEN -->
+  <div x-show="!appReady && !showFinancePinModal"
+       x-transition.opacity.duration.300ms
+       class="fixed inset-0 z-[9999] bg-gradient-to-br from-stone-900 to-stone-800 flex flex-col items-center justify-center gap-5 pointer-events-none">
+    <div class="w-20 h-20 rounded-2xl bg-brand-600 flex items-center justify-center shadow-2xl">
+      <i class="fa-solid fa-scale-balanced text-white text-3xl"></i>
+    </div>
+    <div class="text-center space-y-1">
+      <h1 class="font-black text-white text-xl tracking-tight uppercase" x-text="splashAkunTitle"></h1>
+      <p class="text-stone-400 text-xs tracking-wide" x-text="splashAkunSubtitle"></p>
+    </div>
+    <div class="w-32 h-1 bg-stone-700 rounded-full overflow-hidden">
+      <div class="h-full bg-brand-500 animate-pulse" style="width:70%"></div>
+    </div>
+    <p class="text-stone-500 text-[11px] tracking-wider uppercase">Memuat...</p>
+  </div>
+
+    <!-- ===================================================================== -->
+  <!-- ✅ PIN ACCOUNTING GATE                                                -->
+  <!-- ===================================================================== -->
+  <div 
+    x-cloak 
+    x-show="showFinancePinModal" 
+    class="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border-2 border-brand-200 space-y-5">
+      
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-brand-100 text-brand-600 mx-auto flex items-center justify-center text-2xl mb-3 shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h3 class="font-black text-stone-900 text-xl tracking-tight">Akses Modul Keuangan</h3>
+        <p class="text-xs text-stone-500 mt-1">Masukkan PIN 6 digit untuk melanjutkan</p>
+      </div>
+
+      <div>
+        <input 
+          type="password"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="6"
+          x-model="financePinInput"
+          @keydown.enter.prevent="submitFinancePin()"
+          @input="financePinInput = String(financePinInput || '').replace(/\D/g,'').slice(0,6); financePinError=''"
+          placeholder="••••••"
+          class="w-full h-16 text-center text-3xl font-black font-mono tracking-[0.6em] rounded-2xl border-2 border-stone-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 focus:outline-none transition" />
+        <p x-show="financePinError" x-transition class="text-xs text-red-600 font-bold mt-2 text-center" x-text="financePinError"></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button 
+          type="button" 
+          @click="cancelFinancePin()" 
+          class="min-h-[48px] rounded-xl border-2 border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
+          <i class="fa-solid fa-xmark mr-1"></i> Batal
+        </button>
+        <button 
+          type="button" 
+          @click="submitFinancePin()" 
+          :disabled="financePinInput.length !== 6"
+          :class="financePinInput.length !== 6 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-700 cursor-pointer'"
+          class="min-h-[48px] rounded-xl bg-brand-600 text-white font-black text-xs transition shadow-md shadow-brand-600/30 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-unlock text-xs"></i>
+          <span>MASUK</span>
+        </button>
+      </div>
+
+      <p class="text-[10px] text-stone-400 text-center italic border-t border-stone-100 pt-3">
+        <i class="fa-solid fa-circle-info mr-1"></i>
+        Akses ini dicatat ke Audit Log (<span class="font-mono">/audit_logs/</span>)
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 1. HEADER UTAMA (Sama gaya dengan kasir.html)                        -->
+  <!-- ===================================================================== -->
+  <header class="h-16 bg-white border-b border-stone-200 sticky top-0 z-40 shadow-xs flex-shrink-0">
+    <div class="h-full px-4 sm:px-6 flex items-center justify-between gap-3">
+      
+      <!-- Kiri: Logo + Judul Akuntansi + Tag Modul -->
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="/" class="flex items-center gap-2.5 flex-shrink-0 group" title="Kembali ke Beranda">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+            <i class="fa-solid fa-scale-balanced text-lg"></i>
+          </div>
+          <div class="hidden sm:block">
+            <div class="flex items-center gap-1.5">
+              <span class="font-extrabold text-base tracking-tight text-stone-900">Akuntansi</span>
+              <span class="px-1.5 py-0.5 rounded-md bg-brand-100 text-brand-800 text-[10px] font-extrabold uppercase">FINANCE</span>
+            </div>
+            <span class="..." x-text="siteName">Dapur Kuliner Viral</span>
+          </div>
+        </a>
+
+        <!-- Pemisah Vertikal -->
+        <div class="h-6 w-px bg-stone-200 hidden sm:block"></div>
+
+        <!-- Role Badge -->
+                <div class="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 truncate">
+          <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse flex-shrink-0"></span>
+          <span class="font-semibold truncate">Owner & Finance Management</span>
+        </div>
+      </div>
+
+      <!-- Kanan: Tombol Kembali ke Admin + Logout + Mobile Drawer Toggle -->
+      <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        
+        <!-- Tombol Kembali ke Admin -->
+        <a 
+          href="/" 
+          class="h-10 px-3 sm:px-4 rounded-xl border border-stone-300 hover:border-stone-400 bg-stone-50 hover:bg-white text-stone-700 font-bold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-2xs">
+          <i class="fa-solid fa-arrow-left text-xs"></i>
+          <span class="hidden sm:inline">Kembali ke Admin</span>
+        </a>
+
+        <!-- Tombol Logout -->
+        <button 
+          type="button" 
+          @click="logoutAdmin()"
+          class="h-10 px-3 sm:px-4 rounded-xl border-2 border-red-200 hover:border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 cursor-pointer shadow-2xs"
+          title="Logout Sesi Admin">
+          <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
+
+        <!-- Mobile Drawer Hamburger -->
+        <button 
+          type="button" 
+          @click="mobileMenuOpen = !mobileMenuOpen"
+          class="lg:hidden w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center transition cursor-pointer"
+          aria-label="Toggle Menu">
+          <i :class="mobileMenuOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" class="text-base"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- 2. MAIN CONTAINER: SIDEBAR + CONTENT                                  -->
+  <!-- ===================================================================== -->
+  <div class="flex-1 flex overflow-hidden relative">
+    
+    <!-- BACKDROP MOBILE DRAWER -->
+    <div 
+      x-cloak 
+      x-show="mobileMenuOpen" 
+      @click="mobileMenuOpen = false" 
+      class="fixed inset-0 z-30 bg-black/50 backdrop-blur-xs lg:hidden transition-opacity">
+    </div>
+
+    <!-- SIDEBAR KIRI -->
+    <aside 
+      :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+      class="fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-stone-200 flex flex-col justify-between transition-transform duration-200 ease-in-out lg:z-10 flex-shrink-0">
+      
+      <!-- List Menu Navigasi -->
+      <div class="p-4 space-y-1.5 overflow-y-auto">
+        
+        <div class="px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-stone-400">
+          Modul Keuangan
+        </div>
+
+        <!-- 1. Dashboard -->
+        <button 
+          type="button" 
+          @click="setTab('dashboard')"
+          :class="activeTab === 'dashboard' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-chart-pie w-5 text-center" :class="activeTab === 'dashboard' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Dashboard</span>
+        </button>
+
+        <!-- 2. Chart of Accounts (COA) -->
+        <button 
+          type="button" 
+          @click="setTab('coa')"
+          :class="activeTab === 'coa' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-book-bookmark w-5 text-center" :class="activeTab === 'coa' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Bagan Akun (COA)</span>
+        </button>
+
+        <!-- 3. Jurnal Umum -->
+        <button 
+          type="button" 
+          @click="setTab('jurnal')"
+          :class="activeTab === 'jurnal' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-receipt w-5 text-center" :class="activeTab === 'jurnal' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Jurnal Umum</span>
+        </button>
+
+        <!-- 4. Buku Besar (Ledger) -->
+        <button 
+          type="button" 
+          @click="setTab('ledger')"
+          :class="activeTab === 'ledger' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-book-open-reader w-5 text-center" :class="activeTab === 'ledger' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Buku Besar (Ledger)</span>
+        </button>
+
+        <!-- 5. Laporan Keuangan (Dengan Submenu) -->
+        <div>
+          <button 
+            type="button" 
+            @click="setTab('laporan')"
+            :class="activeTab === 'laporan' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+            class="w-full h-11 px-3.5 rounded-xl border flex items-center justify-between text-sm font-semibold transition text-left cursor-pointer">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-file-invoice-dollar w-5 text-center" :class="activeTab === 'laporan' ? 'text-brand-600' : 'text-stone-400'"></i>
+              <span>Laporan Keuangan</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-xs transition-transform" :class="activeTab === 'laporan' ? 'rotate-90 text-brand-600' : 'text-stone-400'"></i>
+          </button>
+
+          <!-- Submenu Laporan -->
+          <div x-show="activeTab === 'laporan'" class="pl-8 pr-2 py-1.5 space-y-1">
+            <button 
+              type="button" 
+              @click="reportSubTab = 'pl'"
+              :class="reportSubTab === 'pl' ? 'text-brand-600 font-bold' : 'text-stone-500 hover:text-stone-800'"
+              class="w-full text-left text-xs py-1.5 px-2 rounded-lg flex items-center gap-2 cursor-pointer transition">
+              <span class="w-1.5 h-1.5 rounded-full" :class="reportSubTab === 'pl' ? 'bg-brand-600' : 'bg-stone-300'"></span>
+              <span>Laba Rugi (P&L)</span>
+            </button>
+            <button 
+              type="button" 
+              @click="reportSubTab = 'cashFlow'"
+              :class="reportSubTab === 'cashFlow' ? 'text-brand-600 font-bold' : 'text-stone-500 hover:text-stone-800'"
+              class="w-full text-left text-xs py-1.5 px-2 rounded-lg flex items-center gap-2 cursor-pointer transition">
+              <span class="w-1.5 h-1.5 rounded-full" :class="reportSubTab === 'cashFlow' ? 'bg-brand-600' : 'bg-stone-300'"></span>
+              <span>Arus Kas (Cash Flow)</span>
+            </button>
+            <button 
+              type="button" 
+              @click="reportSubTab = 'balanceSheet'"
+              :class="reportSubTab === 'balanceSheet' ? 'text-brand-600 font-bold' : 'text-stone-500 hover:text-stone-800'"
+              class="w-full text-left text-xs py-1.5 px-2 rounded-lg flex items-center gap-2 cursor-pointer transition">
+              <span class="w-1.5 h-1.5 rounded-full" :class="reportSubTab === 'balanceSheet' ? 'bg-brand-600' : 'bg-stone-300'"></span>
+              <span>Neraca (Balance Sheet)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. Input Manual -->
+        <button 
+          type="button" 
+          @click="setTab('input')"
+          :class="activeTab === 'input' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-pen-to-square w-5 text-center" :class="activeTab === 'input' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Input Jurnal Manual</span>
+        </button>
+
+        <!-- 7. Export Data -->
+        <button 
+          type="button" 
+          @click="setTab('export')"
+          :class="activeTab === 'export' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-file-export w-5 text-center" :class="activeTab === 'export' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Export & Arsip</span>
+        </button>
+
+        <!-- Tab Baru: Trial / Live -->
+        <button 
+          type="button"
+          @click="setTab('trial-live')"
+          :class="activeTab === 'trial-live' ? 'bg-brand-50 text-brand-700 font-bold border-l-4 border-brand-600 shadow-xs' : 'text-stone-600 hover:bg-stone-100'"
+          class="w-full flex items-center gap-3 px-4 py-3 text-left transition cursor-pointer rounded-xl">
+          <i class="fa-solid fa-flask text-sm" :class="activeTab === 'trial-live' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span class="text-sm">Trial / Live</span>
+        </button>
+
+      </div>
+
+      <!-- Footer Sidebar: Info Periode -->
+      <div class="p-4 border-t border-stone-200 bg-stone-50/70">
+        <div class="p-3 rounded-xl bg-white border border-stone-200 text-xs space-y-1">
+          <div class="flex items-center justify-between text-stone-500 font-medium">
+            <span>Periode Aktif:</span>
+            <span class="font-bold text-stone-800 font-mono" x-text="bulanAktif"></span>
+          </div>
+          <div class="flex items-center justify-between text-stone-500 font-medium">
+            <span>Mode Sistem:</span>
+            <span class="px-1.5 py-0.5 rounded font-extrabold uppercase text-[10px]" :class="isProductionMode ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" x-text="isProductionMode ? 'PRODUKSI (LIVE)' : 'TRIAL / UJI COBA'"></span>
+          </div>
+          <div class="flex items-center justify-between text-stone-500 font-medium">
+            <span>Status Buku:</span>
+            <span class="inline-flex items-center gap-1 font-bold" :class="isPeriodClosed(bulanAktif) ? 'text-rose-600' : 'text-emerald-600'">
+              <span class="w-1.5 h-1.5 rounded-full" :class="isPeriodClosed(bulanAktif) ? 'bg-rose-500' : 'bg-emerald-500'"></span>
+              <span x-text="isPeriodClosed(bulanAktif) ? 'Ditutup' : 'Terbuka'"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- 3. KONTEN AREA UTAMA                                                -->
+    <!-- =================================================================== -->
+    <main class="flex-1 max-h-screen overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      
+      <!-- ================================================================= -->
+      <!-- TAB 1: DASHBOARD RINGKASAN KEUANGAN                               -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'dashboard'" x-cloak class="space-y-6">
+        
+        <!-- Header Section Dashboard -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-stone-200">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Ringkasan Eksekutif Keuangan</h2>
+              <template x-if="isDatabaseEmpty">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  Belum ada data / Database masih kosong
+                </span>
+              </template>
+            </div>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Status kesehatan neraca, likuiditas kas, dan profitabilitas bisnis.</p>
+          </div>
+
+          <!-- Periode Selector -->
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-stone-500 uppercase">Periode:</label>
+            <input 
+              type="month" 
+              x-model="bulanAktif" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500" 
+            />
+          </div>
+        </div>
+
+        <!-- GRID 4x2 FINANCIAL CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <!-- Card 1: Total Aset (Biru) -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-blue-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Total Aset</span>
+              <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <i class="fa-solid fa-vault text-sm"></i>
+              </div>
+            </div>
+            <div class="text-2xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.totalAset)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Kas, bank, piutang & perlengkapan</p>
+          </div>
+
+          <!-- Card 2: Total Kewajiban (Merah) -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-red-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">Total Kewajiban</span>
+              <div class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <i class="fa-solid fa-hand-holding-dollar text-sm"></i>
+              </div>
+            </div>
+            <div class="text-2xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.totalKewajiban)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Hutang supplier & beban berjalan</p>
+          </div>
+
+          <!-- Card 3: Total Ekuitas (Hijau) -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-green-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">Total Ekuitas</span>
+              <div class="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                <i class="fa-solid fa-landmark text-sm"></i>
+              </div>
+            </div>
+            <div class="text-2xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.totalEkuitas)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Modal bersih pemilik + laba ditahan</p>
+          </div>
+
+          <!-- Card 4: Laba Bulan Ini (Emerald) -->
+          <div class="p-5 rounded-2xl bg-white border border-emerald-200 shadow-xs relative overflow-hidden group bg-gradient-to-br from-emerald-50/40 to-white">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200">Laba Bulan Ini</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <i class="fa-solid fa-arrow-trend-up text-sm"></i>
+              </div>
+            </div>
+            <div class="text-2xl font-extrabold text-emerald-700 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.labaBulanIni)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Net profit periode berjalan</p>
+          </div>
+
+          <!-- Card 5: Kas di Tangan (Cash) -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-sky-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">Kas di Tangan</span>
+              <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                <i class="fa-solid fa-money-bill-wave text-sm"></i>
+              </div>
+            </div>
+            <div class="text-xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.kasDiTangan)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Uang fisik di laci kasir & brankas</p>
+          </div>
+
+          <!-- Card 6: Bank (BCA) -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-indigo-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">Rekening Bank</span>
+              <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <i class="fa-solid fa-building-columns text-sm"></i>
+              </div>
+            </div>
+            <div class="text-xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.kasDiBank)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Saldo rekening BCA Operasional</p>
+          </div>
+
+          <!-- Card 7: Piutang Pelanggan -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-amber-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Piutang Usaha</span>
+              <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i class="fa-solid fa-file-invoice text-sm"></i>
+              </div>
+            </div>
+            <div class="text-xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.piutang)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Pesanan catering & invoice belum lunas</p>
+          </div>
+
+          <!-- Card 8: Hutang Supplier -->
+          <div class="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs relative overflow-hidden group hover:border-rose-300 transition">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">Hutang Supplier</span>
+              <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                <i class="fa-solid fa-truck-ramp-box text-sm"></i>
+              </div>
+            </div>
+            <div class="text-xl font-extrabold text-stone-900 font-mono tracking-tight" x-text="formatRupiah(summaryMetrics.hutangSupplier)"></div>
+            <p class="text-[11px] text-stone-500 mt-1">Tempo bahan baku ayam & bumbu</p>
+          </div>
+
+        </div>
+
+        <!-- GRAFIK ARUS KAS (Chart.js Line Chart) -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-xs space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-brand-600"></i>
+                <span>Tren Arus Kas Masuk vs Kas Keluar (30 Hari Terakhir)</span>
+              </h3>
+              <p class="text-xs text-stone-500">Visualisasi likuiditas harian dan pergerakan dana kas & bank.</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-bold">
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="text-stone-700">Kas Masuk (Inflow)</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                <span class="text-stone-700">Kas Keluar (Outflow)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="h-72 w-full relative">
+            <canvas id="cashFlowChartCanvas"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 2: CHART OF ACCOUNTS (COA)                                    -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'coa'" x-cloak class="space-y-6">
+        
+        <!-- Header & Action Bar COA -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-stone-200">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Bagan Akun Standar (Chart of Accounts)</h2>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Struktur klasifikasi akun akuntansi untuk pembukuan resto & catering.</p>
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <!-- Filter Tipe Akun -->
+            <select 
+              x-model="coaFilterType" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:ring-2 focus:ring-brand-500 shadow-2xs">
+              <option value="all">Semua Tipe Akun</option>
+              <option value="Aset">Aset</option>
+              <option value="Kewajiban">Kewajiban</option>
+              <option value="Ekuitas">Ekuitas</option>
+              <option value="Pendapatan">Pendapatan</option>
+              <option value="Beban">Beban</option>
+            </select>
+
+            <!-- Tombol Tambah Akun Baru -->
+            <button 
+              type="button" 
+              @click="modalAddAkun = true"
+              class="h-10 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xs transition cursor-pointer">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Tambah Akun</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabel Akun COA (Responsive) -->
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-stone-600">
+              <thead class="bg-stone-50/80 text-stone-500 font-extrabold uppercase border-b border-stone-200 tracking-wider">
+                <tr>
+                  <th class="py-3.5 px-4 sm:px-6">Kode</th>
+                  <th class="py-3.5 px-4">Nama Akun</th>
+                  <th class="py-3.5 px-4">Tipe</th>
+                  <th class="py-3.5 px-4 text-right">Saldo Awal</th>
+                  <th class="py-3.5 px-4 text-right">Saldo Saat Ini</th>
+                  <th class="py-3.5 px-4 sm:px-6 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-stone-100 font-medium">
+                <template x-for="item in coaList.filter(c => coaFilterType === 'all' || c.type === coaFilterType)" :key="item.code">
+                  <tr class="hover:bg-stone-50/70 transition">
+                    <td class="py-3.5 px-4 sm:px-6 font-bold font-mono text-stone-900" x-text="item.code"></td>
+                    <td class="py-3.5 px-4 font-bold text-stone-900" x-text="item.name"></td>
+                    <td class="py-3.5 px-4">
+                      <span 
+                        class="px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase border"
+                        :class="getTypeBadgeClass(item.type)"
+                        x-text="item.type">
+                      </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right font-mono font-semibold text-stone-700" x-text="formatRupiah(item.initialBalance)"></td>
+                    <td class="py-3.5 px-4 text-right font-mono font-black text-stone-900 text-sm" x-text="formatRupiah(item.currentBalance)"></td>
+                    <td class="py-3.5 px-4 sm:px-6 text-center">
+                      <div class="flex items-center justify-center gap-1.5">
+                        <button 
+                          type="button" 
+                          @click="openEditCoaWithPin(item)"
+                          class="h-8 px-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 text-stone-700 text-xs font-bold transition cursor-pointer"
+                          title="Edit Saldo Awal">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                          <span class="ml-1 hidden sm:inline">Edit</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          @click="ledgerAkun = item.code; setTab('ledger')"
+                          class="h-8 px-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 text-stone-700 text-xs font-bold transition cursor-pointer"
+                          title="Buka Buku Besar Akun">
+                          <i class="fa-solid fa-book-open"></i>
+                          <span class="ml-1 hidden sm:inline">Ledger</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 3: JURNAL UMUM                                                -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'jurnal'" x-cloak class="space-y-6">
+        
+        <!-- Filter & Search Bar Jurnal -->
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-stone-200">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Jurnal Umum (General Journal)</h2>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Semua pencatatan transaksi ganda (Double Entry) operasional resto.</p>
+          </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 w-full lg:w-auto">
+            <!-- Filter Bulan -->
+            <input 
+              type="month" 
+              x-model="bulanAktif" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500" 
+            />
+
+            <!-- ✅ Batch B: Filter Tanggal -->
+            <div class="flex items-center gap-1">
+              <input 
+                type="date" 
+                x-model="journalFilterDate" 
+                title="Filter tanggal jurnal"
+                class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-mono text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500" 
+              />
+              <span x-show="journalFilterDate" class="text-[10px] font-mono text-stone-500 whitespace-nowrap" x-text="filteredJurnalCount + ' jr'"></span>
+              <button 
+                type="button"
+                x-show="journalFilterDate"
+                @click="journalFilterDate = ''"
+                class="h-10 w-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center cursor-pointer"
+                title="Clear filter tanggal">
+                <i class="fa-solid fa-xmark text-[11px]"></i>
+              </button>
+            </div>
+
+            <!-- Filter Akun -->
+            <select 
+              x-model="jurnalFilterAkun" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500">
+              <option value="all">Semua Akun</option>
+              <template x-for="acc in coaList" :key="acc.code">
+                <option :value="acc.code" x-text="acc.code + ' - ' + acc.name"></option>
+              </template>
+            </select>
+
+            <!-- Search Deskripsi / No Entry -->
+            <div class="relative">
+              <input 
+                type="text" 
+                x-model="jurnalSearch" 
+                placeholder="Cari deskripsi / ref..." 
+                class="h-10 pl-8 pr-3 rounded-xl border border-stone-300 bg-white text-xs text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500 w-full" 
+              />
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-xs text-stone-400"></i>
+            </div>
+
+            <!-- Tombol Tambah Manual -->
+            <button 
+              type="button" 
+              @click="setTab('input')"
+              class="h-10 px-3 sm:px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Jurnal Baru</span>
+            </button>
+
+            <!-- Tombol Export CSV Jurnal -->
+            <button 
+              type="button" 
+              @click="if (typeof exportJurnalCSV === 'function') exportJurnalCSV(); else alert('Mengunduh CSV Jurnal Umum...');"
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+              title="Export CSV Jurnal">
+              <i class="fa-solid fa-file-csv text-emerald-600 text-sm"></i>
+              <span class="hidden sm:inline">CSV</span>
+            </button>
+          </div>
+        </div>
+
+                <!-- Tabel Jurnal Umum (Responsive) -->
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-xs overflow-hidden">
+          <!-- ✅ Mobile scroll hint -->
+          <div class="md:hidden px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-left-right text-amber-600"></i>
+            <span>Geser tabel ke kanan untuk lihat kolom <strong>Debit</strong>, <strong>Kredit</strong>, <strong>Aksi</strong></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[800px] text-left text-xs text-stone-600">
+              <thead class="bg-stone-50/80 text-stone-500 font-extrabold uppercase border-b border-stone-200 tracking-wider">
+                <tr>
+                  <th class="py-3.5 px-4 sm:px-6">Tanggal</th>
+                  <th class="py-3.5 px-3">No. Entry</th>
+                  <th class="py-3.5 px-4">Deskripsi / Keterangan</th>
+                  <th class="py-3.5 px-4">Akun Debit / Kredit</th>
+                  <th class="py-3.5 px-4 text-right">Debit (Rp)</th>
+                  <th class="py-3.5 px-4 text-right">Kredit (Rp)</th>
+                  <th class="py-3.5 px-3">Ref</th>
+                  <th class="py-3.5 px-4 sm:px-6 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-stone-100 font-medium">
+                <template x-for="jrn in filteredJurnalList" :key="jrn.id">
+                  <tr class="hover:bg-stone-50/70 transition">
+                    <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-800" x-text="jrn.date"></td>
+                    <td class="py-3.5 px-3 font-mono font-bold text-brand-700" x-text="jrn.noEntry"></td>
+                    <td class="py-3.5 px-4">
+                      <p class="font-bold text-stone-900" x-text="jrn.desc"></p>
+                    </td>
+                    <td class="py-3.5 px-4 space-y-1">
+                      <div class="font-semibold text-stone-800">
+                        <span class="font-mono text-[11px] text-stone-500 mr-1" x-text="jrn.debitCode"></span>
+                        <span x-text="jrn.debitName"></span>
+                      </div>
+                      <div class="font-semibold text-stone-600 pl-4">
+                        <span class="font-mono text-[11px] text-stone-400 mr-1" x-text="jrn.creditCode"></span>
+                        <span x-text="jrn.creditName"></span>
+                      </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-right space-y-1 font-mono">
+                      <div class="font-bold text-emerald-700" x-text="formatRupiah(jrn.debitAmount)"></div>
+                      <div class="text-stone-400">-</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-right space-y-1 font-mono">
+                      <div class="text-stone-400">-</div>
+                      <div class="font-bold text-rose-700" x-text="formatRupiah(jrn.creditAmount)"></div>
+                    </td>
+                    <td class="py-3.5 px-3 font-mono text-[11px] text-stone-500" x-text="jrn.ref || '-'"></td>
+                    <td class="py-3.5 px-4 sm:px-6 text-center">
+                      <div class="flex items-center justify-center gap-1.5">
+                        <button 
+                          type="button" 
+                          @click="selectedJurnal = { ...jrn }; modalDetailJurnal = true"
+                          class="h-8 px-2.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 text-stone-700 text-xs font-bold transition cursor-pointer"
+                          title="Lihat Detail">
+                          <i class="fa-solid fa-circle-info"></i>
+                          <span class="ml-1 hidden xl:inline">Detail</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          @click="openEditJournalModal(jrn)"
+                          class="h-8 px-2.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-300 text-amber-800 text-xs font-bold transition cursor-pointer"
+                          title="Edit Jurnal">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                          <span class="ml-1 hidden sm:inline">Edit</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          @click="openDeleteJournalModal(jrn)"
+                          class="h-8 px-2.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 text-rose-700 text-xs font-bold transition cursor-pointer"
+                          title="Hapus Jurnal">
+                          <i class="fa-solid fa-trash-can"></i>
+                          <span class="ml-1 hidden sm:inline">Hapus</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 4: BUKU BESAR (LEDGER)                                        -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'ledger'" x-cloak class="space-y-6">
+        
+        <!-- Selector Akun Buku Besar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-stone-200">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Buku Besar Akun (General Ledger)</h2>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Mutasi rinci debit & kredit beserta saldo berjalan per akun.</p>
+          </div>
+
+          <!-- Dropdown Pilih Akun + Filter Tanggal -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <label class="text-xs font-bold text-stone-500 uppercase">Pilih Akun:</label>
+            <select 
+              x-model="ledgerAkun" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500 min-w-[240px]">
+              <template x-for="acc in coaList" :key="acc.code">
+                <option :value="acc.code" x-text="acc.code + ' - ' + acc.name"></option>
+              </template>
+            </select>
+            <!-- ✅ Batch B: Filter Tanggal Ledger -->
+            <input 
+              type="date" 
+              x-model="ledgerFilterDate" 
+              title="Filter tanggal mutasi"
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-mono text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500" 
+            />
+            <button 
+              type="button"
+              x-show="ledgerFilterDate"
+              @click="ledgerFilterDate = ''"
+              class="h-10 w-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center cursor-pointer"
+              title="Clear filter tanggal">
+              <i class="fa-solid fa-xmark text-[11px]"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Info Saldo Ringkas Akun Terpilih -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-bold uppercase">Saldo Awal Bulan</span>
+            <div class="text-xl font-extrabold text-stone-900 font-mono mt-1" x-text="formatRupiah(ledgerData.openingBalance || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-emerald-600 font-bold uppercase">Total Mutasi Debit</span>
+            <div class="text-xl font-extrabold text-emerald-700 font-mono mt-1" x-text="formatRupiah(ledgerData.totalDebit || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-rose-600 font-bold uppercase">Total Mutasi Kredit</span>
+            <div class="text-xl font-extrabold text-rose-700 font-mono mt-1" x-text="formatRupiah(ledgerData.totalCredit || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-brand-200 shadow-xs bg-brand-50/30">
+            <span class="text-xs text-brand-700 font-bold uppercase">Saldo Akhir Berjalan</span>
+            <div class="text-xl font-extrabold text-brand-800 font-mono mt-1" x-text="formatRupiah(ledgerData.closingBalance || 0)"></div>
+          </div>
+        </div>
+
+                <!-- Tabel Mutasi Transaksi Ledger (Responsive) -->
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-xs overflow-hidden">
+          <div class="md:hidden px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-left-right text-amber-600"></i>
+            <span>Geser tabel ke kanan untuk lihat kolom <strong>Debit</strong>, <strong>Kredit</strong>, <strong>Saldo</strong></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-stone-600">
+              <thead class="bg-stone-50/80 text-stone-500 font-extrabold uppercase border-b border-stone-200 tracking-wider">
+                <tr>
+                  <th class="py-3.5 px-4 sm:px-6">Tanggal</th>
+                  <th class="py-3.5 px-4">No. Ref</th>
+                  <th class="py-3.5 px-6">Deskripsi Transaksi</th>
+                  <th class="py-3.5 px-4 text-right">Debit (Rp)</th>
+                  <th class="py-3.5 px-4 text-right">Kredit (Rp)</th>
+                  <th class="py-3.5 px-4 sm:px-6 text-right">Saldo Berjalan</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-stone-100 font-medium">
+                <!-- Baris Saldo Awal -->
+                <tr class="bg-stone-50/40">
+                  <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-500" x-text="bulanAktif + '-01'"></td>
+                  <td class="py-3.5 px-4 font-mono text-stone-400">SALDO-AWAL</td>
+                  <td class="py-3.5 px-6 font-bold text-stone-700 italic">Saldo Awal Periode Buku</td>
+                  <td class="py-3.5 px-4 text-right font-mono text-stone-400">-</td>
+                  <td class="py-3.5 px-4 text-right font-mono text-stone-400">-</td>
+                  <td class="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-stone-900" x-text="formatRupiah(ledgerData.openingBalance || 0)"></td>
+                </tr>
+
+                <!-- Mutasi Jurnal yang relevan dengan ledgerAkun -->
+                <template x-for="(t, idx) in filteredLedgerTransactions" :key="idx">
+                  <tr class="hover:bg-stone-50/70 transition">
+                    <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-800" x-text="t.date"></td>
+                    <td class="py-3.5 px-4 font-mono text-brand-700 font-bold" x-text="t.ref"></td>
+                    <td class="py-3.5 px-6 font-bold text-stone-900" x-text="t.desc"></td>
+                    <td class="py-3.5 px-4 text-right font-mono" :class="t.debit > 0 ? 'font-bold text-emerald-700' : 'text-stone-300'" x-text="t.debit > 0 ? formatRupiah(t.debit) : '-'"></td>
+                    <td class="py-3.5 px-4 text-right font-mono" :class="t.credit > 0 ? 'font-bold text-rose-700' : 'text-stone-300'" x-text="t.credit > 0 ? formatRupiah(t.credit) : '-'"></td>
+                    <td class="py-3.5 px-4 sm:px-6 text-right font-mono font-black text-stone-900" x-text="formatRupiah(t.runningBalance || 0)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 5: LAPORAN KEUANGAN                                           -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'laporan'" x-cloak class="space-y-6">
+        
+        <!-- Header & Sub-Tab Laporan + Tombol Print/Export PDF -->
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-stone-200">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Laporan Keuangan Standar SAK EMKM</h2>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Laba Rugi, Arus Kas, dan Neraca untuk evaluasi bisnis dan pajak.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Filter Bulan & Tahun -->
+            <input 
+              type="month" 
+              x-model="bulanAktif" 
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500" 
+            />
+
+            <!-- Tombol Cetak / PDF -->
+            <button 
+              type="button" 
+              onclick="window.print()"
+              class="h-10 px-4 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xs transition cursor-pointer">
+              <i class="fa-solid fa-print text-xs"></i>
+              <span>Cetak / Export PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sub-Nav Pill Laporan -->
+        <div class="flex items-center gap-2 p-1.5 rounded-2xl bg-stone-200/70 max-w-fit">
+          <button 
+            type="button" 
+            @click="reportSubTab = 'pl'"
+            :class="reportSubTab === 'pl' ? 'bg-white text-stone-900 font-extrabold shadow-xs' : 'text-stone-600 hover:text-stone-900 font-semibold'"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm transition cursor-pointer">
+            Laba Rugi (P&L)
+          </button>
+          <button 
+            type="button" 
+            @click="reportSubTab = 'cashFlow'"
+            :class="reportSubTab === 'cashFlow' ? 'bg-white text-stone-900 font-extrabold shadow-xs' : 'text-stone-600 hover:text-stone-900 font-semibold'"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm transition cursor-pointer">
+            Arus Kas (Cash Flow)
+          </button>
+          <button 
+            type="button" 
+            @click="reportSubTab = 'balanceSheet'"
+            :class="reportSubTab === 'balanceSheet' ? 'bg-white text-stone-900 font-extrabold shadow-xs' : 'text-stone-600 hover:text-stone-900 font-semibold'"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm transition cursor-pointer">
+            Neraca (Balance Sheet)
+          </button>
+        </div>
+
+        <!-- PRINT AREA CONTAINER (Dipakai juga saat cetak browser) -->
+        <div id="printArea" class="space-y-6">
+          
+          <!-- KOP LAPORAN (Muncul saat print) -->
+          <div class="p-6 rounded-3xl bg-white border border-stone-200 shadow-xs space-y-6">
+            
+            <div class="border-b-2 border-stone-900 pb-4 text-center space-y-1">
+              <h4 class="..." x-text="siteName.toUpperCase()">DAPUR KULINER VIRAL</h4>
+              <h4 class="text-base font-bold text-stone-700" x-text="reportSubTab === 'pl' ? 'LAPORAN LABA RUGI KOMPREHENSIF' : (reportSubTab === 'cashFlow' ? 'LAPORAN ARUS KAS (METODE LANGSUNG)' : 'LAPORAN POSISI KEUANGAN (NERACA)')"></h4>
+              <p class="text-xs text-stone-500 font-mono">Untuk Periode yang Berakhir pada <span x-text="bulanAktif"></span></p>
+            </div>
+
+            <!-- 5.1 FORMAT LABA RUGI -->
+            <div x-show="reportSubTab === 'pl'" class="space-y-6 text-sm text-stone-800">
+              
+              <!-- Bagian 1: Pendapatan -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  1. PENDAPATAN USAHA
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pendapatan Penjualan Kasir POS</span>
+                    <span class="font-mono font-bold text-emerald-700" x-text="formatRupiah(laporanData.pl.pendapatanPOS)"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pendapatan Pesanan Catering & Event</span>
+                    <span class="font-mono font-bold text-emerald-700" x-text="formatRupiah(laporanData.pl.pendapatanCatering)"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-stone-900 font-extrabold">
+                    <span>TOTAL PENDAPATAN USAHA</span>
+                    <span class="font-mono text-emerald-700" x-text="formatRupiah(laporanData.pl.totalPendapatan)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bagian 2: HPP -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  2. HARGA POKOK PENJUALAN (HPP)
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Biaya Bahan Baku & Daging Segar</span>
+                    <span class="font-mono font-bold text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.hpp) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-brand-800 font-black text-base border-y-2 border-stone-200">
+                    <span>LABA KOTOR (GROSS PROFIT)</span>
+                    <span class="font-mono" x-text="formatRupiah(laporanData.pl.labaKotor)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bagian 3: Beban Operasional -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  3. BEBAN OPERASIONAL
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Gaji Karyawan & Kasir</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.bebanGaji) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Sewa Tempat Outlet</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.bebanSewa) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Listrik, Air & Tabung Gas</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.bebanListrik) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Marketing & Promosi Sosial Media</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.bebanMarketing) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Biaya Kurir & Packaging Box</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.bebanOperasional) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-stone-900 font-extrabold">
+                    <span>TOTAL BEBAN OPERASIONAL</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.pl.totalBeban) + ')'"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Total Laba Bersih -->
+              <div class="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 flex items-center justify-between text-base sm:text-lg font-black text-emerald-900">
+                <span>LABA BERSIH (NET PROFIT)</span>
+                <span class="font-mono text-xl sm:text-2xl" :class="laporanData.pl.labaBersih >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.pl.labaBersih)"></span>
+              </div>
+
+            </div>
+
+            <!-- 5.2 FORMAT ARUS KAS -->
+            <div x-show="reportSubTab === 'cashFlow'" class="space-y-6 text-sm text-stone-800">
+              
+              <!-- Arus Kas Operasi -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  ARUS KAS DARI AKTIVITAS OPERASI
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Penerimaan Kas dari Pelanggan</span>
+                    <span class="font-mono font-bold text-emerald-700" x-text="formatRupiah(laporanData.cashFlow.penerimaanPelanggan)"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pembayaran Kas ke Supplier Bahan</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.cashFlow.pembayaranSupplier) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pembayaran Gaji Karyawan</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.cashFlow.pembayaranGaji) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pembayaran Operasional & Utilitas</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.cashFlow.pembayaranOperasional) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-stone-900 font-extrabold">
+                    <span>KAS BERSIH DARI OPERASI</span>
+                    <span class="font-mono font-bold" :class="laporanData.cashFlow.kasBersihOperasi >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.cashFlow.kasBersihOperasi)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Arus Kas Investasi -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  ARUS KAS DARI AKTIVITAS INVESTASI
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Pembelian Peralatan Mesin Penggorengan & Kasir</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.cashFlow.pembelianPeralatan) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-stone-900 font-extrabold">
+                    <span>KAS BERSIH DARI INVESTASI</span>
+                    <span class="font-mono font-bold" :class="laporanData.cashFlow.kasBersihInvestasi >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.cashFlow.kasBersihInvestasi)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Arus Kas Pendanaan -->
+              <div class="space-y-2">
+                <div class="font-extrabold uppercase text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                  ARUS KAS DARI AKTIVITAS PENDANAAN
+                </div>
+                <div class="pl-4 pr-2 space-y-1.5">
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Setoran Tambahan Modal Pemilik</span>
+                    <span class="font-mono font-bold text-emerald-700" x-text="formatRupiah(laporanData.cashFlow.setoranModal)"></span>
+                  </div>
+                  <div class="flex justify-between py-1 border-b border-stone-100">
+                    <span>Prive / Pengambilan Pribadi Pemilik</span>
+                    <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.cashFlow.prive) + ')'"></span>
+                  </div>
+                  <div class="flex justify-between py-2 text-stone-900 font-extrabold">
+                    <span>KAS BERSIH DARI PENDANAAN</span>
+                    <span class="font-mono font-bold" :class="laporanData.cashFlow.kasBersihPendanaan >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.cashFlow.kasBersihPendanaan)"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rekonsiliasi Kenaikan Kas -->
+              <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 font-mono">
+                <div class="flex justify-between text-stone-700 font-bold">
+                  <span>KENAIKAN (PENURUNAN) KAS BERSIH</span>
+                  <span :class="laporanData.cashFlow.kenaikanKas >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.cashFlow.kenaikanKas)"></span>
+                </div>
+                <div class="flex justify-between text-stone-500">
+                  <span>SALDO KAS & BANK AWAL PERIODE</span>
+                  <span x-text="formatRupiah(laporanData.cashFlow.kasAwal)"></span>
+                </div>
+                <div class="flex justify-between text-stone-900 font-black text-base pt-2 border-t border-stone-200">
+                  <span>SALDO KAS & BANK AKHIR PERIODE</span>
+                  <span class="text-brand-700 text-lg" x-text="formatRupiah(laporanData.cashFlow.kasAkhir)"></span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 5.3 FORMAT NERACA (BALANCE SHEET) -->
+            <div x-show="reportSubTab === 'balanceSheet'" class="space-y-6 text-sm text-stone-800">
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- SISI KIRI: ASET -->
+                <div class="space-y-4">
+                  <div class="font-extrabold uppercase text-blue-900 bg-blue-50 p-2.5 rounded-xl border border-blue-200">
+                    ASET (AKTIVA)
+                  </div>
+                  
+                  <!-- Aset Lancar -->
+                  <div class="pl-2 space-y-1.5">
+                    <span class="text-xs font-bold text-stone-500 uppercase">Aset Lancar:</span>
+                    <div class="flex justify-between py-1 border-b border-stone-100">
+                      <span>Kas di Tangan</span>
+                      <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.kas)"></span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-stone-100">
+                      <span>Kas di Bank (BCA)</span>
+                      <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.bank)"></span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-stone-100">
+                      <span>Piutang Usaha</span>
+                      <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.piutang)"></span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-stone-100">
+                      <span>Persediaan Bahan Baku</span>
+                      <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.persediaan)"></span>
+                    </div>
+                    <div class="flex justify-between py-1.5 font-bold text-stone-900">
+                      <span>TOTAL ASET LANCAR</span>
+                      <span class="font-mono" x-text="formatRupiah(laporanData.balanceSheet.totalAsetLancar)"></span>
+                    </div>
+                  </div>
+
+                  <!-- Aset Tetap -->
+                  <div class="pl-2 space-y-1.5 pt-2">
+                    <span class="text-xs font-bold text-stone-500 uppercase">Aset Tetap:</span>
+                    <div class="flex justify-between py-1 border-b border-stone-100">
+                      <span>Peralatan & Mesin Dapur</span>
+                      <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.peralatan)"></span>
+                    </div>
+                  </div>
+
+                  <!-- TOTAL ASET -->
+                  <div class="p-3.5 rounded-xl bg-blue-100/70 border border-blue-300 flex justify-between font-black text-blue-950 text-base">
+                    <span>TOTAL ASET</span>
+                    <span class="font-mono text-blue-800" x-text="formatRupiah(laporanData.balanceSheet.totalAset)"></span>
+                  </div>
+                </div>
+
+                <!-- SISI KANAN: KEWAJIBAN & EKUITAS -->
+                <div class="space-y-4">
+                  
+                  <!-- Kewajiban -->
+                  <div class="space-y-2">
+                    <div class="font-extrabold uppercase text-red-900 bg-red-50 p-2.5 rounded-xl border border-red-200">
+                      KEWAJIBAN (PASIVA)
+                    </div>
+                    <div class="pl-2 space-y-1.5">
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Hutang Supplier / Dagang</span>
+                        <span class="font-mono font-bold text-rose-700" x-text="formatRupiah(laporanData.balanceSheet.hutangSupplier)"></span>
+                      </div>
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Hutang Biaya Operasional</span>
+                        <span class="font-mono font-bold text-rose-700" x-text="formatRupiah(laporanData.balanceSheet.hutangBeban)"></span>
+                      </div>
+                      <div class="flex justify-between py-1.5 font-bold text-stone-900">
+                        <span>TOTAL KEWAJIBAN</span>
+                        <span class="font-mono text-red-700" x-text="formatRupiah(laporanData.balanceSheet.totalKewajiban)"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Ekuitas -->
+                  <div class="space-y-2 pt-2">
+                    <div class="font-extrabold uppercase text-green-900 bg-green-50 p-2.5 rounded-xl border border-green-200">
+                      EKUITAS (MODAL)
+                    </div>
+                    <div class="pl-2 space-y-1.5">
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Modal Awal Pemilik</span>
+                        <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.modalPemilik)"></span>
+                      </div>
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Laba Ditahan Periode Lalu</span>
+                        <span class="font-mono font-bold" x-text="formatRupiah(laporanData.balanceSheet.labaDitahan)"></span>
+                      </div>
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Laba Bersih Periode Berjalan</span>
+                        <span class="font-mono font-bold" :class="laporanData.balanceSheet.labaBerjalan >= 0 ? 'text-emerald-700' : 'text-rose-700'" x-text="formatRupiah(laporanData.balanceSheet.labaBerjalan)"></span>
+                      </div>
+                      <div class="flex justify-between py-1 border-b border-stone-100">
+                        <span>Prive Pemilik</span>
+                        <span class="font-mono text-rose-700" x-text="'(' + formatRupiah(laporanData.balanceSheet.prive) + ')'"></span>
+                      </div>
+                      <div class="flex justify-between py-1.5 font-bold text-stone-900">
+                        <span>TOTAL EKUITAS</span>
+                        <span class="font-mono text-green-700" x-text="formatRupiah(laporanData.balanceSheet.totalEkuitas)"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- TOTAL KEWAJIBAN + EKUITAS (MATCH ASET) -->
+                  <div class="p-3.5 rounded-xl bg-stone-900 text-white flex justify-between font-black text-base shadow-sm">
+                    <span>TOTAL KEWAJIBAN + EKUITAS</span>
+                    <span class="font-mono text-emerald-400" x-text="formatRupiah(laporanData.balanceSheet.totalKewajibanEkuitas)"></span>
+                  </div>
+
+                  <!-- Balance Indicator -->
+                  <div class="text-center text-xs font-bold flex items-center justify-center gap-1.5"
+                       :class="laporanData.balanceSheet.isBalance ? 'text-emerald-600' : 'text-amber-600'">
+                    <i class="fa-solid" :class="laporanData.balanceSheet.isBalance ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
+                    <span x-text="laporanData.balanceSheet.isBalance ? 'Neraca Seimbang (Balance: Total Aset = Total Kewajiban + Ekuitas)' : ('Neraca Selisih: ' + formatRupiah(laporanData.balanceSheet.selisih))"></span>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 6: INPUT JURNAL MANUAL                                        -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'input'" x-cloak class="space-y-6">
+        
+        <!-- Header Input Manual -->
+        <div class="pb-2 border-b border-stone-200">
+          <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Input Transaksi & Jurnal Manual</h2>
+          <p class="text-xs sm:text-sm text-stone-500 font-medium">Gunakan preset cepat atau susun jurnal penyesuaian (Adjustment Entry).</p>
+        </div>
+
+        <!-- PRESET TRANSAKSI CEPAT -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-xs space-y-3">
+          <label class="text-xs font-extrabold uppercase text-stone-400 tracking-wider">Preset Transaksi Cepat:</label>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Beban Listrik, Air & Gas Outlet'; manualJournalForm.debitAccount = '6003'; manualJournalForm.creditAccount = '1001';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-brand-50 hover:border-brand-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-bolt text-brand-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Operasional</div>
+              <div class="text-[10px] text-stone-500">Listrik/Air/Gas</div>
+            </button>
+
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Setor Kas Tunai ke Bank BCA'; manualJournalForm.debitAccount = '1002'; manualJournalForm.creditAccount = '1001';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-indigo-50 hover:border-indigo-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-building-columns text-indigo-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Setor Bank</div>
+              <div class="text-[10px] text-stone-500">Kas -> BCA</div>
+            </button>
+
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Pembelian Bahan Baku Masak Tunai'; manualJournalForm.debitAccount = '5001'; manualJournalForm.creditAccount = '1001';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-emerald-50 hover:border-emerald-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-basket-shopping text-emerald-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Beli Bahan</div>
+              <div class="text-[10px] text-stone-500">HPP Tunai</div>
+            </button>
+
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Pengambilan Pribadi Pemilik (Prive)'; manualJournalForm.debitAccount = '3003'; manualJournalForm.creditAccount = '1002';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-amber-50 hover:border-amber-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-user-tag text-amber-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Prive Pemilik</div>
+              <div class="text-[10px] text-stone-500">Tarik Pribadi</div>
+            </button>
+
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Pemasukan Lain-lain / Cashback / Bonus'; manualJournalForm.debitAccount = '1002'; manualJournalForm.creditAccount = '4002';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-sky-50 hover:border-sky-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-coins text-sky-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Pemasukan Lain</div>
+              <div class="text-[10px] text-stone-500">Non-POS</div>
+            </button>
+
+            <button 
+              type="button" 
+              @click="manualJournalForm.desc = 'Penyesuaian Opname Bahan Baku / Koreksi'; manualJournalForm.debitAccount = '5001'; manualJournalForm.creditAccount = '1004';"
+              class="p-3 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-purple-50 hover:border-purple-300 text-left transition cursor-pointer">
+              <i class="fa-solid fa-sliders text-purple-600 text-sm mb-1"></i>
+              <div class="text-xs font-bold text-stone-900">Adjustment</div>
+              <div class="text-[10px] text-stone-500">Koreksi Stok/Saldo</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- FORM INPUT MANUAL -->
+        <div class="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200 shadow-xs space-y-5 max-w-3xl">
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Tanggal Transaksi</label>
+              <input 
+                type="date" 
+                x-model="manualJournalForm.date" 
+                class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-900 focus:ring-2 focus:ring-brand-500" 
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">No. Referensi / Invoice / Kuitansi</label>
+              <input 
+                type="text" 
+                x-model="manualJournalForm.ref" 
+                placeholder="Contoh: KWT-2026-009" 
+                class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs text-stone-900 focus:ring-2 focus:ring-brand-500 font-mono" 
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Deskripsi / Keterangan Transaksi</label>
+            <input 
+              type="text" 
+              x-model="manualJournalForm.desc" 
+              placeholder="Contoh: Pembayaran tagihan internet & wifi outlet bulan September" 
+              class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs text-stone-900 focus:ring-2 focus:ring-brand-500" 
+            />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-stone-50 border border-stone-200">
+            <div>
+              <label class="block text-xs font-extrabold text-emerald-800 uppercase mb-1.5">Akun Debit (+)</label>
+              <select 
+                data-role="debit-select"
+                x-init="$nextTick(() => initDebitKreditSelects())"
+                x-effect="if ($data.coaList && $data.coaList.length > 0 && $data.manualJournalForm.debitAccount !== undefined) setTimeout(() => $data.initDebitKreditSelects(), 0)"
+                class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:ring-2 focus:ring-emerald-500">
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-extrabold text-rose-800 uppercase mb-1.5">Akun Kredit (-)</label>
+              <select 
+                data-role="kredit-select"
+                x-init="$nextTick(() => initDebitKreditSelects())"
+                x-effect="if ($data.coaList && $data.coaList.length > 0 && $data.manualJournalForm.creditAccount !== undefined) setTimeout(() => $data.initDebitKreditSelects(), 0)"
+                class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:ring-2 focus:ring-rose-500">
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Jumlah Nominal (Rp)</label>
+            <div class="relative">
+              <span class="absolute left-4 top-3 text-stone-400 font-bold text-sm">Rp</span>
+              <input 
+                type="number" 
+                x-model.number="manualJournalForm.amount" 
+                min="0" 
+                step="1000" 
+                placeholder="0"
+                class="w-full h-12 pl-12 pr-4 rounded-xl border border-stone-300 text-lg font-black font-mono text-stone-900 focus:ring-2 focus:ring-brand-500" 
+              />
+            </div>
+            <p class="text-[11px] text-stone-500 mt-1 font-mono">Terbilang: <span class="font-bold text-stone-700" x-text="formatRupiah(manualJournalForm.amount)"></span></p>
+          </div>
+
+          <!-- Upload Bukti / Dokumen Pendukung -->
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Bukti Transaksi (Foto Struk / Nota / Transfer)</label>
+            <div class="flex items-center gap-3">
+              <label class="h-11 px-4 rounded-xl border border-stone-300 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center gap-2 cursor-pointer transition">
+                <i class="fa-solid fa-cloud-arrow-up text-brand-600"></i>
+                <span>Pilih Foto Bukti</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  class="hidden" 
+                  @change="
+                    const file = $event.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (e) => { manualJournalForm.proofImage = e.target.result; };
+                      reader.readAsDataURL(file);
+                    }
+                  " 
+                />
+              </label>
+
+              <template x-if="manualJournalForm.proofImage">
+                <div class="flex items-center gap-2 text-xs text-emerald-700 font-bold">
+                  <i class="fa-solid fa-image"></i>
+                  <span>Foto Bukti Terlampir</span>
+                  <button type="button" @click="manualJournalForm.proofImage = ''" class="text-rose-600 hover:text-rose-800 ml-1">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Tombol Simpan Jurnal -->
+          <div class="pt-3">
+            <button 
+              type="button" 
+                        @click="tambahJurnalManual()"
+              class="w-full h-12 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md shadow-brand-500/20 transition cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>SIMPAN ENTRY JURNAL</span>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 7: EXPORT & ARSIP                                             -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'export'" x-cloak class="space-y-6">
+        
+        <!-- Header Export -->
+        <div class="pb-2 border-b border-stone-200">
+          <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Export & Pengarsipan Laporan</h2>
+          <p class="text-xs sm:text-sm text-stone-500 font-medium">Unduh berkas pembukuan dalam format PDF, CSV, atau Excel spreadsheet.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- FORM EXPORT GENERATOR -->
+          <div class="lg:col-span-1 bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4">
+            <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+              <i class="fa-solid fa-file-arrow-down text-brand-600"></i>
+              <span>Pusat Unduhan</span>
+            </h3>
+
+            <div>
+              <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Periode Laporan</label>
+              <input 
+                type="month" 
+                x-model="exportForm.period" 
+                class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-900 focus:ring-2 focus:ring-brand-500" 
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Jenis Laporan</label>
+              <select 
+                x-model="exportForm.reportType" 
+                @change="onReportTypeChange()"
+                class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:ring-2 focus:ring-brand-500">
+                <option value="all">Semua Laporan (Paket Lengkap)</option>
+                <!-- FITUR: riwayat order cash/transfer/qris/online-rekonsiliasi + void, dikelompokkan per metode -->
+                <option value="txDetail">Laporan Transaksi Detail</option>
+                <option value="pl">Laporan Laba Rugi (P&L)</option>
+                <option value="cashFlow">Laporan Arus Kas (Cash Flow)</option>
+                <option value="balanceSheet">Neraca Keuangan</option>
+                <option value="journal">Jurnal Umum Lengkap</option>
+                <option value="ledger">Buku Besar Semua Akun</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Format Berkas</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button 
+                  type="button" 
+                  @click="exportForm.format = 'pdf'"
+                  :class="exportForm.format === 'pdf' ? 'bg-rose-50 border-rose-400 text-rose-700 font-bold' : 'border-stone-200 text-stone-600'"
+                  class="h-10 rounded-xl border flex items-center justify-center gap-1.5 text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                  <span>PDF</span>
+                </button>
+                <button 
+                  type="button" 
+                  @click="exportForm.format = 'csv'"
+                  :class="exportForm.format === 'csv' ? 'bg-emerald-50 border-emerald-400 text-emerald-700 font-bold' : 'border-stone-200 text-stone-600'"
+                  class="h-10 rounded-xl border flex items-center justify-center gap-1.5 text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-file-csv text-emerald-600"></i>
+                  <span>CSV</span>
+                </button>
+                <button 
+                  type="button" 
+                  @click="exportForm.format = 'xlsx'"
+                  :class="exportForm.format === 'xlsx' ? 'bg-green-50 border-green-400 text-green-700 font-bold' : 'border-stone-200 text-stone-600'"
+                  class="h-10 rounded-xl border flex items-center justify-center gap-1.5 text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-file-excel text-green-600"></i>
+                  <span>XLSX</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <button 
+                type="button" 
+                @click="handleExportData(exportForm)"
+                class="w-full h-11 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-xs">
+                <i class="fa-solid fa-download text-xs"></i>
+                <span>GENERATE & DOWNLOAD</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- RIWAYAT EXPORT (7 TERAKHIR) -->
+          <div class="lg:col-span-2 bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4">
+            <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-stone-400"></i>
+              <span>Riwayat Unduhan & Arsip Berkas</span>
+            </h3>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-stone-600">
+                <thead class="bg-stone-50 text-stone-500 font-extrabold uppercase border-b border-stone-200">
+                  <tr>
+                    <th class="py-3 px-3">Waktu Generate</th>
+                    <th class="py-3 px-3">Jenis Laporan</th>
+                    <th class="py-3 px-3">Periode</th>
+                    <th class="py-3 px-3">Format</th>
+                    <th class="py-3 px-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-100 font-medium">
+                  <template x-for="(exp, idx) in exportHistory" :key="idx">
+                    <tr class="hover:bg-stone-50/70 transition">
+                      <td class="py-3 px-3 font-mono text-stone-700" x-text="exp.date"></td>
+                      <td class="py-3 px-3 font-bold text-stone-900" x-text="exp.report"></td>
+                      <td class="py-3 px-3 font-mono" x-text="exp.period"></td>
+                      <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase" :class="exp.format === 'PDF' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'" x-text="exp.format"></span>
+                      </td>
+                      <td class="py-3 px-3 text-center text-emerald-600 font-bold">
+                        <i class="fa-solid fa-circle-check mr-1"></i> <span x-text="exp.status"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- FITUR: PREVIEW LAPORAN TRANSAKSI DETAIL (muncul saat reportType = txDetail) -->
+        <!-- ================================================================= -->
+        <div x-show="exportForm.reportType === 'txDetail'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-xs space-y-4">
+
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-brand-600"></i>
+                <span>Laporan Transaksi Detail</span>
+              </h3>
+              <p class="text-xs text-stone-500 mt-1">
+                Riwayat order <strong>tunai, QRIS, transfer/e-wallet, online (rekonsiliasi)</strong> dan
+                <strong>void</strong> — 1 request per periode (bulanan <code class="text-[10px]">?month=</code> /
+                mingguan <code class="text-[10px]">?start=&amp;end=</code>).
+              </p>
+              <p class="text-[11px] font-bold text-stone-600 mt-0.5" x-show="txDetail.periode">
+                Periode aktif: <span x-text="txDetail.periode"></span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- periode: bulanan (bulan terpilih) atau mingguan (7 hari terakhir) -->
+              <div class="grid grid-cols-2 gap-1 p-1 bg-stone-100 rounded-xl">
+                <button type="button" @click="loadTransaksiDetail(exportForm.period, 'month')"
+                  :class="txDetail.rangeMode === 'month' ? 'bg-white text-brand-700 shadow-sm font-bold' : 'text-stone-500 font-semibold'"
+                  class="px-3 h-8 rounded-lg text-[11px] transition cursor-pointer">Bulanan</button>
+                <button type="button" @click="loadTransaksiDetail(exportForm.period, 'week')"
+                  :class="txDetail.rangeMode === 'week' ? 'bg-white text-brand-700 shadow-sm font-bold' : 'text-stone-500 font-semibold'"
+                  class="px-3 h-8 rounded-lg text-[11px] transition cursor-pointer">Mingguan</button>
+              </div>
+              <button type="button" @click="loadTransaksiDetail(exportForm.period, txDetail.rangeMode)"
+                class="h-10 px-4 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center gap-2 transition cursor-pointer">
+                <i class="fa-solid fa-rotate text-[11px]" :class="txDetail.loading ? 'animate-spin' : ''"></i>
+                <span>Muat Ulang</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading -->
+          <div x-show="txDetail.loading" class="py-10 text-center text-stone-500 space-y-2">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-brand-600"></i>
+            <p class="text-xs font-bold">Memuat transaksi periode <span x-text="exportForm.period"></span>...</p>
+          </div>
+
+          <!-- Error -->
+          <div x-show="!txDetail.loading && txDetail.error" class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs font-bold" x-text="txDetail.error"></div>
+
+          <!-- Konten -->
+          <div x-show="!txDetail.loading && !txDetail.error" class="space-y-4">
+
+            <!-- Ringkasan angka -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                <p class="text-[10px] font-bold text-stone-400 uppercase">Transaksi</p>
+                <p class="font-black text-stone-900 text-sm" x-text="txDetail.totals.count + ' normal'"></p>
+              </div>
+              <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                <p class="text-[10px] font-bold text-stone-400 uppercase">Subtotal</p>
+                <p class="font-black text-stone-900 text-sm" x-text="formatRupiah(txDetail.totals.subtotal)"></p>
+              </div>
+              <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                <p class="text-[10px] font-bold text-stone-400 uppercase">Diskon</p>
+                <p class="font-black text-amber-700 text-sm" x-text="'-' + formatRupiah(txDetail.totals.diskon)"></p>
+              </div>
+              <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                <p class="text-[10px] font-bold text-stone-400 uppercase">Pajak</p>
+                <p class="font-black text-stone-900 text-sm" x-text="formatRupiah(txDetail.totals.pajak)"></p>
+              </div>
+              <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <p class="text-[10px] font-bold text-emerald-700 uppercase">Total Penjualan</p>
+                <p class="font-black text-emerald-800 text-sm" x-text="formatRupiah(txDetail.totals.total)"></p>
+              </div>
+              <div class="p-3 rounded-2xl bg-rose-50 border border-rose-200">
+                <p class="text-[10px] font-bold text-rose-600 uppercase">Void (audit)</p>
+                <p class="font-black text-rose-700 text-sm" x-text="txDetail.totals.voidCount + ' • ' + formatRupiah(txDetail.totals.voidTotal)"></p>
+              </div>
+            </div>
+
+            <!-- Kosong -->
+            <div x-show="txDetail.rows.length === 0" class="py-8 text-center text-stone-400 text-xs border border-dashed border-stone-200 rounded-2xl">
+              <i class="fa-solid fa-inbox text-2xl mb-2 text-stone-300"></i>
+              <p class="font-bold">Tidak ada transaksi pada periode <span x-text="txDetail.periode"></span></p>
+            </div>
+
+            <!-- Tabel per metode -->
+            <template x-for="g in txDetail.groups" :key="'grp-' + g.metode">
+              <div class="border border-stone-200 rounded-2xl overflow-hidden">
+                <div class="px-4 py-2.5 bg-stone-100 flex items-center justify-between">
+                  <span class="font-black text-stone-800 text-xs uppercase tracking-wide">
+                    <i class="fa-solid fa-circle-dot text-[9px] mr-1.5 text-emerald-600"></i>
+                    <span x-text="g.metode"></span>
+                  </span>
+                  <span class="text-[11px] font-bold text-stone-600">
+                    <span x-text="g.count + ' transaksi'"></span> &bull; Subtotal
+                    <span class="text-emerald-700 font-black" x-text="formatRupiah(g.subtotal)"></span>
+                  </span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-[11px] text-stone-600 min-w-[900px]">
+                    <thead class="bg-stone-50 text-stone-500 font-extrabold uppercase border-b border-stone-200 text-[10px]">
+                      <tr>
+                        <th class="py-2 px-3">Tanggal &amp; Jam</th>
+                        <th class="py-2 px-3">Order ID</th>
+                        <th class="py-2 px-3">Items</th>
+                        <th class="py-2 px-3 text-right">Subtotal</th>
+                        <th class="py-2 px-3 text-right">Diskon</th>
+                        <th class="py-2 px-3 text-right">Pajak</th>
+                        <th class="py-2 px-3 text-right">Total</th>
+                        <th class="py-2 px-3 text-center">Status</th>
+                        <th class="py-2 px-3">Kasir &amp; Shift</th>
+                        <th class="py-2 px-3">Sumber</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stone-100 font-medium">
+                      <template x-for="r in g.rows" :key="'row-' + r.id">
+                        <tr class="hover:bg-stone-50/70">
+                          <td class="py-2 px-3 font-mono whitespace-nowrap" x-text="r.tanggal + ' ' + r.jam"></td>
+                          <td class="py-2 px-3 font-mono font-bold text-stone-800" x-text="r.orderId"></td>
+                          <td class="py-2 px-3" x-text="r.itemsText || '-'"></td>
+                          <td class="py-2 px-3 text-right font-mono" x-text="formatRupiah(r.subtotal)"></td>
+                          <td class="py-2 px-3 text-right font-mono text-amber-700" x-text="r.diskon > 0 ? '-' + formatRupiah(r.diskon) : '-'"></td>
+                          <td class="py-2 px-3 text-right font-mono" x-text="r.pajak > 0 ? formatRupiah(r.pajak) : '-'"></td>
+                          <td class="py-2 px-3 text-right font-mono font-black text-stone-900" x-text="formatRupiah(r.total)"></td>
+                          <td class="py-2 px-3 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Normal</span>
+                          </td>
+                          <td class="py-2 px-3 whitespace-nowrap">
+                            <span class="font-bold text-stone-700" x-text="r.kasir"></span>
+                            <span class="text-stone-400 font-mono text-[10px]" x-text="' / ' + r.shift"></span>
+                          </td>
+                          <td class="py-2 px-3 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                              :class="r.sumber === 'Online-rekonsiliasi' ? 'bg-indigo-100 text-indigo-800' : 'bg-stone-100 text-stone-700'"
+                              x-text="r.sumber"></span>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+
+            <!-- Section VOID (audit trail — Q3) -->
+            <div x-show="txDetail.voidRows.length > 0" class="border-2 border-rose-300 rounded-2xl overflow-hidden">
+              <div class="px-4 py-2.5 bg-rose-100 flex items-center justify-between">
+                <span class="font-black text-rose-800 text-xs uppercase tracking-wide">
+                  <i class="fa-solid fa-ban text-[10px] mr-1.5"></i>
+                  <span x-text="txDetail.voidRows.length + ' Transaksi VOID / Dibatalkan (audit, tidak dihitung sebagai penjualan)'"></span>
+                </span>
+                <span class="text-[11px] font-black text-rose-700" x-text="'(VOID) ' + formatRupiah(txDetail.totals.voidTotal)"></span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-[11px] text-stone-600 min-w-[900px]">
+                  <thead class="bg-rose-50 text-rose-700 font-extrabold uppercase border-b border-rose-200 text-[10px]">
+                    <tr>
+                      <th class="py-2 px-3">Tanggal &amp; Jam</th>
+                      <th class="py-2 px-3">Order ID</th>
+                      <th class="py-2 px-3">Metode</th>
+                      <th class="py-2 px-3">Items</th>
+                      <th class="py-2 px-3 text-right">Subtotal</th>
+                      <th class="py-2 px-3 text-right">Total</th>
+                      <th class="py-2 px-3 text-center">Status</th>
+                      <th class="py-2 px-3">Kasir &amp; Shift</th>
+                      <th class="py-2 px-3">Sumber</th>
+                      <th class="py-2 px-3">Alasan Void</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-rose-100 font-medium">
+                    <template x-for="r in txDetail.voidRows" :key="'void-' + r.id">
+                      <tr class="hover:bg-rose-50/60">
+                        <td class="py-2 px-3 font-mono whitespace-nowrap" x-text="r.tanggal + ' ' + r.jam"></td>
+                        <td class="py-2 px-3 font-mono font-bold text-stone-800" x-text="r.orderId"></td>
+                        <td class="py-2 px-3" x-text="r.metode"></td>
+                        <td class="py-2 px-3" x-text="r.itemsText || '-'"></td>
+                        <td class="py-2 px-3 text-right font-mono" x-text="formatRupiah(r.subtotal)"></td>
+                        <td class="py-2 px-3 text-right font-mono font-black text-rose-700 line-through" x-text="formatRupiah(r.total)"></td>
+                        <td class="py-2 px-3 text-center">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white">VOID</span>
+                        </td>
+                        <td class="py-2 px-3 whitespace-nowrap">
+                          <span class="font-bold text-stone-700" x-text="r.kasir"></span>
+                          <span class="text-stone-400 font-mono text-[10px]" x-text="' / ' + r.shift"></span>
+                        </td>
+                        <td class="py-2 px-3 whitespace-nowrap">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800" x-text="r.sumber"></span>
+                        </td>
+                        <td class="py-2 px-3 text-stone-500" x-text="r.voidReason || '-'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Grand total -->
+            <div x-show="txDetail.rows.length > 0" class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <div>
+                <p class="text-[10px] font-bold text-emerald-700 uppercase">Grand Total Penjualan (tanpa void)</p>
+                <p class="text-xl font-black text-emerald-800" x-text="formatRupiah(txDetail.totals.total)"></p>
+              </div>
+              <div class="text-right text-[11px] text-emerald-800 font-medium">
+                <p>Subtotal <span class="font-black" x-text="formatRupiah(txDetail.totals.subtotal)"></span> — Diskon <span class="font-black" x-text="'-' + formatRupiah(txDetail.totals.diskon)"></span> — Pajak <span class="font-black" x-text="formatRupiah(txDetail.totals.pajak)"></span></p>
+                <p class="mt-0.5">Periode <span class="font-black" x-text="txDetail.periode"></span> &bull; <span x-text="txDetail.totals.count"></span> transaksi normal + <span x-text="txDetail.totals.voidCount"></span> void</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 8: TRIAL / LIVE (SIKLUS PEMBUKUAN & DATA)                     -->
+      <!-- ================================================================= -->
+      <section x-show="activeTab === 'trial-live'" x-cloak class="space-y-6">
+
+        <!-- Banner Status Mode -->
+        <div :class="isProductionMode ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'"
+             class="p-5 rounded-2xl border-2 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div :class="isProductionMode ? 'bg-emerald-600' : 'bg-amber-500'"
+                 class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md">
+              <i :class="isProductionMode ? 'fa-solid fa-rocket' : 'fa-solid fa-flask'"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-lg" :class="isProductionMode ? 'text-emerald-950' : 'text-amber-950'"
+                  x-text="isProductionMode ? '🚀 Mode Produksi Aktif' : '🧪 Mode Trial (Uji Coba)'"></h3>
+              <p class="text-xs mt-1" :class="isProductionMode ? 'text-emerald-800' : 'text-amber-800'">
+                <template x-if="isProductionMode">
+                  <span>Data produksi aktif. Periode dimulai: <strong x-text="productionStartDate"></strong></span>
+                </template>
+                <template x-if="!isProductionMode">
+                  <span>Data uji coba. Anda bisa reset kapan saja sebelum Go-Live.</span>
+                </template>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Jumlah Data -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-[10px] font-bold uppercase text-stone-500">Jurnal</span>
+            <p class="text-xl font-black font-mono mt-1" x-text="(dataPreview.journals || 0) + ' entry'"></p>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-[10px] font-bold uppercase text-stone-500">Ledger</span>
+            <p class="text-xl font-black font-mono mt-1" x-text="(dataPreview.ledgers || 0) + ' akun'"></p>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-[10px] font-bold uppercase text-stone-500">Order</span>
+            <p class="text-xl font-black font-mono mt-1" x-text="(dataPreview.orders || 0) + ' pesanan'"></p>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-[10px] font-bold uppercase text-stone-500">Transaksi POS</span>
+            <p class="text-xl font-black font-mono mt-1" x-text="(dataPreview.transactions || 0) + ' transaksi'"></p>
+          </div>
+        </div>
+
+        <!-- 3 TOMBOL AKSI -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          <!-- TOMBOL 1: Proses Tutup Buku -->
+          <div class="p-6 rounded-2xl bg-white border-2 border-amber-200 hover:border-amber-500 transition shadow-xs">
+            <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl mb-4">
+              <i class="fa-solid fa-lock"></i>
+            </div>
+            <h4 class="font-extrabold text-lg text-stone-900 mb-2">Proses Tutup Buku</h4>
+            <p class="text-xs text-stone-500 mb-4 leading-relaxed">
+              Akhiri periode <strong x-text="bulanAktif"></strong> dan kunci semua jurnal bulan ini. Setelah ditutup, jurnal bulan ini tidak bisa diubah lagi.
+            </p>
+            <button 
+              @click="openClosePeriodModal()"
+              :disabled="isPeriodClosed(bulanAktif) || !isNeracaBalanced"
+              :class="isPeriodClosed(bulanAktif) || !isNeracaBalanced ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-600 cursor-pointer'"
+              class="w-full py-3 rounded-xl bg-amber-500 text-white font-bold text-sm transition">
+              <i class="fa-solid fa-lock mr-2"></i>
+              <span x-text="isPeriodClosed(bulanAktif) ? 'Periode Sudah Ditutup' : 'Tutup Buku Sekarang'"></span>
+            </button>
+            <p x-show="isNeracaBalanced && !isPeriodClosed(bulanAktif)" class="text-[10px] text-red-600 mt-2 font-bold">
+              ⚠️ Neraca belum balance. Perbaiki dulu sebelum tutup buku.
+            </p>
+          </div>
+
+          <!-- TOMBOL 2: Mulai Uji Coba Baru -->
+          <div class="p-6 rounded-2xl bg-white border-2 border-red-200 hover:border-red-500 transition shadow-xs"
+               :class="isProductionMode ? 'opacity-50 pointer-events-none' : ''">
+            <div class="w-12 h-12 rounded-xl bg-red-500 text-white flex items-center justify-center text-xl mb-4">
+              <i class="fa-solid fa-rotate-left"></i>
+            </div>
+            <h4 class="font-extrabold text-lg text-stone-900 mb-2">Mulai Uji Coba Baru</h4>
+            <p class="text-xs text-stone-500 mb-4 leading-relaxed">
+              Hapus semua data trial (jurnal, ledger, order, transaksi) dan mulai dari nol. Data akan di-backup otomatis sebelum dihapus.
+            </p>
+            <button 
+              @click="openResetModal()"
+              :disabled="isProductionMode"
+              class="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+              <i class="fa-solid fa-rotate-left mr-2"></i>
+              <span x-text="isProductionMode ? 'Tidak Tersedia di Mode Produksi' : 'Reset Data Trial'"></span>
+            </button>
+          </div>
+
+          <!-- TOMBOL 3: Go-Live -->
+          <div class="p-6 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border-2 border-emerald-400">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-xs text-white flex items-center justify-center text-xl mb-4">
+              <i class="fa-solid fa-rocket"></i>
+            </div>
+            <h4 class="font-extrabold text-lg mb-2">Go-Live (Mulai Produksi)</h4>
+            <p class="text-xs text-emerald-100 mb-4 leading-relaxed">
+              Arsipkan semua data trial ke <code>/archive/</code>, lalu mulai pembukuan produksi yang bersih. Bisa dilakukan sekali saja.
+            </p>
+            <button 
+              @click="openGoLiveModal()"
+              :disabled="isProductionMode || !isNeracaBalanced"
+              class="w-full py-3 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 font-bold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+              <i class="fa-solid fa-rocket mr-2"></i>
+              <span x-text="isProductionMode ? '✓ Produksi Sudah Aktif' : 'Go-Live Sekarang'"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Info Terakhir -->
+        <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-600 leading-relaxed shadow-xs">
+          <p><i class="fa-solid fa-circle-info text-stone-400 mr-1"></i> <strong>Info:</strong></p>
+          <ul class="list-disc ml-6 mt-2 space-y-1">
+            <li><strong>Proses Tutup Buku</strong> — dilakukan setiap akhir bulan. Mencegah perubahan jurnal bulan lalu.</li>
+            <li><strong>Reset Data Trial</strong> — hanya bisa dipakai saat mode Trial. Untuk uji coba berulang.</li>
+            <li><strong>Go-Live</strong> — diklik sekali seumur hidup. Setelah aktif, tidak bisa kembali ke mode Trial.</li>
+          </ul>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 4. MODALS & POPUPS                                                    -->
+  <!-- ===================================================================== -->
+
+  <!-- MODAL A: EDIT SALDO AWAL COA -->
+  <div 
+    x-cloak 
+    x-show="modalEditSaldo" 
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div 
+      @click.away="modalEditSaldo = false" 
+      class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+        <div>
+          <h4 class="font-extrabold text-stone-900 text-base">Edit Saldo Awal Akun</h4>
+          <p class="text-xs text-stone-500" x-text="editingCoa.code + ' - ' + editingCoa.name"></p>
+        </div>
+        <button type="button" @click="modalEditSaldo = false" class="text-stone-400 hover:text-stone-700">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 uppercase mb-1.5">Nilai Saldo Awal (Rp)</label>
+        <input 
+          type="number" 
+          x-model.number="editingCoa.initialBalance" 
+          class="w-full h-12 px-4 rounded-xl border border-stone-300 text-lg font-black font-mono text-stone-900 focus:ring-2 focus:ring-brand-500" 
+        />
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button 
+          type="button" 
+          @click="modalEditSaldo = false" 
+          class="flex-1 h-11 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs hover:bg-stone-50 transition cursor-pointer">
+          Batal
+        </button>
+        <button 
+          type="button" 
+          @click="
+            const found = coaList.find(c => c.code === editingCoa.code);
+            if (found) {
+              found.initialBalance = Number(editingCoa.initialBalance);
+              found.currentBalance = Number(editingCoa.initialBalance);
+            }
+            modalEditSaldo = false;
+          " 
+          class="flex-1 h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs transition cursor-pointer shadow-xs">
+          Simpan Saldo
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL B: TAMBAH AKUN BARU COA -->
+  <div 
+    x-cloak 
+    x-show="modalAddAkun" 
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div 
+      @click.away="modalAddAkun = false" 
+      class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+        <div>
+          <h4 class="font-extrabold text-stone-900 text-base">Tambah Akun Baru (COA)</h4>
+          <p class="text-xs text-stone-500">Daftarkan akun buku besar tambahan ke bagan akun.</p>
+        </div>
+        <button type="button" @click="modalAddAkun = false" class="text-stone-400 hover:text-stone-700">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Kode Akun</label>
+          <input 
+            type="text" 
+            x-model="newCoaForm.code" 
+            placeholder="Contoh: 6006" 
+            class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:ring-2 focus:ring-brand-500" 
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Nama Akun</label>
+          <input 
+            type="text" 
+            x-model="newCoaForm.name" 
+            placeholder="Contoh: Beban Kebersihan & Sampah" 
+            class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs text-stone-900 focus:ring-2 focus:ring-brand-500" 
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Tipe Klasifikasi</label>
+          <select 
+            x-model="newCoaForm.type" 
+            class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:ring-2 focus:ring-brand-500">
+            <option value="Aset">Aset</option>
+            <option value="Kewajiban">Kewajiban</option>
+            <option value="Ekuitas">Ekuitas</option>
+            <option value="Pendapatan">Pendapatan</option>
+            <option value="Beban">Beban</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Saldo Awal (Rp)</label>
+          <input 
+            type="number" 
+            x-model.number="newCoaForm.initialBalance" 
+            min="0"
+            class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:ring-2 focus:ring-brand-500" 
+          />
+        </div>
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button 
+          type="button" 
+          @click="modalAddAkun = false" 
+          class="flex-1 h-11 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs hover:bg-stone-50 transition cursor-pointer">
+          Batal
+        </button>
+        <button 
+          type="button" 
+          @click="
+            if (!newCoaForm.code || !newCoaForm.name) {
+              alert('Mohon isi kode dan nama akun.');
+              return;
+            }
+            coaList.push({
+              code: newCoaForm.code,
+              name: newCoaForm.name,
+              type: newCoaForm.type,
+              initialBalance: Number(newCoaForm.initialBalance) || 0,
+              currentBalance: Number(newCoaForm.initialBalance) || 0
+            });
+            newCoaForm = { code: '', name: '', type: 'Aset', initialBalance: 0 };
+            modalAddAkun = false;
+          " 
+          class="flex-1 h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs transition cursor-pointer shadow-xs">
+          Simpan Akun
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL C: DETAIL FULL JURNAL ENTRY -->
+  <div 
+    x-cloak 
+    x-show="modalDetailJurnal" 
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div 
+      @click.away="modalDetailJurnal = false" 
+      class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 space-y-5">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-brand-100 text-brand-800 font-mono" x-text="selectedJurnal ? selectedJurnal.noEntry : ''"></span>
+          <h4 class="font-extrabold text-stone-900 text-base mt-1" x-text="selectedJurnal ? selectedJurnal.desc : ''"></h4>
+          <p class="text-xs text-stone-500 font-mono" x-text="selectedJurnal ? selectedJurnal.date : ''"></p>
+        </div>
+        <button type="button" @click="modalDetailJurnal = false" class="text-stone-400 hover:text-stone-700">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Detail Pembukuan Debit vs Kredit -->
+      <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-3 text-xs">
+        <div class="flex justify-between items-center pb-2 border-b border-stone-200 font-bold text-stone-500 uppercase">
+          <span>Pos Akun</span>
+          <span>Debit / Kredit</span>
+        </div>
+
+        <!-- Debit -->
+        <div class="flex justify-between items-center">
+          <div>
+            <span class="font-mono text-stone-500 mr-1" x-text="selectedJurnal ? selectedJurnal.debitCode : ''"></span>
+            <span class="font-bold text-stone-900" x-text="selectedJurnal ? selectedJurnal.debitName : ''"></span>
+            <span class="block text-[10px] text-emerald-600 font-bold uppercase">(Debit)</span>
+          </div>
+          <span class="font-mono font-bold text-emerald-700 text-sm" x-text="selectedJurnal ? formatRupiah(selectedJurnal.debitAmount) : 'Rp 0'"></span>
+        </div>
+
+        <!-- Kredit -->
+        <div class="flex justify-between items-center pt-2 border-t border-stone-100">
+          <div>
+            <span class="font-mono text-stone-500 mr-1" x-text="selectedJurnal ? selectedJurnal.creditCode : ''"></span>
+            <span class="font-bold text-stone-900" x-text="selectedJurnal ? selectedJurnal.creditName : ''"></span>
+            <span class="block text-[10px] text-rose-600 font-bold uppercase">(Kredit)</span>
+          </div>
+          <span class="font-mono font-bold text-rose-700 text-sm" x-text="selectedJurnal ? formatRupiah(selectedJurnal.creditAmount) : 'Rp 0'"></span>
+        </div>
+      </div>
+
+      <!-- Info Tambahan & Bukti -->
+      <div class="text-xs space-y-1.5 text-stone-600">
+        <div class="flex justify-between">
+          <span class="text-stone-400">Referensi Dokumen:</span>
+          <span class="font-mono font-bold text-stone-800" x-text="selectedJurnal && selectedJurnal.ref ? selectedJurnal.ref : '-'"></span>
+        </div>
+        <template x-if="selectedJurnal && selectedJurnal.proof">
+          <div class="pt-2">
+            <span class="block text-stone-400 mb-1">Foto Bukti Terlampir:</span>
+            <img :src="selectedJurnal.proof" class="max-h-48 rounded-xl border border-stone-200 object-contain mx-auto" />
+          </div>
+        </template>
+      </div>
+
+      <div class="pt-2 space-y-2">
+        <button 
+          type="button"
+          x-show="selectedJurnal && selectedJurnal.status === 'approved'"
+          @click="prefillReversal(selectedJurnal)"
+          class="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-md">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span>BUAT JURNAL REVERSAL (Tukar Debit-Kredit)</span>
+        </button>
+        <button 
+          type="button" 
+          @click="modalDetailJurnal = false" 
+          class="w-full h-11 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-xs transition cursor-pointer">
+          Tutup
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALS: TRIAL / LIVE CONFIRMATION                                     -->
+  <!-- ===================================================================== -->
+
+  <!-- MODAL: TUTUP BUKU -->
+  <div x-cloak x-show="showClosePeriodModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div @click.away="showClosePeriodModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-amber-100 text-amber-600 mx-auto flex items-center justify-center text-2xl mb-3">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 class="font-black text-stone-900 text-xl">Tutup Buku Periode <span x-text="bulanAktif"></span>?</h3>
+        <p class="text-xs text-stone-500 mt-1">Setelah ditutup, jurnal periode ini tidak bisa diedit/hapus.</p>
+      </div>
+
+      <div class="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">
+        <div class="flex justify-between"><span>Jurnal akan dikunci:</span><strong x-text="(dataPreview.journals || 0) + ' entry'"></strong></div>
+        <div class="flex justify-between"><span>Ledger akan dikunci:</span><strong x-text="(dataPreview.ledgers || 0) + ' akun'"></strong></div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Ketik <code class="bg-amber-100 px-1.5 py-0.5 rounded">TUTUP BUKU</code> untuk konfirmasi:</label>
+        <input type="text" x-model="closePeriodConfirmText" placeholder="TUTUP BUKU" 
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:outline-hidden" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Password Admin:</label>
+        <input type="password" x-model="closePeriodPassword" placeholder="••••••••"
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:outline-hidden" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button type="button" @click="showClosePeriodModal = false" class="py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs cursor-pointer">Batal</button>
+        <button type="button" @click="executeClosePeriod()" 
+                :disabled="closePeriodConfirmText !== 'TUTUP BUKU' || !closePeriodPassword"
+                class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+          Tutup Buku Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RESET TRIAL -->
+  <div x-cloak x-show="showResetModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div @click.away="showResetModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-red-200 space-y-4">
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-red-100 text-red-600 mx-auto flex items-center justify-center text-2xl mb-3">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="font-black text-red-700 text-xl">⚠️ Reset Semua Data Trial?</h3>
+        <p class="text-xs text-stone-500 mt-1">Data akan di-backup dulu, lalu dihapus. Tidak bisa di-undo!</p>
+      </div>
+
+      <div class="p-3 bg-red-50 rounded-xl border border-red-200 text-xs space-y-1">
+        <p class="font-bold text-red-900 mb-2">Data yang akan DIHAPUS:</p>
+        <div class="flex justify-between"><span>• Jurnal</span><strong x-text="(dataPreview.journals || 0) + ' entry'"></strong></div>
+        <div class="flex justify-between"><span>• Ledger</span><strong x-text="(dataPreview.ledgers || 0) + ' akun'"></strong></div>
+        <div class="flex justify-between"><span>• Order customer</span><strong x-text="(dataPreview.orders || 0) + ' pesanan'"></strong></div>
+        <div class="flex justify-between"><span>• Transaksi POS</span><strong x-text="(dataPreview.transactions || 0) + ' transaksi'"></strong></div>
+        <p class="font-bold text-emerald-700 mt-3 pt-2 border-t border-red-200">Data yang DIPERTAHANKAN:</p>
+        <div class="text-emerald-700">✓ COA, Inventory, Menu, Resep, Kategori</div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Ketik <code class="bg-red-100 px-1.5 py-0.5 rounded">RESET</code> untuk konfirmasi:</label>
+        <input type="text" x-model="resetConfirmText" placeholder="RESET" 
+               class="w-full p-2.5 rounded-xl border border-red-300 text-sm font-mono focus:ring-2 focus:ring-red-500 focus:outline-hidden" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Password Admin (Ketik 2× untuk verifikasi):</label>
+        <input type="password" x-model="resetPassword1" placeholder="Password pertama" 
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono mb-2" />
+        <input type="password" x-model="resetPassword2" placeholder="Ulangi password" 
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono" />
+        <p x-show="resetPassword1 && resetPassword2 && resetPassword1 !== resetPassword2" class="text-[10px] text-red-600 mt-1 font-bold">
+          Password tidak sama!
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button type="button" @click="showResetModal = false" class="py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs cursor-pointer">Batal</button>
+        <button type="button" @click="executeReset()" 
+                :disabled="resetConfirmText !== 'RESET' || resetPassword1 !== resetPassword2 || !resetPassword1"
+                class="py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+          Reset Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GO-LIVE -->
+  <div x-cloak x-show="showGoLiveModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div @click.away="showGoLiveModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-300 space-y-4">
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center text-2xl mb-3">
+          <i class="fa-solid fa-rocket"></i>
+        </div>
+        <h3 class="font-black text-emerald-700 text-xl">🚀 Go-Live ke Mode Produksi?</h3>
+        <p class="text-xs text-stone-500 mt-1">Data trial akan diarsipkan, lalu sistem mulai pembukuan produksi.</p>
+      </div>
+
+      <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-1">
+        <p class="font-bold text-emerald-900 mb-2">Yang akan terjadi:</p>
+        <div class="text-emerald-800 space-y-1">
+          <div>1. Data trial di-backup ke <code>/archive/trial-{tanggal}/</code></div>
+          <div>2. File backup JSON bisa di-download</div>
+          <div>3. Semua data trial akan dihapus dari sistem</div>
+          <div>4. Sistem mulai mode produksi bersih</div>
+        </div>
+      </div>
+
+      <!-- Validation Checklist -->
+      <div class="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-2">
+        <p class="font-bold text-stone-700">Validasi Sebelum Go-Live:</p>
+        <div class="flex items-center gap-2" :class="goLiveValidation.neracaBalance ? 'text-emerald-700' : 'text-red-700'">
+          <i :class="goLiveValidation.neracaBalance ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+          <span x-text="goLiveValidation.neracaBalance ? 'Neraca balance ✓' : 'Neraca TIDAK balance ✗'"></span>
+        </div>
+        <div class="flex items-center gap-2" :class="goLiveValidation.noDraftJournals ? 'text-emerald-700' : 'text-amber-700'">
+          <i :class="goLiveValidation.noDraftJournals ? 'fa-solid fa-circle-check' : 'fa-solid fa-triangle-exclamation'"></i>
+          <span x-text="goLiveValidation.noDraftJournals ? 'Tidak ada jurnal draft ✓' : 'Ada jurnal draft ✗'"></span>
+        </div>
+        <div class="flex items-center gap-2" :class="goLiveValidation.noPendingOrders ? 'text-emerald-700' : 'text-amber-700'">
+          <i :class="goLiveValidation.noPendingOrders ? 'fa-solid fa-circle-check' : 'fa-solid fa-triangle-exclamation'"></i>
+          <span x-text="goLiveValidation.noPendingOrders ? 'Tidak ada order menggantung ✓' : 'Ada order menggantung ✗'"></span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Ketik <code class="bg-emerald-100 px-1.5 py-0.5 rounded">GO-LIVE</code> untuk konfirmasi:</label>
+        <input type="text" x-model="goLiveConfirmText" placeholder="GO-LIVE" 
+               class="w-full p-2.5 rounded-xl border border-emerald-300 text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-hidden" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Password Admin (Ketik 2× untuk verifikasi):</label>
+        <input type="password" x-model="goLivePassword1" placeholder="Password pertama" 
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono mb-2" />
+        <input type="password" x-model="goLivePassword2" placeholder="Ulangi password" 
+               class="w-full p-2.5 rounded-xl border border-stone-300 text-sm font-mono" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button type="button" @click="showGoLiveModal = false" class="py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs cursor-pointer">Batal</button>
+        <button type="button" @click="executeGoLive()" 
+                :disabled="goLiveConfirmText !== 'GO-LIVE' || goLivePassword1 !== goLivePassword2 || !goLivePassword1 || !goLiveValidation.neracaBalance"
+                class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+          🚀 Go-Live Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SUPERVISOR PIN GATE UNTUK AKSI DESTRUKTIF / EDIT JURNAL -->
+  <div
+    x-cloak
+    x-show="showPinModal"
+    @click.away="cancelSupervisorPin()"
+    @keydown.escape.window="showPinModal && cancelSupervisorPin()"
+    class="fixed inset-0 z-[80] overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border-2 border-red-200 relative space-y-5">
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-red-100 text-red-600 mx-auto flex items-center justify-center text-2xl mb-3 shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h3 class="font-black text-stone-900 text-lg tracking-tight">Supervisor PIN Diperlukan</h3>
+        <p class="text-xs font-bold text-red-700 mt-1 uppercase tracking-wide" x-text="pinContext?.actionLabel || 'AKSI DESTRUKTIF'"></p>
+        <p class="text-[11px] text-stone-500 mt-0.5" x-text="pinContext?.targetLabel || ''"></p>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1.5 text-center">
+          Masukkan 6 Digit PIN
+        </label>
+        <input
+          id="supervisorPinInput"
+          type="password"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="6"
+          x-model="pinInput"
+          @keydown.enter.prevent="submitSupervisorPin()"
+          @input="pinInput = String(pinInput || '').replace(/\D/g, '').slice(0, 6); pinErrorMessage = ''"
+          placeholder="••••••"
+          class="w-full h-16 text-center text-3xl font-black font-mono tracking-[0.6em] rounded-2xl border-2 border-stone-300 focus:border-red-500 focus:ring-4 focus:ring-red-100 focus:outline-none transition"
+        />
+        <p
+          x-show="pinErrorMessage"
+          x-transition
+          class="text-xs text-red-600 font-bold mt-2 text-center"
+          x-text="pinErrorMessage">
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button
+          type="button"
+          @click="cancelSupervisorPin()"
+          class="min-h-[48px] rounded-xl border-2 border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
+          <i class="fa-solid fa-xmark mr-1"></i> Batal
+        </button>
+        <button
+          type="button"
+          @click="submitSupervisorPin()"
+          :disabled="pinInput.length !== 6"
+          :class="pinInput.length !== 6 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700 cursor-pointer'"
+          class="min-h-[48px] rounded-xl bg-red-600 text-white font-black text-xs transition shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-unlock text-xs"></i>
+          <span>KONFIRMASI</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT JURNAL MULTI-LINE -->
+  <div
+    x-cloak
+    x-show="showEditJournalModal"
+    @click.away="showEditJournalModal = false"
+    class="fixed inset-0 z-[75] overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-stone-200 relative max-h-[92dvh] flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-stone-200 flex-shrink-0">
+        <div>
+          <h3 class="text-base sm:text-lg font-black text-stone-900 flex items-center gap-2">
+            <i class="fa-solid fa-pen-to-square text-amber-600"></i>
+            <span>Edit Entri Jurnal</span>
+            <span class="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200" x-text="editJournalForm.noEntry || editJournalForm.id"></span>
+          </h3>
+          <p class="text-xs text-stone-500 mt-0.5">Perubahan jurnal akan menghitung delta saldo dan memperbarui Buku Besar otomatis.</p>
+        </div>
+        <button type="button" @click="showEditJournalModal = false" class="w-8 h-8 rounded-full text-stone-400 hover:text-stone-700 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Form Body Scrollable -->
+      <form @submit.prevent="submitEditJournal()" class="overflow-y-auto flex-1 py-4 space-y-4">
+        <!-- Grid Header Form -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Tanggal *</label>
+            <input type="date" x-model="editJournalForm.date" required class="w-full p-2.5 rounded-xl border border-stone-300 text-xs font-mono bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Kategori *</label>
+            <select x-model="editJournalForm.category" required class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white font-bold">
+              <option value="operasional">Operasional</option>
+              <option value="pembelian">Pembelian / HPP</option>
+              <option value="penjualan">Penjualan</option>
+              <option value="modal">Modal</option>
+              <option value="prive">Prive</option>
+              <option value="penyesuaian">Penyesuaian</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">No. Referensi</label>
+            <input type="text" x-model="editJournalForm.ref" placeholder="REF / Nota" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs font-mono bg-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Deskripsi / Keterangan *</label>
+          <input type="text" x-model="editJournalForm.desc" required placeholder="Keterangan transaksi..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs font-bold bg-white" />
+        </div>
+
+        <!-- Lines Multi-line Table -->
+        <div class="border border-stone-200 rounded-2xl p-3 bg-stone-50/60 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black text-stone-800 uppercase tracking-wide">Rincian Akun (Debit & Kredit)</h4>
+            <button 
+              type="button" 
+              @click="addEditJournalLine()" 
+              class="px-2.5 py-1 rounded-lg bg-white border border-stone-300 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 text-stone-700 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>Tambah Baris</span>
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <template x-for="(line, idx) in editJournalForm.lines" :key="idx">
+              <div class="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-stone-200 shadow-2xs">
+                <!-- Select Akun -->
+                <div class="col-span-12 sm:col-span-5">
+                  <select x-model="line.acc" class="w-full p-2 rounded-lg border border-stone-200 text-xs font-bold text-stone-800 bg-white">
+                    <template x-for="acc in coaList" :key="acc.code">
+                      <option :value="acc.code" x-text="`${acc.code} - ${acc.name}`"></option>
+                    </template>
+                  </select>
+                </div>
+                <!-- Debit -->
+                <div class="col-span-5 sm:col-span-3">
+                  <div class="relative">
+                    <span class="absolute left-2 top-2 text-[10px] text-stone-400 font-bold">D</span>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="any"
+                      x-model.number="line.debit" 
+                      placeholder="Debit"
+                      class="w-full pl-6 pr-2 py-1.5 rounded-lg border border-stone-200 text-xs font-mono font-bold text-emerald-700 text-right bg-white" />
+                  </div>
+                </div>
+                <!-- Kredit -->
+                <div class="col-span-5 sm:col-span-3">
+                  <div class="relative">
+                    <span class="absolute left-2 top-2 text-[10px] text-stone-400 font-bold">K</span>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="any"
+                      x-model.number="line.credit" 
+                      placeholder="Kredit"
+                      class="w-full pl-6 pr-2 py-1.5 rounded-lg border border-stone-200 text-xs font-mono font-bold text-rose-700 text-right bg-white" />
+                  </div>
+                </div>
+                <!-- Hapus Button -->
+                <div class="col-span-2 sm:col-span-1 text-center">
+                  <button 
+                    type="button" 
+                    @click="removeEditJournalLine(idx)" 
+                    class="w-7 h-7 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition cursor-pointer"
+                    title="Hapus baris">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Total & Balance Status -->
+          <div class="pt-2 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono">
+            <div class="flex items-center gap-4">
+              <div>Total Debit: <strong class="text-emerald-700" x-text="formatRupiah(getEditJournalTotalDebit())"></strong></div>
+              <div>Total Kredit: <strong class="text-rose-700" x-text="formatRupiah(getEditJournalTotalCredit())"></strong></div>
+            </div>
+            <div>
+              <span 
+                x-show="isEditJournalBalanced()" 
+                class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 font-sans">
+                <i class="fa-solid fa-circle-check"></i> Seimbang (Balanced)
+              </span>
+              <span 
+                x-show="!isEditJournalBalanced()" 
+                class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-800 flex items-center gap-1 font-sans">
+                <i class="fa-solid fa-triangle-exclamation"></i> Selisih: <span class="font-mono" x-text="formatRupiah(Math.abs(getEditJournalTotalDebit() - getEditJournalTotalCredit()))"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="pt-2 flex items-center justify-end gap-2 flex-shrink-0">
+          <button 
+            type="button" 
+            @click="showEditJournalModal = false" 
+            class="px-4 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
+            Batal
+          </button>
+          <button 
+            type="submit" 
+            :disabled="!isEditJournalBalanced() || loading"
+            :class="!isEditJournalBalanced() || loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-700 cursor-pointer'"
+            class="px-5 py-2.5 rounded-xl bg-amber-600 text-white font-extrabold text-xs shadow-md shadow-amber-600/30 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Simpan Perubahan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: KONFIRMASI HAPUS JURNAL DENGAN REVERSAL -->
+  <div
+    x-cloak
+    x-show="showDeleteJournalModal"
+    @click.away="showDeleteJournalModal = false"
+    class="fixed inset-0 z-[75] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-red-200 relative space-y-4">
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-red-100 text-red-600 mx-auto flex items-center justify-center text-2xl mb-2 shadow-inner">
+          <i class="fa-solid fa-trash-can"></i>
+        </div>
+        <h3 class="font-black text-stone-900 text-lg tracking-tight">Hapus Entri Jurnal?</h3>
+        <p class="text-xs text-stone-500 mt-0.5">Tindakan ini akan membalikkan saldo akun di Buku Besar dan menghapus entri jurnal secara permanen.</p>
+      </div>
+
+      <div class="bg-stone-50 rounded-2xl p-3.5 border border-stone-200 text-xs space-y-2">
+        <div class="flex justify-between">
+          <span class="text-stone-500">No. Entry:</span>
+          <span class="font-mono font-bold text-brand-700" x-text="deletingJournal?.noEntry || deletingJournal?.id"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-stone-500">Tanggal:</span>
+          <span class="font-mono font-semibold text-stone-800" x-text="deletingJournal?.date"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-stone-500">Keterangan:</span>
+          <span class="font-bold text-stone-900 text-right max-w-[200px] truncate" x-text="deletingJournal?.desc"></span>
+        </div>
+        <div class="flex justify-between border-t border-stone-200 pt-2">
+          <span class="text-stone-500">Total Nominal:</span>
+          <span class="font-mono font-black text-emerald-700" x-text="formatRupiah(deletingJournal?.debitAmount)"></span>
+        </div>
+      </div>
+
+      <div class="p-3 bg-red-50 rounded-xl border border-red-200 text-[11px] text-red-800 flex items-start gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-red-600 mt-0.5"></i>
+        <div>
+          <strong>Perhatian:</strong> Saldo debit & kredit pada akun terkait akan otomatis dikurangi kembali (reverse balance).
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button
+          type="button"
+          @click="showDeleteJournalModal = false"
+          class="min-h-[44px] rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
+          Batal
+        </button>
+        <button
+          type="button"
+          @click="submitDeleteJournal()"
+          :disabled="loading"
+          class="min-h-[44px] rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+          <span>Hapus Permanen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

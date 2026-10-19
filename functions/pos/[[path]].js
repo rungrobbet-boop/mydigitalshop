@@ -1,0 +1,327 @@
+/**
+ * functions/pos/[[path]].js
+ * Cloudflare Pages Function — Proxy request /pos/* ke Firebase Realtime Database
+ */
+
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const method = request.method;
+
+  // Header CORS untuk preflight dan respons API
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+
+  // 10. Handle OPTIONS untuk CORS preflight
+  if (method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
+  // Konfigurasi URL Firebase Realtime Database & API Key
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const apiKey = env.FIREBASE_API_KEY || "";
+  const authParam = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : "";
+
+  // Ekstrak path setelah /pos/
+  const fullPath = url.pathname.replace(/^\/pos\/?/, '');
+  const parts = fullPath.split('/').filter(Boolean);
+
+  try {
+    if (parts.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: "Path /pos tidak boleh kosong" }), {
+        status: 400,
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 1. GET /pos/summary/daily/{date} — Ringkasan penjualan harian (YYYY-MM-DD)
+    if (method === 'GET' && parts[0] === 'summary' && parts[1] === 'daily' && parts[2]) {
+      const date = parts[2];
+      const res = await fetch(`${dbUrl}/pos/summary/daily/${encodeURIComponent(date)}.json${authParam}`);
+      const data = await res.json() || {};
+      return new Response(JSON.stringify({ 
+        success: true, 
+        date,
+        totalSales: data.sales || 0, 
+        totalTx: data.tx || 0, 
+        breakdown: { 
+          cash: data.cash || 0, 
+          qris: data.qris || 0, 
+          transfer: data.transfer || 0, 
+          ewallet: data.ewallet || 0 
+        } 
+      }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 2. GET /pos/summary/monthly/{month} — Ringkasan penjualan bulanan (YYYY-MM)
+    if (method === 'GET' && parts[0] === 'summary' && parts[1] === 'monthly' && parts[2]) {
+      const month = parts[2];
+      const res = await fetch(`${dbUrl}/pos/summary/monthly/${encodeURIComponent(month)}.json${authParam}`);
+      const data = await res.json() || {};
+      return new Response(JSON.stringify({ 
+        success: true, 
+        month,
+        totalSales: data.sales || 0, 
+        totalTx: data.tx || 0, 
+        breakdown: { 
+          cash: data.cash || 0, 
+          qris: data.qris || 0, 
+          transfer: data.transfer || 0, 
+          ewallet: data.ewallet || 0 
+        } 
+      }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 3. GET /pos/transactions/{date} — Daftar transaksi per tanggal (YYYY-MM-DD)
+    //    GET /pos/transactions/month-{YYYY-MM} — Daftar jurnal 1 bulan (dari /accounting/journal)
+    if (method === 'GET' && parts[0] === 'transactions' && parts[1]) {
+      const key = parts[1];
+
+      // ✅ FIX Bug 2: Handle 'month-YYYY-MM' → baca jurnal dari /accounting/journal/{bulan}
+      // Jurnal POS & auto-jurnal tersimpan di /accounting/journal, bukan /pos/transactions
+      if (key.startsWith('month-')) {
+        const month = key.slice(6);
+        const res = await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(month)}.json${authParam}`);
+        const data = await res.json();
+        const list = data && typeof data === 'object'
+          ? Object.entries(data).map(([id, val]) => {
+              const v = val || {};
+              const lines = Array.isArray(v.lines) ? v.lines : [];
+              const debitLine = lines.find(l => Number(l.debit) > 0) || {};
+              const creditLine = lines.find(l => Number(l.credit) > 0) || {};
+              const total = Number(v.total) || Number(debitLine.debit) || 0;
+              const ts = v.timestamp || v.createdAt || (v.date ? new Date(v.date).getTime() : 0);
+              return {
+                id,
+                ...v,
+                date: v.date || '',
+                t: ts,
+                timestamp: ts,
+                tot: total,
+                total,
+                pm: v.category || 'journal',
+                debitCode: debitLine.acc || '',
+                creditCode: creditLine.acc || '',
+                debitAmount: Number(debitLine.debit) || 0,
+                creditAmount: Number(creditLine.credit) || 0
+              };
+            })
+          : [];
+        list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        return new Response(JSON.stringify({ success: true, date: key, month, data: list }), {
+          headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+
+      // Behavior existing: per tanggal spesifik
+      const date = key;
+      const res = await fetch(`${dbUrl}/pos/transactions/${encodeURIComponent(date)}.json${authParam}`);
+      const data = await res.json();
+      const list = data && typeof data === 'object'
+        ? (Array.isArray(data) ? data : Object.entries(data).map(([id, val]) => ({ id, ...(val || {}) })))
+        : [];
+      return new Response(JSON.stringify({ success: true, date, data: list }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+        // 3b. GET /pos/audit_logs — Log audit keamanan (dari PIN Supervisor)
+    if (method === 'GET' && parts[0] === 'audit_logs') {
+      const limit = Number(url.searchParams.get('limit')) || 100;
+      const res = await fetch(`${dbUrl}/audit_logs.json${authParam}`);
+      const data = await res.json() || {};
+
+      const list = (data && typeof data === 'object')
+        ? Object.entries(data)
+            .map(([id, v]) => ({ id, ...(v || {}) }))
+            .sort((a, b) => (b.at || b.timestamp || 0) - (a.at || a.timestamp || 0))
+            .slice(0, limit)
+        : [];
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        data: list,
+        total: data ? Object.keys(data).length : 0,
+        limit
+      }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 3c. PATCH /pos/transactions/{date}/{txId} — Update transaksi (VOID, edit fields)
+    if ((method === 'PATCH' || method === 'PUT') && parts[0] === 'transactions' && parts[1] && parts[2]) {
+      const date = parts[1];
+      const txId = parts[2];
+      const body = await request.json().catch(() => ({}));
+
+      if (!date || !txId) {
+        return new Response(JSON.stringify({ success: false, error: 'date dan txId wajib' }), {
+          status: 400, headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+
+      const existingRes = await fetch(`${dbUrl}/pos/transactions/${encodeURIComponent(date)}/${encodeURIComponent(txId)}.json${authParam}`);
+      const existing = existingRes.ok ? await existingRes.json() : null;
+      if (!existing) {
+        return new Response(JSON.stringify({ success: false, error: `Transaksi ${txId} tidak ditemukan` }), {
+          status: 404, headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+
+      const merged = { ...existing, ...body };
+      await fetch(`${dbUrl}/pos/transactions/${encodeURIComponent(date)}/${encodeURIComponent(txId)}.json${authParam}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged)
+      });
+
+      return new Response(JSON.stringify({ success: true, txId, date, data: merged }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 4. GET /pos/transactions — Daftar transaksi (dengan filter opsional)
+    //    Query params:
+    //      ?start=YYYY-MM-DD&end=YYYY-MM-DD  → filter range tanggal
+    //      ?month=YYYY-MM                       → filter 1 bulan penuh
+    //      (tanpa param)                        → semua transaksi
+    if (method === 'GET' && parts[0] === 'transactions' && parts.length === 1) {
+      const startParam = url.searchParams.get('start');
+      const endParam = url.searchParams.get('end');
+      const monthParam = url.searchParams.get('month');
+
+      const res = await fetch(`${dbUrl}/pos/transactions.json${authParam}`);
+      const data = await res.json() || {};
+
+      const allTx = [];
+      if (data && typeof data === 'object') {
+        Object.entries(data).forEach(([dateKey, dayData]) => {
+          if (!dayData || typeof dayData !== 'object') return;
+
+          // ✅ FILTER: skip tanggal di luar range
+          if (startParam && dateKey < startParam) return;
+          if (endParam && dateKey > endParam) return;
+          if (monthParam && !dateKey.startsWith(monthParam)) return;
+
+          Object.entries(dayData).forEach(([txId, tx]) => {
+            allTx.push({ id: txId, date: dateKey, ...(tx || {}) });
+          });
+        });
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        data: allTx,
+        filter: {
+          start: startParam || null,
+          end: endParam || null,
+          month: monthParam || null,
+          count: allTx.length
+        }
+      }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 5. GET /pos/shifts — Daftar semua riwayat shift kasir
+    if (method === 'GET' && parts[0] === 'shifts' && parts.length === 1) {
+      const res = await fetch(`${dbUrl}/pos/shifts.json${authParam}`);
+      const data = await res.json() || {};
+      const list = data && typeof data === 'object'
+        ? Object.entries(data).map(([id, v]) => ({ id, ...(v || {}) }))
+        : [];
+      // Urutkan dari shift terbaru ke terlama
+      list.sort((a, b) => (b.openTime || b.createdAt || 0) - (a.openTime || a.createdAt || 0));
+      return new Response(JSON.stringify({ success: true, data: list }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 6. GET /pos/shifts/{shiftId} — Ambil detail satu shift spesifik
+    if (method === 'GET' && parts[0] === 'shifts' && parts[1]) {
+      const shiftId = parts[1];
+      const res = await fetch(`${dbUrl}/pos/shifts/${encodeURIComponent(shiftId)}.json${authParam}`);
+      const data = await res.json();
+      if (!data) {
+        return new Response(JSON.stringify({ success: false, error: "Shift tidak ditemukan" }), {
+          status: 404,
+          headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+      return new Response(JSON.stringify({ success: true, data: { id: shiftId, ...data } }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 7. POST /pos/shifts — Buat shift kasir baru
+    if (method === 'POST' && parts[0] === 'shifts' && parts.length === 1) {
+      const body = await request.json();
+      const shiftId = body.id || ('S-' + Date.now());
+      const shiftData = {
+        ...body,
+        id: shiftId,
+        createdAt: body.createdAt || Date.now()
+      };
+      await fetch(`${dbUrl}/pos/shifts/${encodeURIComponent(shiftId)}.json${authParam}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shiftData)
+      });
+      return new Response(JSON.stringify({ success: true, id: shiftId, data: shiftData }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 8. PATCH /pos/shifts/{shiftId} — Update data shift (tutup shift, jeda/pause, update kas)
+    if ((method === 'PATCH' || method === 'POST') && parts[0] === 'shifts' && parts[1]) {
+      const shiftId = parts[1];
+      const body = await request.json();
+      await fetch(`${dbUrl}/pos/shifts/${encodeURIComponent(shiftId)}.json${authParam}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return new Response(JSON.stringify({ success: true, id: shiftId }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // 9. POST /pos/last_reconcile/{username} — Update timestamp rekonsiliasi terakhir kasir
+    if ((method === 'POST' || method === 'PUT') && parts[0] === 'last_reconcile' && parts[1]) {
+      const username = parts[1];
+      let timestamp = Date.now();
+      try {
+        const body = await request.json();
+        timestamp = body.timestamp || body.lastReconcile || Date.now();
+      } catch (_) {}
+      await fetch(`${dbUrl}/pos/last_reconcile/${encodeURIComponent(username)}.json${authParam}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timestamp)
+      });
+      return new Response(JSON.stringify({ success: true, username, timestamp }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
+    // Default route tidak ditemukan
+    return new Response(JSON.stringify({ success: false, error: `Route /pos/${fullPath} tidak ditemukan` }), {
+      status: 404,
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
+
+  } catch (err) {
+    // Tangani semua galat dan pastikan response selalu berupa JSON
+    return new Response(JSON.stringify({ success: false, error: err.message || "Terjadi kesalahan server" }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
+  }
+}

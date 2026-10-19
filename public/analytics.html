@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dasbor Analitik & Kasir Real-Time | Dapur Kuliner & Catering</title>
+
+  <!-- Global safety shield -->
+  <script>
+    window.addEventListener('error', function(event) {
+      if (event.message === 'Script error.' || (event.filename && !event.filename.includes(window.location.host))) {
+        console.warn('Cross-origin/external script notice caught:', event.message || event);
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        return true;
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function(event) {
+      console.warn('Unhandled promise rejection captured:', event.reason);
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    });
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+              900: '#7c2d12',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+
+<body class="bg-stone-100 text-stone-900 font-sans antialiased min-h-screen" x-data="analyticsDashboard()" x-init="initDashboard()">
+
+  <!-- Security Gate Overlay -->
+  <div x-cloak x-show="!isUnlocked" class="fixed inset-0 z-50 bg-stone-900/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 text-center relative">
+      <div class="w-16 h-16 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center mx-auto text-2xl mb-5 shadow-inner">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+
+      <p class="text-stone-800 font-bold text-base sm:text-lg mb-6 leading-relaxed">
+        hanya admin dan manajemen yang dapat melihat, silahkan masukkan kode Anda:
+      </p>
+
+      <form @submit.prevent="unlockDashboard()" class="space-y-4">
+        <div class="relative">
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            x-model="authCodeInput"
+            placeholder=""
+            autofocus
+            required
+            class="w-full py-3.5 px-4 rounded-xl border border-stone-300 text-stone-900 font-mono text-center tracking-widest text-lg bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-inner" />
+          <button
+            type="button"
+            @click="showPassword = !showPassword"
+            class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+            <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+          </button>
+        </div>
+
+        <div x-show="authError" x-text="authError" class="p-2.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold"></div>
+
+        <div class="flex items-center gap-2 pt-2">
+          <a href="/" class="w-1/3 py-3 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-bold transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Kembali</span>
+          </a>
+          <button
+            type="submit"
+            class="w-2/3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-key"></i>
+            <span>Buka Dasbor</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Topbar Admin -->
+  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/" class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold hover:bg-brand-700 transition" title="Kembali ke Halaman Beranda">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+          <h1 class="font-extrabold text-lg sm:text-xl text-stone-900 flex items-center gap-2">
+            <span>Dasbor Analitik & POS Kasir</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Real-time
+            </span>
+          </h1>
+          <p class="text-xs text-stone-500">Monitoring omset, efisiensi operasional dapur, & audit transaksi</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          @click="lockDashboard('Dasbor telah berhasil dikunci secara manual.')"
+          class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 active:scale-95"
+          title="Kunci Dasbor Analitik Sekarang">
+          <i class="fa-solid fa-lock text-amber-400"></i>
+          <span class="hidden sm:inline">Kunci Dasbor</span>
+        </button>
+
+        <a href="/" class="text-xs font-semibold px-3 py-2 rounded-lg border border-stone-300 hover:bg-stone-50 transition hidden sm:inline-flex items-center gap-1.5">
+          <i class="fa-solid fa-store"></i>
+          <span>Buka Toko</span>
+        </a>
+
+        <div class="relative" x-data="{ exportOpen: false }">
+          <button @click="exportOpen = !exportOpen" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>Ekspor CSV Laporan</span>
+            <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+          </button>
+
+          <div x-cloak x-show="exportOpen" @click.away="exportOpen = false" class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-stone-200 py-2 z-50 text-xs font-semibold">
+            <div class="px-3 py-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider">Pilihan Periode Ekspor</div>
+            <button @click="exportCSV('daily'); exportOpen = false" class="w-full text-left px-4 py-2 hover:bg-stone-50 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-day text-brand-600"></i>
+              <span>Laporan Harian (Hari Ini)</span>
+            </button>
+            <button @click="exportCSV('weekly'); exportOpen = false" class="w-full text-left px-4 py-2 hover:bg-stone-50 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-week text-blue-600"></i>
+              <span>Laporan Mingguan (7 Hari)</span>
+            </button>
+            <button @click="exportCSV('monthly'); exportOpen = false" class="w-full text-left px-4 py-2 hover:bg-stone-50 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-days text-emerald-600"></i>
+              <span>Laporan Bulanan (Bulan Ini)</span>
+            </button>
+            <div class="border-t border-stone-100 my-1"></div>
+            <button @click="exportCSV('all'); exportOpen = false" class="w-full text-left px-4 py-2 hover:bg-stone-50 flex items-center gap-2 text-stone-600">
+              <i class="fa-solid fa-database text-stone-500"></i>
+              <span>Ekspor Seluruh Data</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 max-h-screen overflow-y-auto">
+
+    <!-- 4 KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+      <div class="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wider">Total Omset Penjualan</span>
+          <div class="text-xl sm:text-2xl font-black text-stone-900 mt-1" x-text="formatRupiah(totalRevenue)"></div>
+          <span class="text-[11px] text-emerald-600 font-semibold mt-1 inline-flex items-center gap-1">
+            <i class="fa-solid fa-arrow-trend-up"></i> Bulan berjalan
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-xl border border-brand-100">
+          <i class="fa-solid fa-sack-dollar"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wider">Total Transaksi POS</span>
+          <div class="text-xl sm:text-2xl font-black text-stone-900 mt-1" x-text="totalOrdersCount + ' Transaksi'"></div>
+          <span class="text-[11px] text-stone-500 font-medium mt-1 block" x-text="'Dari ' + orders.length + ' pesanan customer tercatat'"></span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl border border-blue-100">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wider">Rata-Rata Keranjang (AOV)</span>
+          <div class="text-xl sm:text-2xl font-black text-stone-900 mt-1" x-text="formatRupiah(averageOrderValue)"></div>
+          <span class="text-[11px] text-stone-500 font-medium mt-1 block">Omset ÷ jumlah transaksi</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl border border-purple-100">
+          <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wider">Pesanan Antrian Dapur</span>
+          <div class="text-xl sm:text-2xl font-black text-brand-600 mt-1" x-text="activeKitchenOrders + ' Aktif'"></div>
+          <span class="text-[11px] text-amber-600 font-bold mt-1 inline-flex items-center gap-1">
+            <i class="fa-solid fa-fire"></i> Status: Diproses / Dikirim
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl border border-amber-100">
+          <i class="fa-solid fa-kitchen-set"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-extrabold text-stone-900 text-base">Grafik Kinerja Penjualan Real-Time</h3>
+            <p class="text-xs text-stone-500">Tren nominal transaksi harian untuk evaluasi strategi promo</p>
+          </div>
+          <div class="flex gap-1.5 text-xs">
+            <button @click="setChartPeriod('week')" :class="chartPeriod === 'week' ? 'bg-brand-600 text-white font-bold' : 'bg-stone-100 text-stone-600'" class="px-3 py-1 rounded-lg transition">7 Hari</button>
+            <button @click="setChartPeriod('month')" :class="chartPeriod === 'month' ? 'bg-brand-600 text-white font-bold' : 'bg-stone-100 text-stone-600'" class="px-3 py-1 rounded-lg transition">30 Hari</button>
+          </div>
+        </div>
+
+        <div class="h-64 relative">
+          <canvas id="revenueTrendChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <h3 class="font-extrabold text-stone-900 text-base">Distribusi Kategori Penjualan</h3>
+          <p class="text-xs text-stone-500">Porsi kontribusi pendapatan per lini produk</p>
+        </div>
+
+        <div class="h-56 relative my-2 flex items-center justify-center">
+          <canvas id="categoryDonutChart"></canvas>
+        </div>
+
+        <div class="text-[11px] text-stone-500 text-center border-t border-stone-100 pt-3">
+          <span x-text="topCategoryNote"></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tabel Manajemen Pesanan -->
+    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-brand-600"></i>
+            <span>Kelola Pesanan Masuk (POS Kasir & Dapur)</span>
+          </h3>
+          <p class="text-xs text-stone-500">Ubah status pesanan seketika untuk mengupdate progress bar di layar pelanggan</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-stone-600">Filter Status:</label>
+          <select x-model="statusFilter" class="text-xs font-semibold p-2 rounded-lg border border-stone-300 bg-stone-50 focus:outline-none">
+            <option value="all">Semua Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Dibayar">Dibayar</option>
+            <option value="Diproses">Diproses Dapur</option>
+            <option value="Dikirim">Dikirim Kurir</option>
+            <option value="Selesai">Selesai</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-stone-200 text-xs text-left">
+          <thead class="bg-stone-50 text-stone-600 font-bold uppercase">
+            <tr>
+              <th class="py-3 px-4">Order ID & Waktu</th>
+              <th class="py-3 px-4">Customer & Kontak</th>
+              <th class="py-3 px-4">Item Menu</th>
+              <th class="py-3 px-4">Kurir</th>
+              <th class="py-3 px-4 text-right">Total Bayar</th>
+              <th class="py-3 px-4 text-center">Status Pesanan</th>
+              <th class="py-3 px-4 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-stone-100 font-medium">
+            <template x-for="order in filteredOrders" :key="order.orderId">
+              <tr class="hover:bg-stone-50 transition">
+                <td class="py-3 px-4 whitespace-nowrap">
+                  <span class="font-mono font-bold text-stone-900" x-text="order.orderId"></span>
+                  <span class="text-stone-400 block text-[10px]" x-text="formatDate(order.createdAt)"></span>
+                </td>
+                <td class="py-3 px-4">
+                  <div class="font-bold text-stone-800" x-text="(order.customer && order.customer.name) || order.customerName || 'Pelanggan'"></div>
+                  <a :href="'https://wa.me/' + cleanPhone((order.customer && order.customer.phone) || order.customerPhone || '')" target="_blank" class="text-emerald-600 text-[11px] hover:underline flex items-center gap-1">
+                    <i class="fa-brands fa-whatsapp"></i>
+                    <span x-text="(order.customer && order.customer.phone) || order.customerPhone || '-'"></span>
+                  </a>
+                </td>
+                <td class="py-3 px-4 max-w-xs">
+                  <template x-for="(item, iIdx) in (order.items || [])" :key="'ord-it-' + iIdx">
+                    <div class="text-[11px] text-stone-700">
+                      <span x-text="item.name || item.id || 'Menu'"></span>
+                      <span class="text-stone-400" x-text="' (x' + (item.quantity || item.qty || 1) + ')'"></span>
+                    </div>
+                  </template>
+                </td>
+                <td class="py-3 px-4 whitespace-nowrap text-stone-600">
+                  <span class="font-semibold" x-text="(order.courier && order.courier.name) || 'GoSend'"></span>
+                  <span class="text-[10px] text-stone-400 block" x-text="(order.courier && order.courier.service) || 'Instant'"></span>
+                </td>
+                <td class="py-3 px-4 text-right font-black text-brand-700 whitespace-nowrap" x-text="formatRupiah(order.totalAmount || 0)"></td>
+                <td class="py-3 px-4 text-center whitespace-nowrap">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold" :class="getStatusBadgeClass(order.status)" x-text="order.status || 'Pending'"></span>
+                </td>
+                <td class="py-3 px-4 text-center whitespace-nowrap">
+                  <div class="flex items-center justify-center gap-1">
+                    <button @click="updateOrderStatus(order.orderId, 'Diproses')" title="Set Sedang Dimasak" class="w-7 h-7 rounded bg-amber-100 text-amber-800 hover:bg-amber-200 transition text-xs font-bold">
+                      <i class="fa-solid fa-fire"></i>
+                    </button>
+                    <button @click="updateOrderStatus(order.orderId, 'Dikirim')" title="Set Sedang Dikirim" class="w-7 h-7 rounded bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition text-xs font-bold">
+                      <i class="fa-solid fa-truck-fast"></i>
+                    </button>
+                    <button @click="updateOrderStatus(order.orderId, 'Selesai')" title="Set Selesai" class="w-7 h-7 rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition text-xs font-bold">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template x-if="filteredOrders.length === 0">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-stone-400 italic text-xs">
+                  Belum ada pesanan customer. Order dari landing page akan muncul di sini.
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 🔒 Log Audit Keamanan (dari PIN Supervisor) -->
+    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h3 class="font-extrabold text-stone-900 text-base flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-red-600"></i>
+            <span>Log Audit Keamanan (Aksi Destruktif)</span>
+          </h3>
+          <p class="text-xs text-stone-500">Catatan semua aksi berbahaya: hapus inventory, edit stok, edit harga, tutup shift</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-lock text-[9px] mr-1"></i> PIN Protected
+          </span>
+          <span class="text-xs font-bold text-stone-400 uppercase" x-text="auditLogs.length + ' entries'"></span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto border border-stone-200 rounded-xl">
+        <table class="min-w-full divide-y divide-stone-200 text-xs text-left">
+          <thead class="bg-stone-50 text-stone-600 font-bold uppercase">
+            <tr>
+              <th class="py-2.5 px-3">Waktu</th>
+              <th class="py-2.5 px-3">User</th>
+              <th class="py-2.5 px-3">Aksi</th>
+              <th class="py-2.5 px-3">Target</th>
+              <th class="py-2.5 px-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-stone-100 text-[11px]">
+            <template x-for="(log, lIdx) in paginatedAuditLogs" :key="'audit-' + (log.id || lIdx)">
+              <tr class="hover:bg-stone-50">
+                <td class="py-2.5 px-3 text-stone-500 font-mono whitespace-nowrap" x-text="formatDate(log.iso || log.at)"></td>
+                <td class="py-2.5 px-3 whitespace-nowrap">
+                  <div class="font-bold text-stone-800" x-text="log.userName || log.user || '-'"></div>
+                  <div class="text-[10px] text-stone-400 font-mono" x-text="log.shiftId || '-'"></div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <span class="font-bold text-stone-900" x-text="log.action || '-'"></span>
+                </td>
+                <td class="py-2.5 px-3 text-stone-600 max-w-xs truncate" :title="log.target || ''" x-text="log.target || '-'"></td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <!-- Status badge -->
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold border"
+                    :class="{
+                      'bg-emerald-100 text-emerald-800 border-emerald-300': log.status === 'granted' || log.status === 'executed',
+                      'bg-amber-100 text-amber-800 border-amber-300': log.status === 'denied_wrong_pin',
+                      'bg-stone-100 text-stone-600 border-stone-300': log.status === 'cancelled',
+                      'bg-red-100 text-red-800 border-red-300': log.status === 'failed' || log.status === 'denied'
+                    }">
+                    <i class="fa-solid"
+                      :class="{
+                        'fa-check-double': log.status === 'granted' || log.status === 'executed',
+                        'fa-triangle-exclamation': log.status === 'denied_wrong_pin',
+                        'fa-ban': log.status === 'cancelled',
+                        'fa-circle-xmark': log.status === 'failed' || log.status === 'denied'
+                      }"
+                      style="font-size: 9px; margin-right: 4px;"></i>
+                    <span x-text="(log.status || 'unknown').replace(/_/g, ' ').toUpperCase()"></span>
+                  </span>
+                </td>
+              </tr>
+            </template>
+            <template x-if="auditLogs.length === 0">
+              <tr>
+                <td colspan="5" class="py-8 text-center text-stone-400 italic">
+                  Belum ada log audit. Log akan muncul setelah PIN supervisor digunakan untuk aksi destruktif.
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Controls (20 baris per halaman) -->
+      <div x-show="auditLogTotalPages > 1" class="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-600">
+        <div>
+          Menampilkan <span class="font-bold text-stone-800" x-text="((auditLogPage - 1) * auditLogPerPage) + 1"></span>–<span class="font-bold text-stone-800" x-text="Math.min(auditLogPage * auditLogPerPage, auditLogs.length)"></span> dari <span class="font-bold text-stone-800" x-text="auditLogs.length"></span> log
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            @click="auditLogPage = Math.max(1, auditLogPage - 1)"
+            :disabled="auditLogPage === 1"
+            class="px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-bold text-stone-700 disabled:opacity-40 hover:bg-stone-50 transition flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-chevron-left text-[10px]"></i>
+            <span>Sebelumnya</span>
+          </button>
+          <template x-for="p in auditLogTotalPages" :key="'audit-page-' + p">
+            <button
+              type="button"
+              @click="auditLogPage = p"
+              :class="auditLogPage === p ? 'bg-red-600 text-white font-black shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'"
+              class="w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition cursor-pointer"
+              x-text="p">
+            </button>
+          </template>
+          <button
+            type="button"
+            @click="auditLogPage = Math.min(auditLogTotalPages, auditLogPage + 1)"
+            :disabled="auditLogPage === auditLogTotalPages"
+            class="px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-bold text-stone-700 disabled:opacity-40 hover:bg-stone-50 transition flex items-center gap-1 cursor-pointer">
+            <span>Selanjutnya</span>
+            <i class="fa-solid fa-chevron-right text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer note -->
+      <div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between text-[10px] text-stone-400">
+        <span>
+          <i class="fa-solid fa-circle-info mr-1"></i>
+          Setiap aksi tercatat: siapa, kapan, apa, hasilnya
+        </span>
+        <span class="font-mono">Firebase <span class="text-stone-500">/audit_logs/</span></span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MAIN SCRIPT: Alpine data function -->
+  <script>
+    // Helper functions — didefinisikan DI LUAR return object
+    var FB_URL = 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+    function getLocalDateStr(d) {
+      d = d || new Date();
+      var yyyy = d.getFullYear();
+      var mm = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      return yyyy + '-' + mm + '-' + dd;
+    }
+
+    function analyticsDashboard() {
+      return {
+        // Security
+        isUnlocked: false,
+        authCodeInput: '',
+        authError: '',
+        showPassword: false,
+        inactivityTimer: null,
+        lockTimeoutMs: 3 * 60 * 1000,
+
+        // Chart state
+        chartPeriod: 'week',
+        statusFilter: 'all',
+        revenueChart: null,
+        categoryChart: null,
+
+        // Data
+        orders: [],
+        posTransactions: [],
+        menuItems: [],
+        transactionLogs: [],
+        auditLogs: [],
+        auditLogPage: 1,
+        auditLogPerPage: 20,
+        isLoading: false,
+        loadError: '',
+
+        initDashboard() {
+          this.isUnlocked = false;
+          this.authCodeInput = '';
+          this.authError = '';
+          try { sessionStorage.removeItem("dapur_admin_session"); } catch (e) {}
+          this.setupAutoLockListeners();
+        },
+
+        setupAutoLockListeners() {
+          var self = this;
+          var resetTimer = function() {
+            if (self.isUnlocked) {
+              clearTimeout(self.inactivityTimer);
+              self.inactivityTimer = setTimeout(function() {
+                self.lockDashboard('Dasbor terkunci otomatis karena tidak ada aktivitas selama 3 menit.');
+              }, self.lockTimeoutMs);
+            }
+          };
+
+          ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
+            window.addEventListener(evt, resetTimer, { passive: true });
+          });
+
+          document.addEventListener('visibilitychange', function() {
+            if (document.hidden && self.isUnlocked) {
+              self.lockDashboard('Dasbor terkunci otomatis saat Anda beralih tab.');
+            }
+          });
+        },
+
+        lockDashboard(reason) {
+          this.isUnlocked = false;
+          this.authCodeInput = '';
+          if (reason) this.authError = reason;
+          try { sessionStorage.removeItem("dapur_admin_session"); } catch (e) {}
+          clearTimeout(this.inactivityTimer);
+        },
+
+        unlockDashboard() {
+          var inputCode = (this.authCodeInput || '').trim();
+          var validAdminPassword = localStorage.getItem("dapur_admin_pw") || "Dear2226";
+
+          if (!inputCode) {
+            this.authError = 'Silahkan masukkan kode Anda.';
+            return;
+          }
+
+          if (inputCode === validAdminPassword) {
+            this.isUnlocked = true;
+            this.authError = '';
+            this.authCodeInput = '';
+            try { sessionStorage.removeItem("dapur_admin_session"); } catch (e) {}
+            this.loadData();
+            clearTimeout(this.inactivityTimer);
+            var self = this;
+            this.inactivityTimer = setTimeout(function() {
+              self.lockDashboard('Dasbor terkunci otomatis karena tidak ada aktivitas selama 3 menit.');
+            }, this.lockTimeoutMs);
+          } else {
+            this.authError = 'Kode tidak valid. Akses ditolak.';
+          }
+        },
+
+        async loadData() {
+          this.isLoading = true;
+          this.loadError = '';
+
+          try {
+            // 1. Menu items
+            var menuRes = await fetch(FB_URL + '/menu_items.json');
+            var menuRaw = await menuRes.json();
+            if (menuRaw && typeof menuRaw === 'object') {
+              if (Array.isArray(menuRaw)) {
+                this.menuItems = menuRaw.map(function(m, i) {
+                  return Object.assign({}, m, { id: (m && m.id) || ('auto_' + i) });
+                });
+              } else {
+                this.menuItems = Object.entries(menuRaw).map(function(entry) {
+                  var k = entry[0], v = entry[1] || {};
+                  return Object.assign({}, v, { id: v.id || k });
+                });
+              }
+            } else {
+              this.menuItems = [];
+            }
+            
+
+            // 2. Orders
+            var ordersRes = await fetch(FB_URL + '/orders.json');
+            var ordersRaw = await ordersRes.json();
+            if (ordersRaw && typeof ordersRaw === 'object') {
+              this.orders = Object.entries(ordersRaw)
+                .map(function(entry) {
+                  var k = entry[0], v = entry[1] || {};
+                  return Object.assign({}, v, { orderId: v.orderId || k });
+                })
+                .sort(function(a, b) {
+                  return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+            } else {
+              this.orders = [];
+            }
+            
+
+            // 3. POS transactions bulan ini — ✅ OPTIMASI: 1 fetch, bukan loop 30 hari
+            var now = new Date();
+            var yyyy = now.getFullYear();
+            var mm = String(now.getMonth() + 1).padStart(2, '0');
+            var monthParam = yyyy + '-' + mm;
+
+            try {
+              var posRes = await fetch('/pos/transactions?month=' + monthParam);
+              if (posRes.ok) {
+                var posJson = await posRes.json();
+                var rawList = (posJson && Array.isArray(posJson.data)) ? posJson.data : [];
+                this.posTransactions = rawList.map(function(tx) {
+                  return Object.assign({}, tx, {
+                    __date: tx.date || '',
+                    __id: tx.id || ''
+                  });
+                });
+              } else {
+                this.posTransactions = [];
+              }
+            } catch (posErr) {
+              console.warn('POS transactions fetch error:', posErr);
+              this.posTransactions = [];
+            }
+            
+
+                        // 3b. Load Audit Logs (dari PIN Supervisor actions)
+            try {
+              var auditRes = await fetch('/pos/audit_logs?limit=200');
+              if (auditRes.ok) {
+                var auditJson = await auditRes.json();
+                this.auditLogs = (auditJson && Array.isArray(auditJson.data)) ? auditJson.data : [];
+              } else {
+                this.auditLogs = [];
+              }
+            } catch (auditErr) {
+              console.warn('[ANALYTICS] Audit logs fetch failed:', auditErr);
+              this.auditLogs = [];
+            }
+            this.auditLogPage = 1;
+            
+            
+
+            // 4. Build transactionLogs
+            this.transactionLogs = this.posTransactions.slice(-10).reverse().map(function(tx) {
+              return {
+                order_id: tx.__id || 'unknown',
+                payment_type: tx.pm || 'cash',
+                gross_amount: Number(tx.tot || tx.total || 0),
+                received_at: new Date(Number(tx.t) || Date.now()).toISOString()
+              };
+            });
+
+            // 5. Render charts
+            var self = this;
+            this.$nextTick(function() { self.initCharts(); });
+
+          } catch (err) {
+            console.error('[ANALYTICS] Load error:', err);
+            this.loadError = err.message || 'Gagal memuat data';
+          } finally {
+            this.isLoading = false;
+          }
+        },
+
+        // ============================================================
+        // GETTERS
+        // ============================================================
+
+        get auditLogTotalPages() {
+          var perPage = Number(this.auditLogPerPage) || 20;
+          return Math.max(1, Math.ceil((this.auditLogs ? this.auditLogs.length : 0) / perPage));
+        },
+
+        get paginatedAuditLogs() {
+          var list = Array.isArray(this.auditLogs) ? this.auditLogs : [];
+          var perPage = Number(this.auditLogPerPage) || 20;
+          var page = Math.min(Math.max(1, Number(this.auditLogPage) || 1), this.auditLogTotalPages);
+          var start = (page - 1) * perPage;
+          return list.slice(start, start + perPage);
+        },
+
+        get filteredOrders() {
+          if (this.statusFilter === 'all') return this.orders;
+          var self = this;
+          return this.orders.filter(function(o) { return o.status === self.statusFilter; });
+        },
+
+        get totalRevenue() {
+          return this.posTransactions.reduce(function(sum, tx) {
+            return sum + Number(tx.tot || tx.total || tx.amount || 0);
+          }, 0);
+        },
+
+        get totalOrdersCount() {
+          return this.posTransactions.length;
+        },
+
+        get averageOrderValue() {
+          if (this.totalOrdersCount === 0) return 0;
+          return Math.round(this.totalRevenue / this.totalOrdersCount);
+        },
+
+        get activeKitchenOrders() {
+          return this.orders.filter(function(o) {
+            return o.status === 'Diproses' || o.status === 'Dikirim';
+          }).length;
+        },
+
+        get categoryDistribution() {
+          var dist = {};
+          var menuMap = {};
+          this.menuItems.forEach(function(m) {
+            if (m && m.id) menuMap[m.id] = m.categoryLabel || m.category || 'Lainnya';
+          });
+
+          this.posTransactions.forEach(function(tx) {
+            var items = Array.isArray(tx.items) ? tx.items : [];
+            items.forEach(function(it) {
+              var menuId, qty, price;
+              if (Array.isArray(it)) {
+                menuId = it[0]; qty = Number(it[1]) || 0; price = Number(it[2]) || 0;
+              } else {
+                menuId = it.id || it.menuId; qty = Number(it.qty || it.quantity) || 0; price = Number(it.price) || 0;
+              }
+              if (!menuId) return;
+              var cat = menuMap[menuId] || 'Lainnya';
+              var rev = qty * price;
+              dist[cat] = (dist[cat] || 0) + rev;
+            });
+          });
+
+          return dist;
+        },
+
+        get topCategoryNote() {
+          var dist = this.categoryDistribution;
+          var entries = Object.entries(dist).sort(function(a, b) { return b[1] - a[1]; });
+          if (entries.length === 0) return 'Belum ada data penjualan bulan ini.';
+          var total = entries.reduce(function(s, e) { return s + e[1]; }, 0);
+          if (total === 0) return 'Belum ada data penjualan bulan ini.';
+          var name = entries[0][0];
+          var val = entries[0][1];
+          var pct = Math.round((val / total) * 100);
+          return name + ' menyumbang ' + pct + '% dari total nilai transaksi bulan ini.';
+        },
+
+        get trendChartData() {
+          var now = new Date();
+          var labels = [];
+          var values = [];
+
+          if (this.chartPeriod === 'week') {
+            for (var i = 6; i >= 0; i--) {
+              var d = new Date(now);
+              d.setDate(now.getDate() - i);
+              var ds = getLocalDateStr(d);
+              var dayLabel = i === 0 ? 'Hari Ini' : (i === 1 ? 'Kemarin' : 'H-' + i);
+              labels.push(dayLabel);
+              var dayTotal = this.posTransactions
+                .filter(function(tx) { return tx.__date === ds; })
+                .reduce(function(s, tx) { return s + Number(tx.tot || tx.total || 0); }, 0);
+              values.push(dayTotal);
+            }
+          } else {
+            labels = ['Mgg 1', 'Mgg 2', 'Mgg 3', 'Mgg 4'];
+            values = [0, 0, 0, 0];
+            this.posTransactions.forEach(function(tx) {
+              if (!tx.__date) return;
+              var day = parseInt(tx.__date.slice(-2), 10) || 1;
+              var weekIdx = Math.min(3, Math.floor((day - 1) / 7));
+              values[weekIdx] += Number(tx.tot || tx.total || 0);
+            });
+          }
+
+          return { labels: labels, data: values };
+        },
+
+        // ============================================================
+        // ACTIONS
+        // ============================================================
+
+        updateOrderStatus(orderId, newStatus) {
+          var target = this.orders.find(function(o) { return o.orderId === orderId; });
+          if (target) target.status = newStatus;
+
+          try {
+            var localOrders = JSON.parse(localStorage.getItem("dapur_orders") || "{}");
+            if (localOrders[orderId]) {
+              localOrders[orderId].status = newStatus;
+              localStorage.setItem("dapur_orders", JSON.stringify(localOrders));
+            }
+          } catch (e) {}
+
+          if (window.FirebaseBridge && window.FirebaseBridge.updateStatus) {
+            window.FirebaseBridge.updateStatus(orderId, newStatus);
+          }
+
+          // Update Firebase REST juga
+          fetch(FB_URL + '/orders/' + encodeURIComponent(orderId) + '.json', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus, updatedAt: new Date().toISOString() })
+          }).catch(function() {});
+        },
+
+        // ============================================================
+        // FORMATTING
+        // ============================================================
+
+        formatRupiah(number) {
+          return new Intl.NumberFormat('id-ID', {
+            style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+          }).format(number || 0);
+        },
+
+        formatDate(isoString) {
+          if (!isoString) return '-';
+          var d = new Date(isoString);
+          if (isNaN(d.getTime())) return '-';
+          return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        },
+
+        cleanPhone(phone) {
+          return (phone || '').replace(/[^0-9]/g, '');
+        },
+
+        getStatusBadgeClass(status) {
+          switch (status) {
+            case 'Pending': return 'bg-amber-100 text-amber-800';
+            case 'Dibayar': return 'bg-blue-100 text-blue-800';
+            case 'Diproses': return 'bg-purple-100 text-purple-800';
+            case 'Dikirim': return 'bg-indigo-100 text-indigo-800';
+            case 'Selesai': return 'bg-emerald-100 text-emerald-800';
+            case 'Dibatalkan': return 'bg-red-100 text-red-800';
+            default: return 'bg-stone-100 text-stone-700';
+          }
+        },
+
+        // ============================================================
+        // CHARTS
+        // ============================================================
+
+        initCharts() {
+          var trendData = this.trendChartData;
+
+          // 1. Revenue Trend Chart
+          var trendCtx = document.getElementById('revenueTrendChart');
+          if (trendCtx && trendCtx.getContext) {
+            if (this.revenueChart) {
+              this.revenueChart.destroy();
+              this.revenueChart = null;
+            }
+            this.revenueChart = new Chart(trendCtx.getContext('2d'), {
+              type: 'line',
+              data: {
+                labels: trendData.labels,
+                datasets: [{
+                  label: 'Omset Penjualan (Rp)',
+                  data: trendData.data,
+                  borderColor: '#ea580c',
+                  backgroundColor: 'rgba(234, 88, 12, 0.08)',
+                  fill: true,
+                  tension: 0.35,
+                  pointRadius: 4,
+                  pointBackgroundColor: '#ea580c'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: function(val) { return 'Rp' + (val / 1000) + 'k'; }
+                    }
+                  }
+                }
+              }
+            });
+          }
+
+          // 2. Category Donut Chart
+          var catCtx = document.getElementById('categoryDonutChart');
+          if (catCtx && catCtx.getContext) {
+            if (this.categoryChart) {
+              this.categoryChart.destroy();
+              this.categoryChart = null;
+            }
+
+            var dist = this.categoryDistribution;
+            var entries = Object.entries(dist).sort(function(a, b) { return b[1] - a[1]; });
+            var labels = entries.map(function(e) { return e[0]; });
+            var values = entries.map(function(e) { return e[1]; });
+            var palette = ['#ea580c', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+            this.categoryChart = new Chart(catCtx.getContext('2d'), {
+              type: 'doughnut',
+              data: {
+                labels: labels.length > 0 ? labels : ['Belum Ada Data'],
+                datasets: [{
+                  data: values.length > 0 ? values : [1],
+                  backgroundColor: values.length > 0 ? palette.slice(0, labels.length) : ['#e5e7eb'],
+                  borderWidth: 2,
+                  borderColor: '#ffffff'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 12, font: { size: 10 } }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(ctx) {
+                        return ' ' + ctx.label + ': Rp' + Number(ctx.parsed).toLocaleString('id-ID');
+                      }
+                    }
+                  }
+                },
+                cutout: '68%'
+              }
+            });
+          }
+        },
+
+        setChartPeriod(period) {
+          this.chartPeriod = period;
+          if (!this.revenueChart) {
+            this.initCharts();
+            return;
+          }
+          var trendData = this.trendChartData;
+          this.revenueChart.data.labels = trendData.labels;
+          this.revenueChart.data.datasets[0].data = trendData.data;
+          this.revenueChart.update();
+        },
+
+        // ============================================================
+        // EXPORT CSV
+        // ============================================================
+
+        exportCSV(period) {
+          var now = new Date();
+          var filtered = this.orders.slice();
+
+          if (period === 'daily') {
+            filtered = filtered.filter(function(o) {
+              var d = new Date(o.createdAt);
+              return d.toDateString() === now.toDateString();
+            });
+          } else if (period === 'weekly') {
+            var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600000);
+            filtered = filtered.filter(function(o) { return new Date(o.createdAt) >= sevenDaysAgo; });
+          } else if (period === 'monthly') {
+            filtered = filtered.filter(function(o) {
+              var d = new Date(o.createdAt);
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            });
+          }
+
+          if (filtered.length === 0) {
+            alert('Tidak ada transaksi pada periode ' + period + '. Mengekspor seluruh data transaksi.');
+            filtered = this.orders;
+          }
+
+          var headers = ['Order ID','Tanggal','Jam','Nama Pelanggan','No WhatsApp','Alamat Pengiriman','Daftar Menu','Subtotal (IDR)','Ongkir (IDR)','Kurir','Total Bayar (IDR)','Status'];
+
+          var rows = filtered.map(function(o) {
+            var dateObj = new Date(o.createdAt || Date.now());
+            var dateStr = dateObj.toLocaleDateString('id-ID');
+            var timeStr = dateObj.toLocaleTimeString('id-ID');
+            var menuText = (o.items || []).map(function(i) {
+              return (i.name || i.id) + ' (' + (i.quantity || i.qty || 1) + 'x)';
+            }).join(' | ');
+
+            return [
+              '"' + (o.orderId || '') + '"',
+              '"' + dateStr + '"',
+              '"' + timeStr + '"',
+              '"' + ((o.customer && o.customer.name) || o.customerName || '').replace(/"/g, '""') + '"',
+              '"' + ((o.customer && o.customer.phone) || o.customerPhone || '').replace(/"/g, '""') + '"',
+              '"' + ((o.customer && o.customer.address) || o.customerAddress || '').replace(/"/g, '""') + '"',
+              '"' + menuText.replace(/"/g, '""') + '"',
+              o.subtotal || 0,
+              o.courierFee || 0,
+              '"' + ((o.courier && o.courier.name) || 'GoSend') + '"',
+              o.totalAmount || 0,
+              '"' + (o.status || 'Pending') + '"'
+            ].join(',');
+          });
+
+          var csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+          var encodedUri = encodeURI(csvContent);
+          var link = document.createElement('a');
+          link.setAttribute('href', encodedUri);
+          link.setAttribute('download', 'Laporan_Penjualan_' + period.toUpperCase() + '_' + now.toISOString().split('T')[0] + '.csv');
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      };
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "mydigitalshop",
+  "description": "Pusat Material Bangunan & Konstruksi Terlengkap — Melayani Eceran, Partai Proyek, dan Agen Distribusi dengan Integrasi Cloud Firestore.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
