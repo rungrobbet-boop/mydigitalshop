@@ -19,3 +19,6 @@ public/firebase-config.js
 # Bun lockfile (hindari Cloudflare Pages mencoba bun install)
 bun.lock
 bun.lockb
+
+# Firebase config generated from env vars saat build (JANGAN di-commit)
+public/firebase-config.js
