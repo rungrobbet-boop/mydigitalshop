@@ -7620,8 +7620,19 @@ try {
           const line = lines[i].trim();
           if (!line) continue;
 
-          // Parse CSV (handling quotes & delimiter)
-          const cols = line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+          // Fungsi helper: parse satu baris CSV dengan dukungan quoted strings
+          // Handles: "value with, comma", plain value, empty fields
+          const parseCsvLine = (line) => {
+            const fields = [];
+            const regex = /(?:"([^"]*)"|([^,]*))(?:,|$)/g;
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+              fields.push(match[1] !== undefined ? match[1] : match[2]);
+            }
+            return fields;
+          };
+
+          const cols = parseCsvLine(line);
           if (!cols[0]) continue;
 
           const itemName = cols[0] || '';

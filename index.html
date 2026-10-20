@@ -777,7 +777,7 @@
           <div class="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition overflow-hidden flex flex-col justify-between group relative">
             
             <div class="relative">
-              <img :src="item.image || 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=600&auto=format&fit=crop&q=80'" :alt="item.name" class="w-full h-44 object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+              <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-full h-44 object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
               
               <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
                 <span x-show="item.badge" class="px-2.5 py-1 text-[11px] font-extrabold uppercase rounded-lg shadow-sm bg-blue-600 text-white" x-text="item.badge"></span>
@@ -858,7 +858,7 @@
         <template x-for="item in paginatedMenuItems" :key="'compact_' + item.id">
           <div class="bg-white rounded-xl sm:rounded-2xl border border-stone-200/90 shadow-2xs hover:shadow-md transition overflow-hidden flex flex-col justify-between group relative">
             <div class="relative">
-              <img :src="item.image" :alt="item.name" class="w-full h-28 sm:h-36 object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+              <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-full h-28 sm:h-36 object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
               
               <!-- Promo & Hemat Badge -->
               <div class="absolute top-1.5 right-1.5 flex flex-col gap-0.5 items-end">
@@ -940,7 +940,7 @@
             
             <!-- Thumbnail Kecil -->
             <div class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden flex-shrink-0 border border-stone-100 bg-stone-100">
-              <img :src="item.image" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
+              <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
                             <!-- Stock Inventory — Sold Out saat 0 -->
               <template x-if="siteConfig.showMenuStockOnMain && getInventoryStockForMenu(item)">
                 <div class="absolute top-1 left-1 z-10">
@@ -2223,7 +2223,7 @@
 
           <template x-for="item in cart" :key="item.id">
             <div class="py-2.5 sm:py-3 flex items-center justify-between gap-2.5 sm:gap-3">
-              <img :src="item.image" :alt="item.name" class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border flex-shrink-0" />
+              <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border flex-shrink-0" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5 mb-0.5">
                   <h5 class="font-bold text-xs text-stone-900 truncate" x-text="item.name"></h5>
@@ -3499,7 +3499,7 @@
               <div class="p-3 bg-stone-50 hover:bg-stone-100/80 rounded-2xl border border-stone-200 flex items-center justify-between gap-3 transition">
                 <div class="flex items-center gap-3 min-w-0">
                   <div class="relative flex-shrink-0">
-                    <img :src="item.image" :alt="item.name" class="w-14 h-14 rounded-xl object-cover border border-stone-300" />
+                    <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-14 h-14 rounded-xl object-cover border border-stone-300" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
                     <!-- Indikator Spicy di thumbnail admin -->
                     <span x-show="item.isSpicy" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] shadow-sm border border-white" title="Menu Pedas (Spicy)">
                       <i class="fa-solid fa-pepper-hot text-[9px] text-amber-300"></i>
@@ -9342,13 +9342,25 @@ git push -u origin main</pre>
         },
 
         parseCsvFile(text) {
+          // Fungsi helper: parse satu baris CSV dengan dukungan quoted strings
+          // Handles: "value with, comma", plain value, empty fields
+          const parseCsvLine = (line) => {
+            const fields = [];
+            const regex = /(?:"([^"]*)"|([^,]*))(?:,|$)/g;
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+              fields.push(match[1] !== undefined ? match[1] : match[2]);
+            }
+            return fields;
+          };
+
           const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
           if (lines.length === 0) return { parsed: [], errors: ['File kosong'] };
-          const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const header = parseCsvLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
           const parsed = [];
           const errors = [];
           lines.slice(1).forEach((line, idx) => {
-            const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+            const values = parseCsvLine(line).map(v => v.trim().replace(/"/g, ''));
             const row = {};
             header.forEach((h, i) => { row[h] = values[i] || ''; });
             if (!row.name || !row.categoryId) {
@@ -9380,7 +9392,7 @@ git push -u origin main</pre>
               minOrderAgen: safeMinOrderAgen,
               unit: String(row.unit || '/pcs'),
               stock: safeStock,
-              image: String(row.imageUrl || ''),
+              imageUrl: String(row.imageUrl || ''),
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             });
