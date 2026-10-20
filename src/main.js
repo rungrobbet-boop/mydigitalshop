@@ -1,6 +1,7 @@
     import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-      getFirestore, 
+    import {
+      getFirestore,
+      initializeFirestore,
       collection, 
       doc, 
       getDocs, 
@@ -53,7 +54,7 @@
           // jika belum ada, baru inisialisasi dengan initializeApp(cfg).
           const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(cfg);
           app = firebaseApp;
-          firestoreDb = getFirestore(app);
+          firestoreDb = initializeFirestore(app, { experimentalForceLongPolling: true });
           // RTDB hanya dihubungkan jika databaseURL tersedia (project ini menggunakan Firestore untuk realtime data);
           // memanggil getDatabase(app) tanpa databaseURL memicu FATAL ERROR "Can't determine Firebase Database URL".
           if (cfg.databaseURL) {
