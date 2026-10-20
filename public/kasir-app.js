@@ -524,11 +524,11 @@ window.kasirApp = () => ({
 
    // 🏢 Info Bisnis dari Admin Panel (/site_config) — untuk PDF & laporan
   siteInfo: {
-    brandName: 'Dapur Kuliner Viral & Catering Rumahan',
+    brandName: 'MyDigitalShop Material',
     address: 'Jl. Kuliner Viral No. 88, Jakarta Selatan',
     phone: '0812-3456-7890'
   },
- 
+
  // State Payment Config dari Admin Panel (/site_config/paymentConfig)
   paymentConfig: {
     bankName: 'BCA',
