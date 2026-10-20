@@ -5832,6 +5832,134 @@ git push -u origin main</pre>
 
   <!-- ALPINE.JS APPLICATION COMPONENT -->
   <script>
+    // Fungsi parser CSV yang kuat - sama persis di index.html dan kasir-app.js
+    // Handles quoted strings, koma di dalam teks, BOM, dan validasi jumlah kolom
+    function parseCSV(text) {
+      // Handle BOM (Byte Order Mark) dari export Google Sheets / Excel
+      if (text.charCodeAt(0) === 0xFEFF) {
+        text = text.slice(1);
+      }
+
+      const rows = [];
+      let i = 0;
+      const n = text.length;
+
+      while (i < n) {
+        const fields = [];
+        let field = '';
+        let inQuotes = false;
+        let lineComplete = false;
+
+        while (i < n && !lineComplete) {
+          const ch = text[i];
+
+          if (inQuotes) {
+            if (ch === '"') {
+              if (i + 1 < n && text[i + 1] === '"') {
+                field += '"';
+                i += 2;
+              } else {
+                inQuotes = false;
+                i++;
+              }
+            } else {
+              field += ch;
+              i++;
+            }
+          } else {
+            if (ch === '"') {
+              inQuotes = true;
+              i++;
+            } else if (ch === ',') {
+              fields.push(field);
+              field = '';
+              i++;
+            } else if (ch === '\r') {
+              i++;
+              if (i < n && text[i] === '\n') i++;
+              fields.push(field);
+              lineComplete = true;
+            } else if (ch === '\n') {
+              i++;
+              fields.push(field);
+              lineComplete = true;
+            } else {
+              field += ch;
+              i++;
+            }
+          }
+        }
+
+        if (!lineComplete && i >= n) {
+          fields.push(field);
+        }
+
+        if (fields.length > 0 || field !== '') {
+          rows.push(fields);
+        }
+
+        if (i >= n) break;
+      }
+
+      if (rows.length === 0) {
+        return { parsed: [], errors: ['File kosong'] };
+      }
+
+      const header = rows[0].map(h => h.trim());
+      const parsed = [];
+      const errors = [];
+
+      for (let r = 1; r < rows.length; r++) {
+        const fields = rows[r];
+
+        // Skip baris kosong
+        if (fields.length === 0) continue;
+        if (fields.length === 1 && fields[0].trim() === '') continue;
+
+        const trimmed = fields.map(f => f.trim());
+
+        // Validasi jumlah kolom - harus tepat 11 sesuai skema
+        // name, supplier, categoryId, priceEcer, pricePartai, priceAgen,
+        // minOrderPartai, minOrderAgen, unit, stock, imageUrl
+        if (trimmed.length !== 11) {
+          const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 11), dilewati';
+          errors.push(msg);
+          console.log('[parseCSV] ' + msg, trimmed);
+          continue;
+        }
+
+        const row = {};
+        header.forEach((h, idx) => {
+          row[h] = trimmed[idx] || '';
+        });
+
+        if (!row.name || !row.categoryId) {
+          const msg = "Baris " + (r + 1) + ": 'name' dan 'categoryId' wajib diisi, dilewati";
+          errors.push(msg);
+          console.log('[parseCSV] ' + msg, row);
+          continue;
+        }
+
+        parsed.push({
+          name: String(row.name || ''),
+          supplier: String(row.supplier || ''),
+          categoryId: String(row.categoryId || ''),
+          priceEcer: Number(row.priceEcer) || 0,
+          pricePartai: Number(row.pricePartai) || 0,
+          priceAgen: Number(row.priceAgen) || 0,
+          minOrderPartai: Number(row.minOrderPartai) || 0,
+          minOrderAgen: Number(row.minOrderAgen) || 0,
+          unit: String(row.unit || 'pcs'),
+          stock: Number(row.stock) || 0,
+          imageUrl: String(row.imageUrl || ''),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      return { parsed, errors };
+    }
+
     function dapurApp() {
       return {
         appReady: false,
@@ -9342,62 +9470,8 @@ git push -u origin main</pre>
         },
 
         parseCsvFile(text) {
-          // Fungsi helper: parse satu baris CSV dengan dukungan quoted strings
-          // Handles: "value with, comma", plain value, empty fields
-          const parseCsvLine = (line) => {
-            const fields = [];
-            const regex = /(?:"([^"]*)"|([^,]*))(?:,|$)/g;
-            let match;
-            while ((match = regex.exec(line)) !== null) {
-              fields.push(match[1] !== undefined ? match[1] : match[2]);
-            }
-            return fields;
-          };
-
-          const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-          if (lines.length === 0) return { parsed: [], errors: ['File kosong'] };
-          const header = parseCsvLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
-          const parsed = [];
-          const errors = [];
-          lines.slice(1).forEach((line, idx) => {
-            const values = parseCsvLine(line).map(v => v.trim().replace(/"/g, ''));
-            const row = {};
-            header.forEach((h, i) => { row[h] = values[i] || ''; });
-            if (!row.name || !row.categoryId) {
-              errors.push('Baris ' + (idx + 2) + ": kolom 'name' dan 'categoryId' wajib diisi");
-              return;
-            }
-            // Parse angka dengan default 0 jika kosong/NaN
-            const priceEcer = Number(row.priceEcer) || 0;
-            const pricePartai = Number(row.pricePartai) || 0;
-            const priceAgen = Number(row.priceAgen) || 0;
-            const minOrderPartai = Number(row.minOrderPartai) || 0;
-            const minOrderAgen = Number(row.minOrderAgen) || 0;
-            const stock = Number(row.stock) || 0;
-            // Pastikan tidak ada NaN
-            const safePriceEcer = isNaN(priceEcer) ? 0 : priceEcer;
-            const safePricePartai = isNaN(pricePartai) ? 0 : pricePartai;
-            const safePriceAgen = isNaN(priceAgen) ? 0 : priceAgen;
-            const safeMinOrderPartai = isNaN(minOrderPartai) ? 0 : minOrderPartai;
-            const safeMinOrderAgen = isNaN(minOrderAgen) ? 0 : minOrderAgen;
-            const safeStock = isNaN(stock) ? 0 : stock;
-            parsed.push({
-              name: String(row.name || ''),
-              supplier: String(row.supplier || ''),
-              categoryId: String(row.categoryId || ''),
-              priceEcer: safePriceEcer,
-              pricePartai: safePricePartai,
-              priceAgen: safePriceAgen,
-              minOrderPartai: safeMinOrderPartai,
-              minOrderAgen: safeMinOrderAgen,
-              unit: String(row.unit || '/pcs'),
-              stock: safeStock,
-              imageUrl: String(row.imageUrl || ''),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
-          });
-          return { parsed, errors };
+          // Delegasi ke fungsi parseCSV global (sama persis di kasir-app.js)
+          return parseCSV(text);
         },
 
         downloadCsvTemplate() {

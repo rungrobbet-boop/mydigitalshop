@@ -19,6 +19,134 @@ let FB_DB = null;
 let FB_FS = null;
 let GLOBAL_AUDIO_CTX = null;
 
+// Fungsi parser CSV yang kuat - sama persis di index.html dan kasir-app.js
+// Handles quoted strings, koma di dalam teks, BOM, dan validasi jumlah kolom
+function parseCSV(text) {
+  // Handle BOM (Byte Order Mark) dari export Google Sheets / Excel
+  if (text.charCodeAt(0) === 0xFEFF) {
+    text = text.slice(1);
+  }
+
+  const rows = [];
+  let i = 0;
+  const n = text.length;
+
+  while (i < n) {
+    const fields = [];
+    let field = '';
+    let inQuotes = false;
+    let lineComplete = false;
+
+    while (i < n && !lineComplete) {
+      const ch = text[i];
+
+      if (inQuotes) {
+        if (ch === '"') {
+          if (i + 1 < n && text[i + 1] === '"') {
+            field += '"';
+            i += 2;
+          } else {
+            inQuotes = false;
+            i++;
+          }
+        } else {
+          field += ch;
+          i++;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+          i++;
+        } else if (ch === ',') {
+          fields.push(field);
+          field = '';
+          i++;
+        } else if (ch.charCodeAt(0) === 13) {
+          i++;
+          if (i < n && text.charCodeAt(i) === 10) i++;
+          fields.push(field);
+          lineComplete = true;
+        } else if (ch.charCodeAt(0) === 10) {
+          i++;
+          fields.push(field);
+          lineComplete = true;
+        } else {
+          field += ch;
+          i++;
+        }
+      }
+    }
+
+    if (!lineComplete && i >= n) {
+      fields.push(field);
+    }
+
+    if (fields.length > 0 || field !== '') {
+      rows.push(fields);
+    }
+
+    if (i >= n) break;
+  }
+
+  if (rows.length === 0) {
+    return { parsed: [], errors: ['File kosong'] };
+  }
+
+  const header = rows[0].map(h => h.trim());
+  const parsed = [];
+  const errors = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const fields = rows[r];
+
+    // Skip baris kosong
+    if (fields.length === 0) continue;
+    if (fields.length === 1 && fields[0].trim() === '') continue;
+
+    const trimmed = fields.map(f => f.trim());
+
+    // Validasi jumlah kolom - harus tepat 11 sesuai skema
+    // name, supplier, categoryId, priceEcer, pricePartai, priceAgen,
+    // minOrderPartai, minOrderAgen, unit, stock, imageUrl
+    if (trimmed.length !== 11) {
+      const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 11), dilewati';
+      errors.push(msg);
+      console.log('[parseCSV] ' + msg, trimmed);
+      continue;
+    }
+
+    const row = {};
+    header.forEach((h, idx) => {
+      row[h] = trimmed[idx] || '';
+    });
+
+    if (!row.name || !row.categoryId) {
+      const msg = "Baris " + (r + 1) + ": 'name' dan 'categoryId' wajib diisi, dilewati";
+      errors.push(msg);
+      console.log('[parseCSV] ' + msg, row);
+      continue;
+    }
+
+    parsed.push({
+      name: String(row.name || ''),
+      supplier: String(row.supplier || ''),
+      categoryId: String(row.categoryId || ''),
+      priceEcer: Number(row.priceEcer) || 0,
+      pricePartai: Number(row.pricePartai) || 0,
+      priceAgen: Number(row.priceAgen) || 0,
+      minOrderPartai: Number(row.minOrderPartai) || 0,
+      minOrderAgen: Number(row.minOrderAgen) || 0,
+      unit: String(row.unit || 'pcs'),
+      stock: Number(row.stock) || 0,
+      imageUrl: String(row.imageUrl || ''),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  return { parsed, errors };
+}
+
 window.kasirApp = () => ({
     _scanBuffer: '',
     _scanLastTime: 0,
@@ -7606,9 +7734,16 @@ try {
     reader.onload = (e) => {
       try {
         const text = e.target.result;
-        const lines = text.split(/\r\n|\n/);
-        if (lines.length <= 1) {
-          this.showToast('File CSV kosong atau tidak valid', 'error');
+        const { parsed, errors: parseErrors } = parseCSV(text);
+
+        // Tampilkan error parsing di console
+        if (parseErrors.length > 0) {
+          console.warn('[IMPORT-CSV] Parsing errors:', parseErrors);
+          parseErrors.forEach(err => console.log('[parseCSV] ' + err));
+        }
+
+        if (parsed.length === 0) {
+          this.showToast('Tidak ada data valid yang dapat diimpor dari file CSV', 'error');
           return;
         }
 
@@ -7616,38 +7751,21 @@ try {
         let addedCount = 0;
 
         const itemsForFirestore = [];
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
 
-          // Fungsi helper: parse satu baris CSV dengan dukungan quoted strings
-          // Handles: "value with, comma", plain value, empty fields
-          const parseCsvLine = (line) => {
-            const fields = [];
-            const regex = /(?:"([^"]*)"|([^,]*))(?:,|$)/g;
-            let match;
-            while ((match = regex.exec(line)) !== null) {
-              fields.push(match[1] !== undefined ? match[1] : match[2]);
-            }
-            return fields;
-          };
-
-          const cols = parseCsvLine(line);
-          if (!cols[0]) continue;
-
-          const itemName = cols[0] || '';
-          const supplier = cols[1] || '';
-          const categoryId = cols[2] || '';
-          const priceEcer = Number(cols[3]) || 0;
-          const pricePartai = Number(cols[4]) || 0;
-          const priceAgen = Number(cols[5]) || 0;
-          const minOrderPartai = Number(cols[6]) || 0;
-          const minOrderAgen = Number(cols[7]) || 0;
-          const unit = cols[8] || 'pcs';
-          const stock = Number(cols[9]) || 0;
-          const imageUrl = cols[10] || '';
+        parsed.forEach((row, idx) => {
+          const itemName = row.name;
+          const supplier = row.supplier || '';
+          const categoryId = row.categoryId || '';
+          const priceEcer = row.priceEcer;
+          const pricePartai = row.pricePartai;
+          const priceAgen = row.priceAgen;
+          const minOrderPartai = row.minOrderPartai;
+          const minOrderAgen = row.minOrderAgen;
+          const unit = row.unit;
+          const stock = row.stock;
+          const imageUrl = row.imageUrl || '';
           const minStock = 5;
-          const itemId = (`inv_${Date.now()}_${i}`);
+          const itemId = `inv_${Date.now()}_${idx}`;
 
           // Cari item yang ada (cocokkan via nama)
           let existing = this.inventoryList.find(inv => (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
@@ -7661,8 +7779,8 @@ try {
             existing.pricePartai = pricePartai;
             existing.priceAgen = priceAgen;
             existing.unit = unit;
-            existing.category = categoryId || 'Bahan Bangunan';
-            existing.categoryId = categoryId || '';
+            existing.category = categoryId;
+            existing.categoryId = categoryId;
             existing.minStock = minStock;
             updatedCount++;
 
@@ -7671,7 +7789,7 @@ try {
               name: existing.name,
               supplier: existing.supplier || '',
               categoryId: existing.categoryId || '',
-              category: existing.category || 'Bahan Bangunan',
+              category: existing.category,
               priceEcer: Number(existing.priceEcer) || 0,
               pricePartai: Number(existing.pricePartai) || 0,
               priceAgen: Number(existing.priceAgen) || 0,
@@ -7685,18 +7803,18 @@ try {
             this.addInventoryLog(
               existing.name,
               oldStock,
-              newStock,
+              stock,
               existing.unit,
               'Import CSV (Opname)',
-              `Diperbarui via CSV Stok Opname (Harga: Rp ${purchasePrice.toLocaleString()})`
+              `Diperbarui via CSV Stok Opname (Harga: Rp ${priceEcer.toLocaleString()})`
             );
           } else if (itemName) {
             const newItemObj = {
               id: itemId,
               name: itemName,
-              supplier: supplier || '',
-              categoryId: categoryId || '',
-              category: categoryId || 'Bahan Bangunan',
+              supplier: supplier,
+              categoryId: categoryId,
+              category: categoryId,
               priceEcer: priceEcer,
               price: priceEcer,
               pricePartai: pricePartai,
@@ -7718,7 +7836,7 @@ try {
               name: newItemObj.name,
               supplier: newItemObj.supplier || '',
               categoryId: newItemObj.categoryId || '',
-              category: newItemObj.category || 'Bahan Bangunan',
+              category: newItemObj.category,
               priceEcer: Number(newItemObj.priceEcer) || 0,
               pricePartai: Number(newItemObj.pricePartai) || 0,
               priceAgen: Number(newItemObj.priceAgen) || 0,
@@ -7733,13 +7851,13 @@ try {
             this.addInventoryLog(
               itemName,
               0,
-              newStock,
+              stock,
               unit,
               'Import CSV (Baru)',
               `Bahan baku baru ditambahkan dari file CSV`
             );
           }
-        }
+        });
 
         // ✅ Persist ke Firebase — pakai Promise.all + .then() (TIDAK pakai await)
         if (this._fbDb && this._fbSet && this._fbRef) {
