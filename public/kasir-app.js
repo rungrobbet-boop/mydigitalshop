@@ -1459,15 +1459,18 @@ try {
    */
     async initFirebaseSDK() {
     try {
-      // Ambil kredensial Firebase dari window.firebaseConfig dan localStorage
+      // Ambil kredensial Firebase dari window.firebaseConfig (kasir.html) atau
+      // localStorage (dapur_firebase_custom_config — diisi via Panel Admin Kasir).
+      // Landing Page (index.html) menggunakan import.meta.env VITE_FIREBASE_*,
+      // JANGAN memuat firebase-config.js secara statis di sini.
       let cfg = null;
-      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di index.html/kasir.html)
+      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di kasir.html)
       if (window.firebaseConfig && window.firebaseConfig.apiKey) {
         cfg = { ...window.firebaseConfig };
       }
-      // 2. Gabungkan dengan localStorage (mydigitalshop_firebase_custom_config) — diisi manual lewat Panel Admin
+      // 2. Gabungkan dengan localStorage (dapur_firebase_custom_config) — diisi manual lewat Panel Admin
       try {
-        const stored = localStorage.getItem('mydigitalshop_firebase_custom_config');
+        const stored = localStorage.getItem('dapur_firebase_custom_config');
         if (stored) {
           const lsCfg = JSON.parse(stored);
           if (!cfg || !cfg.apiKey) {
@@ -1480,29 +1483,16 @@ try {
         console.warn('[FB-INIT] Gagal parse localStorage config:', e);
       }
       if (!cfg || !cfg.apiKey) {
-        const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di index.html atau atur mydigitalshop_firebase_custom_config di localStorage.');
-        console.error('[FB-INIT]', err.message);
-        this.showToast(err.message, 'error');
-        this.playSound('error');
-        this.appReady = true;
-        return;
-      }
-
-      // Validasi databaseURL harus ada
-      if (!cfg.databaseURL) {
-        const err = new Error('Firebase databaseURL tidak ditemukan. Harap isi databaseURL di Panel Admin dan simpan ke mydigitalshop_firebase_custom_config.');
-        console.error('[FB-INIT]', err.message);
-        this.showToast(err.message, 'error');
-        this.playSound('error');
+        console.warn('[FB-INIT] Firebase konfigurasi tidak ditemukan — masuk mode Demo/Offline.');
         this.appReady = true;
         return;
       }
 
       this._fbConfig = cfg;
 
-      // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di index.html/kasir.html)
+      // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di kasir.html)
       if (typeof firebase === 'undefined' || !firebase.database) {
-        console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek index.html/kasir.html');
+        console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek kasir.html');
         this.appReady = true;
         return;
       }
@@ -1555,6 +1545,7 @@ try {
       console.log('[FB-INIT] ✅ Firebase Compat connected:', cfg.projectId);
     } catch (err) {
       console.warn('[FB-INIT] Firebase init error:', err);
+      this.appReady = true;
     }
 
     this.setupBarcodeScanner();
