@@ -131,7 +131,7 @@
         }
         const result = { success: 0, failed: 0, total: docs.length, errors: [] };
         const numericFields = ['priceEcer', 'pricePartai', 'priceAgen', 'minOrderPartai', 'minOrderAgen', 'stock'];
-        const stringFields = ['name', 'categoryId', 'unit', 'image'];
+        const stringFields = ['name', 'categoryId', 'unit', 'image', 'imageUrl', 'id'];
         // Batasi batch agar tidak melebihi 500 operasi per commit (batas Firestore)
         const effectiveMax = Math.min(maxPerBatch, 500);
         for (let i = 0; i < docs.length; i += effectiveMax) {
@@ -161,7 +161,10 @@
                   cleanData[k] = typeof v === 'number' ? 0 : '';
                 }
               }
-              const docRef = doc(collection(firestoreDb, collectionName));
+              // Gunakan docData.id jika tersedia (untuk overwrite/re-import), otomatis jika tidak
+              const docRef = docData.id
+                ? doc(doc(firestoreDb, collectionName), docData.id)
+                : doc(collection(firestoreDb, collectionName));
               console.log("DATA YANG AKAN DIKIRIM:", cleanData);
               batch.set(docRef, cleanData);
             });
