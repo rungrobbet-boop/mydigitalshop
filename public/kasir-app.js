@@ -5622,15 +5622,6 @@ async loadMoreProducts() {
             snap.forEach((doc) => {
               const d = doc.data() || {};
               if (!d.name) return;
-              invFromProducts.push({
-                id: d.id || doc.id,
-                name: d.name,
-                sku: d.sku || '',
-                category: d.category || 'Bahan Bangunan',
-                stock: Number(d.stock) || 0,
-                stok: Number(d.stock) || 0,
-                minStock: Number(d.minStock) || 5,
-                unit: d.unit || 'pcs',
                 const priceEcerVal = Number(
                   d.priceEcer !== undefined && d.priceEcer !== null
                     ? d.priceEcer
@@ -5640,6 +5631,15 @@ async loadMoreProducts() {
                         ? d.harga
                         : d.price
                 ) || 0;
+              invFromProducts.push({
+                id: d.id || doc.id,
+                name: d.name,
+                sku: d.sku || '',
+                category: d.category || 'Bahan Bangunan',
+                stock: Number(d.stock) || 0,
+                stok: Number(d.stock) || 0,
+                minStock: Number(d.minStock) || 5,
+                unit: d.unit || 'pcs',
                 purchasePrice: priceEcerVal,
                 priceEcer: priceEcerVal,
                 pricePartai: Number(d.pricePartai || 0) || 0,
