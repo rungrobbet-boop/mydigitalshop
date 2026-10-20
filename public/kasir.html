@@ -2008,16 +2008,16 @@
           <!-- Empty State untuk Produk Menu & Resep -->
           <div x-show="filteredProductMenus().length === 0" class="bg-white rounded-3xl p-10 border border-stone-200 text-center space-y-3">
             <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mx-auto">
-              <i class="fa-solid fa-utensils"></i>
+              <i class="fa-solid fa-box"></i>
             </div>
-            <h4 class="font-extrabold text-stone-900 text-base">Belum Ada Menu Produk Ditampilkan</h4>
-            <p class="text-xs text-stone-500 max-w-md mx-auto">Klik tombol <strong>"+ Tambah Menu Baru"</strong> untuk mendaftarkan menu beserta resep komposisi bahan bakunya.</p>
-            <button 
-              type="button" 
+            <h4 class="font-extrabold text-stone-900 text-base">Belum Ada Produk Ditampilkan</h4>
+            <p class="text-xs text-stone-500 max-w-md mx-auto">Klik tombol <strong>"+ Tambah Produk Baru"</strong> untuk mendaftarkan produk siap jual baru.</p>
+            <button
+              type="button"
               @click="openNewMenuModal()"
               class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs inline-flex items-center gap-2 transition shadow-sm cursor-pointer">
               <i class="fa-solid fa-plus"></i>
-              <span>Tambah Menu Baru Sekarang</span>
+              <span>Tambah Produk Baru Sekarang</span>
             </button>
           </div>
         </div>
