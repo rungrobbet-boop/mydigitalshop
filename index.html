@@ -9403,6 +9403,49 @@ git push -u origin main</pre>
           URL.revokeObjectURL(url);
         },
 
+        // Buat label tampilan otomatis dari categoryId, contoh:
+        // 'cat-01' -> 'Cat 01', 'besi-cor' -> 'Besi Cor', 'semen-pasir' -> 'Semen Pasir'
+        autoCategoryLabel(catId) {
+          if (!catId) return 'Kategori Baru';
+          return String(catId)
+            .split(/[^a-z0-9]+/i)
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+        },
+
+        // Pastikan semua categoryId dari CSV ada di menuCategories.
+        // Jika ada yang baru, buat otomatis (label + icon default) dan simpan ke Firestore
+        // agar pengguna tidak perlu membuat kategori secara manual.
+        async ensureCategoriesFromCsv(parsedProducts) {
+          if (!Array.isArray(parsedProducts) || parsedProducts.length === 0) return;
+
+          const existingIds = new Set(
+            (this.menuCategories || []).map((c) => (c && c.id ? String(c.id) : '')).filter(Boolean)
+          );
+          const newCats = [];
+
+          parsedProducts.forEach((p) => {
+            const cid = String(p && p.categoryId || '').trim();
+            if (!cid || cid === 'all' || cid === 'semua' || existingIds.has(cid)) return;
+            existingIds.add(cid);
+            newCats.push({
+              id: cid,
+              name: this.autoCategoryLabel(cid),
+              icon: 'fa-tag'
+            });
+          });
+
+          if (newCats.length === 0) return;
+
+          this.menuCategories = [...this.menuCategories, ...newCats];
+          await this.saveCategoriesData();
+          this.showToast(
+            newCats.length + ' kategori baru otomatis dibuat dari CSV: ' +
+            newCats.map((c) => c.name).join(', ')
+          );
+        },
+
         async importProductsToFirestore() {
           if (this.isImporting) return;
 
@@ -9419,6 +9462,9 @@ git push -u origin main</pre>
           this.isImporting = true;
           this.csvImportResult = null;
           try {
+            // Buat otomatis kategori yang belum ada sebelum menyimpan produk ke Firestore
+            await this.ensureCategoriesFromCsv(this.csvImportParsed);
+
             const toImport = this.csvImportParsed.slice(0, 500); // maksimal 500 per eksekusi
             const remainder = this.csvImportParsed.length - toImport.length;
             if (remainder > 0) {
@@ -9442,6 +9488,9 @@ git push -u origin main</pre>
             if (result.success > 0) {
               this.csvImportParsed = this.csvImportParsed.slice(result.success);
             }
+
+            // Segarkan katalog dan filter kategori di landing page otomatis tanpa perlu refresh
+            await this.loadFirestoreProducts(false);
           } catch (err) {
             this.showToast('Gagal mengimpor: ' + (err.message || err));
           } finally {
