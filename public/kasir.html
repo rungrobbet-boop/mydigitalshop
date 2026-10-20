@@ -802,14 +802,14 @@
                   <div class="space-y-2.5">
                     <!-- Foto Produk Aspect-Square -->
                     <div class="aspect-square rounded-xl overflow-hidden bg-stone-100 relative">
-                      <img 
-                        :src="menu.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'" 
-                        :alt="menu.name" 
+                      <img
+                        :src="menu.imageUrl || menu.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'"
+                        :alt="menu.name"
                         loading="lazy"
-                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <!-- Badge Kategori Mini -->
-                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="menu.category || 'Viral'"></span>
+                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="menu.category || 'Bahan Bangunan'"></span>
                       
                       <!-- Badge Angka Stok Mini di Pojok Kanan Atas Gambar Menu -->
                       <span 
@@ -822,7 +822,7 @@
                     <!-- Nama Menu -->
                     <div>
                       <h4 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2" x-text="menu.name"></h4>
-                      <p class="text-[11px] text-stone-400 mt-0.5 line-clamp-1" x-text="menu.desc || 'Porsi lengkap & lezat'"></p>
+                      <p class="text-[11px] text-stone-400 mt-0.5 line-clamp-1" x-text="menu.desc || 'Bahan bangunan siap pakai'"></p>
                     </div>
                   </div>
 
@@ -834,9 +834,9 @@
                         type="button" 
                         @click.stop="openProductRecipeModal(menu)"
                         class="text-[10px] text-amber-700 hover:text-amber-900 font-bold inline-flex items-center gap-1 mt-0.5 transition cursor-pointer"
-                        :title="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Menu & Harga' : 'Atur Resep & Komposisi'">
+                        :title="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Produk & Harga' : 'Atur Resep & Komposisi Produk'">
                         <i :class="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-mortar-pestle'" class="text-[9px]"></i>
-                        <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Menu/Harga' : 'Atur Resep'"></span>
+                        <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Produk/Harga' : 'Atur Resep Produk'"></span>
                       </button>
                     </div>
                     
@@ -3317,11 +3317,7 @@
                 </div>
               </div>
 
-              <!-- LABA KOTOR -->
-              <div class="flex justify-between text-sm font-black p-3 bg-emerald-100/80 rounded-xl text-emerald-950 border border-emerald-200">
-                <span>LABA KOTOR (GROSS PROFIT)</span>
-                <span class="font-mono" x-text="formatRupiah(getAccountingSummary().grossProfit)"></span>
-              </div>
+        <!-- Laba Kotor dihapus — sistem 1:1 bahan baku = produk jual, tidak ada komposisi resep -->
 
               <!-- BEBAN OPERASIONAL -->
               <div class="space-y-2 pt-2">
@@ -5044,14 +5040,14 @@
             x-model="stockChangeReason"
             rows="2"
             required
-            placeholder="Wajib isi alasan minimal 5 karakter (contoh: Pembelian restock telur ayam 10kg dari supplier)"
+            placeholder="Wajib isi alasan minimal 5 karakter (contoh: Pembelian restock Semen 50 sak dari supplier)"
             class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-50 text-xs font-medium text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
         </div>
 
         <!-- Countable vs Uncountable Toggle in Edit Stock -->
         <div class="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
           <div>
-            <div class="text-xs font-bold text-stone-900">Perhitungan Stok Menu (Countable)</div>
+            <div class="text-xs font-bold text-stone-900">Perhitungan Stok Produk (Countable)</div>
             <div class="text-[11px] text-stone-500">Hitung item ini sebagai batas porsi menu</div>
           </div>
           <button 
@@ -5392,10 +5388,10 @@
           <i :class="(recipeForm.ingredients?.length || 0) > 0 ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-mortar-pestle'"></i>
         </div>
         <div>
-          <h4 class="font-extrabold text-stone-900 text-base" x-text="((recipeForm.ingredients?.length || 0) > 0 ? 'Ubah Menu / Harga & Resep: ' : 'Atur Resep & Komposisi: ') + (recipeForm.menuName || 'Produk')"></h4>
-          <p class="text-xs text-stone-500">
-            Sesuaikan nama menu, harga jual, dan komposisi bahan baku (BOM).
-          </p>
+          <h4 class="font-extrabold text-stone-900 text-base" x-text="((recipeForm.ingredients?.length || 0) > 0 ? 'Ubah Produk / Harga & Resep: ' : 'Atur Resep Produk: ') + (recipeForm.menuName || 'Produk')"></h4>
+            <p class="text-xs text-stone-500">
+              Sesuaikan nama produk, harga jual, dan komposisi bahan baku.
+            </p>
         </div>
       </div>
 
@@ -5412,7 +5408,7 @@
         </div>
 
         <div class="sm:col-span-2">
-          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Kategori Menu</label>
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Kategori Produk</label>
           <select 
             x-model="recipeForm.category"
             class="w-full h-10 px-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
@@ -5441,12 +5437,12 @@
           <span class="font-black text-sm font-mono text-amber-950" x-text="formatRupiah(calculateNewMenuHPP(recipeForm.ingredients))"></span>
         </div>
         <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-          <span class="text-[10px] font-extrabold text-emerald-800 uppercase block">Laba Kotor</span>
+          <span class="text-[10px] font-extrabold text-emerald-800 uppercase block">Margin Produk</span>
           <span class="font-black text-sm font-mono text-emerald-950" x-text="calculateGrossProfit(recipeForm.price, calculateNewMenuHPP(recipeForm.ingredients)).percentage + '%'"></span>
         </div>
         <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
-          <span class="text-[10px] font-extrabold text-stone-500 uppercase block">Stok Porsi</span>
-          <span class="font-black text-sm font-mono text-stone-900" x-text="getMenuCalculatedStock(recipeForm.menuId) + ' Porsi'"></span>
+          <span class="text-[10px] font-extrabold text-stone-500 uppercase block">Stok Tersedia</span>
+          <span class="font-black text-sm font-mono text-stone-900" x-text="getMenuCalculatedStock(recipeForm.menuId) + ' unit'"></span>
         </div>
       </div>
 
@@ -5595,7 +5591,7 @@
         @click="addIngredientRow()"
         class="w-full min-h-[38px] rounded-xl border border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
         <i class="fa-solid fa-plus text-xs"></i>
-        <span>+ Tambah Komponen Bahan Baku</span>
+        <span>+ Hubungkan ke Bahan Baku</span>
       </button>
 
       <!-- Tombol Simpan & Batal Resep -->
@@ -5651,7 +5647,7 @@
           <input 
             type="text" 
             x-model="newMenuForm.name" 
-            placeholder="Contoh: Nasi Putih Porsi Anak"
+            placeholder="Contoh: Semen Portland, Cat Tembok, Besi Beton 12mm"
             required
             class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
           />

@@ -1979,6 +1979,7 @@ try {
    * TIDAK mengubah logika Auto Jurnal, Void, Reversal, atau penyesuaian stok internal.
    */
   async syncStokKeFirestore() {
+    console.log('[SYNC-STOK] Memulai sinkronisasi stok...');
     if (!FB_FS) {
       this.showToast('Firestore belum siap — sinkronisasi dibatalkan', 'error');
       this.playSound('error');
@@ -1990,25 +1991,54 @@ try {
       return false;
     }
     try {
+      // 1. Ambil data terbaru dari RTDB inventory (sumber stok aktual)
+      let rtdbData = {};
+      try {
+        if (this._fbDb && this._fbRef && FB_DB) {
+          const snap = await FB_DB.ref('inventory').once('value');
+          const val = snap.val();
+          if (val) rtdbData = val;
+          console.log(`[SYNC-STOK] RTDB inventory muat ${Object.keys(rtdbData).length} item`);
+        }
+      } catch (e) {
+        console.warn('[SYNC-STOK] Gagal baca RTDB inventory:', e);
+      }
+
+      // 2. Gabungkan: gunakan data RTDB jika ada, fallback ke inventoryList lokal
+      const mergedList = list.map((item) => {
+        const rtdbItem = rtdbData[item.id] || {};
+        return {
+          ...item,
+          stock: Number(rtdbItem.stock !== undefined ? rtdbItem.stock : item.stock) || 0,
+          unit: rtdbItem.unit || item.unit || 'pcs',
+        };
+      });
+
+      // 3. Tulis ke Firestore collection 'products'
       const batch = FB_FS.batch();
       const now = new Date().toISOString();
-      list.forEach((item) => {
-        const ref = FB_FS.collection('inventory_sync').doc(String(item.id || item.name));
+      mergedList.forEach((item) => {
+        const ref = FB_FS.collection('products').doc(String(item.id || item.name));
         batch.set(ref, {
           id: item.id,
           name: item.name,
-          category: item.category || '',
-          stock: Number(item.stock) || 0,
-          minStock: Number(item.minStock) || 0,
+          category: item.category || 'Bahan Bangunan',
+          categoryId: item.categoryId || '',
+          priceEcer: Number(item.priceEcer) || 0,
+          pricePartai: Number(item.pricePartai) || 0,
+          priceAgen: Number(item.priceAgen) || 0,
           unit: item.unit || 'pcs',
+          stock: Number(item.stock) || 0,
+          minStock: Number(item.minStock) || 5,
+          imageUrl: item.imageUrl || '',
           syncedAt: now,
-          source: 'kasir-pos',
+          source: 'kasir-pos-sync',
         }, { merge: true });
       });
       await batch.commit();
-      this.showToast(`✅ Stok sinkron: ${list.length} item ke Firestore`, 'success');
+      this.showToast(`✅ Stok sinkron: ${mergedList.length} item ke Firestore products`, 'success');
       this.playSound('success');
-      console.log(`[SYNC-STOK] ${list.length} item ditulis ke Firestore inventory_sync`);
+      console.log(`[SYNC-STOK] ${mergedList.length} item ditulis ke Firestore products`);
       return true;
     } catch (e) {
       console.warn('[SYNC-STOK] Gagal:', e);
@@ -7598,8 +7628,11 @@ try {
           const priceEcer = Number(cols[2]) || 0;
           const pricePartai = Number(cols[3]) || 0;
           const priceAgen = Number(cols[4]) || 0;
-          const stock = Number(cols[5]) || 0;
-          const unit = cols[6] || 'pcs';
+          const minOrderPartai = Number(cols[5]) || 0;
+          const minOrderAgen = Number(cols[6]) || 0;
+          const unit = cols[7] || 'pcs';
+          const stock = Number(cols[8]) || 0;
+          const imageUrl = cols[9] || '';
           const minStock = 5;
           const itemId = (`inv_${Date.now()}_${i}`);
 
@@ -7659,6 +7692,7 @@ try {
               minStock: minStock,
               purchasePrice: priceEcer,
               isCountable: true,
+              imageUrl: imageUrl,
               source: 'csv-import'
             };
             this.inventoryList.push(newItemObj);
@@ -7676,6 +7710,7 @@ try {
               unit: newItemObj.unit || 'pcs',
               stock: Number(newItemObj.stock) || 0,
               minStock: Number(newItemObj.minStock) || 5,
+              imageUrl: newItemObj.imageUrl || '',
               source: 'csv-import'
             });
 
