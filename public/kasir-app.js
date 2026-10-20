@@ -3035,34 +3035,37 @@ try {
       } catch (e) {}
     }
 
-    // 4. ✅ AWAIT: Inventory deduct
+    // 4. ✅ Potong stok langsung di Firestore (bypass backend /inventory/deduct yang tidak ada di Cloudflare Pages)
     try {
-      console.log('[INV-DEDUCT] Sending:', { orderId: txId, items: normalizedItems });
-      const invRes = await fetch('/inventory/deduct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: txId,
-          date: dateStr,
-          kasir: this.kasirInfo?.name || this.kasirInfo?.username || 'kasir',
-          items: normalizedItems
-        })
-      });
-      const invJson = await invRes.json();
-      if (invJson.success && Array.isArray(invJson.deducted)) {
-        invJson.deducted.forEach(d => {
-          const it = this.inventoryList.find(i => i.id === d.itemId);
-          if (it) { it.stock = d.after; it.stok = d.after; }
-        });
-        console.log('[INV-DEDUCT] ✅', invJson.deducted.length, 'items updated');
+      console.log('[INV-DEDUCT] Memotong stok langsung ke Firestore:', { orderId: txId, items: normalizedItems });
+      if (FB_FS) {
+        const batch = FB_FS.batch();
+        for (const item of normalizedItems) {
+          const productRef = FB_FS.collection('products').doc(item.id);
+          batch.update(productRef, {
+            stock: firebase.firestore.FieldValue.increment(-item.qty),
+            stok: firebase.firestore.FieldValue.increment(-item.qty)
+          });
+        }
+        await batch.commit();
+        console.log('[INV-DEDUCT] ✅ Stok dipotong untuk', normalizedItems.length, 'produk di Firestore');
+
+        // Update lokal inventoryList agar UI segera refleksi
+        for (const item of normalizedItems) {
+          const it = this.inventoryList.find(i => i.id === item.id);
+          if (it) {
+            it.stock = Math.max(0, Number(it.stock || 0) - item.qty);
+            it.stok = it.stock;
+          }
+        }
       } else {
-        console.warn('[INV-DEDUCT] ⚠️', invJson.error || 'No deducted array');
+        console.warn('[INV-DEDUCT] FB_FS tidak tersedia, stok tidak dapat dipotong');
       }
     } catch (e) {
-      console.warn('[INV-DEDUCT] ❌', e.message);
+      console.warn('[INV-DEDUCT] ❌ Gagal potong stok Firestore:', e.message);
     }
 
-    // 5. ✅ AWAIT: Auto-Jurnal Akuntansi
+    // 5. ✅ AWAIT: Auto-Jurnal Akuntansi (backend — diabaikan jika gagal, non-blocker)
     try {
       const acctBody = {
         orderId: txId,
@@ -3079,14 +3082,14 @@ try {
         body: JSON.stringify(acctBody)
       });
       const acctJson = await acctRes.json();
-      
+
       if (acctJson.success) {
         console.log('[KASIR→ACCT] ✅ Revenue:', acctJson.totalRev, '| HPP:', acctJson.totalHpp);
       } else {
-        console.warn('[KASIR→ACCT] ⚠️', acctJson.error);
+        console.warn('[KASIR→ACCT] ⚠️ Backend jurnal tidak tersedia (diabaikan):', acctJson.error);
       }
     } catch (e) {
-      console.warn('[KASIR→ACCT] ❌', e.message);
+      console.warn('[KASIR→ACCT] ❌ Backend jurnal error (diabaikan):', e.message);
     }
 
     // 6. ✅ Refresh accounting summary SETELAH semua selesai
