@@ -1462,20 +1462,23 @@ try {
       // Ambil kredensial Firebase — HANYA dari window.firebaseConfig atau localStorage,
       // TIDAK ada hardcoded fallback (mencegah crash di Incognito / mode lokal)
       let cfg = null;
-      try {
-        const stored = localStorage.getItem('dapur_firebase_custom_config');
-        if (stored) cfg = JSON.parse(stored);
-      } catch (e) {}
+      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di kasir.html)
+      if (window.firebaseConfig && window.firebaseConfig.apiKey) {
+        cfg = window.firebaseConfig;
+      }
+      // 2. Fallback ke localStorage jika window config tidak ada
       if (!cfg || !cfg.apiKey) {
-        if (window.firebaseConfig && window.firebaseConfig.apiKey) {
-          cfg = window.firebaseConfig;
-        }
+        try {
+          const stored = localStorage.getItem('dapur_firebase_custom_config');
+          if (stored) cfg = JSON.parse(stored);
+        } catch (e) {}
       }
       if (!cfg || !cfg.apiKey) {
         const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di kasir.html atau atur dapur_firebase_custom_config di localStorage.');
         console.error('[FB-INIT]', err.message);
         this.showToast(err.message, 'error');
         this.playSound('error');
+        this.appReady = true; // pastikan layar loading tidak macet selamanya
         return;
       }
 
@@ -1484,6 +1487,7 @@ try {
       // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di kasir.html)
       if (typeof firebase === 'undefined' || !firebase.database) {
         console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek kasir.html');
+        this.appReady = true; // pastikan layar loading tidak macet selamanya
         return;
       }
 
