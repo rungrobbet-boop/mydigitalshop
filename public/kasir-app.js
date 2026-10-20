@@ -1459,54 +1459,66 @@ try {
    */
     async initFirebaseSDK() {
     try {
-      // Ambil kredensial Firebase — HANYA dari window.firebaseConfig atau localStorage,
-      // TIDAK ada hardcoded fallback (mencegah crash di Incognito / mode lokal)
+      // Ambil kredensial Firebase dari window.firebaseConfig dan localStorage
       let cfg = null;
-      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di kasir.html)
+      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di index.html/kasir.html)
       if (window.firebaseConfig && window.firebaseConfig.apiKey) {
         cfg = { ...window.firebaseConfig };
       }
-      // 2. Baca localStorage (dapur_firebase_custom_config) — gunakan untuk melengkapi/override cfg,
-      //    terutama databaseURL yang diisi manual lewat Panel Admin
+      // 2. Gabungkan dengan localStorage (mydigitalshop_firebase_custom_config) — diisi manual lewat Panel Admin
       try {
-        const stored = localStorage.getItem('dapur_firebase_custom_config');
+        const stored = localStorage.getItem('mydigitalshop_firebase_custom_config');
         if (stored) {
           const lsCfg = JSON.parse(stored);
           if (!cfg || !cfg.apiKey) {
             cfg = lsCfg;
           } else {
-            // Merge: localStorage override field yang tersedia (terutama databaseURL)
             cfg = { ...cfg, ...lsCfg };
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[FB-INIT] Gagal parse localStorage config:', e);
+      }
       if (!cfg || !cfg.apiKey) {
-        const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di kasir.html atau atur dapur_firebase_custom_config di localStorage.');
+        const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di index.html atau atur mydigitalshop_firebase_custom_config di localStorage.');
         console.error('[FB-INIT]', err.message);
         this.showToast(err.message, 'error');
         this.playSound('error');
-        this.appReady = true; // pastikan layar loading tidak macet selamanya
+        this.appReady = true;
+        return;
+      }
+
+      // Validasi databaseURL harus ada
+      if (!cfg.databaseURL) {
+        const err = new Error('Firebase databaseURL tidak ditemukan. Harap isi databaseURL di Panel Admin dan simpan ke mydigitalshop_firebase_custom_config.');
+        console.error('[FB-INIT]', err.message);
+        this.showToast(err.message, 'error');
+        this.playSound('error');
+        this.appReady = true;
         return;
       }
 
       this._fbConfig = cfg;
 
-      // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di kasir.html)
+      // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di index.html/kasir.html)
       if (typeof firebase === 'undefined' || !firebase.database) {
-        console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek kasir.html');
-        this.appReady = true; // pastikan layar loading tidak macet selamanya
+        console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek index.html/kasir.html');
+        this.appReady = true;
         return;
       }
 
-        if (!firebase.apps || firebase.apps.length === 0) {
-        firebase.initializeApp(cfg);
+      // Inisialisasi App terlebih dahulu (defensif: jangan inisialisasi dua kali)
+      let app;
+      if (!firebase.apps || firebase.apps.length === 0) {
+        app = firebase.initializeApp(cfg);
+      } else {
+        app = firebase.app();
       }
 
-      // ✅ Simpan db di MODULE SCOPE — bukan di this (Alpine tidak bisa Proxy module var)
-      const rtdbUrl = cfg.databaseURL || null;
-      FB_DB = rtdbUrl ? firebase.database(rtdbUrl) : firebase.database();
+      // ✅ Panggil database menggunakan instance app, JANGAN string URL
+      FB_DB = firebase.database(app);
       this._fbDb = true;
-      console.log('[FB-INIT] RTDB Connected to:', rtdbUrl || '(default dari config)');
+      console.log("[FB-INIT] RTDB Connected to:", FB_DB.ref().toString());
 
       // ✅ Inisialisasi Firestore (module scope) — dipakai getProducts() one-time fetch
       try {
@@ -1528,9 +1540,9 @@ try {
         });
       };
 
-            this._fbSet = async (refObj, value) => {
-        const plain = (value === null || typeof value !== 'object') 
-          ? value 
+      this._fbSet = async (refObj, value) => {
+        const plain = (value === null || typeof value !== 'object')
+          ? value
           : JSON.parse(JSON.stringify(value));
         return refObj.set(plain);
       };
