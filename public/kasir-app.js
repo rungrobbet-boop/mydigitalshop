@@ -7773,13 +7773,21 @@ try {
   },
 
   importInventoryCSV(event) {
+    console.log('=== 🚨 [IMPORT-CSV] FUNGSI IMPORT DIPANGGIL ===');
     const file = event.target.files && event.target.files[0];
-    if (!file) return;
+    console.log('👉 [IMPORT-CSV] File yang dipilih:', file ? file.name : 'TIDAK ADA FILE');
 
     // ✅ GUARD: Blokir import jika Firestore belum terinisialisasi
+    console.log('👉 [IMPORT-CSV] Status FB_FS:', FB_FS ? 'SIAP ✅' : 'NULL/UNDEFINED ❌');
     if (typeof FB_FS === 'undefined' || FB_FS === null) {
       console.error('[IMPORT-CSV] FB_FS undefined — Firestore belum diinisialisasi. Cek kasir.html & firebase-config.js');
       this.showToast('Firestore belum siap — import dibatalkan. Cek koneksi Firebase.', 'error');
+      this.playSound('error');
+      return;
+    }
+
+    if (!file) {
+      this.showToast('Tidak ada file yang dipilih', 'error');
       this.playSound('error');
       return;
     }
@@ -7788,7 +7796,9 @@ try {
     reader.onload = async (e) => {
       try {
         const text = e.target.result;
+        console.log('📖 [IMPORT-CSV] File berhasil dibaca, panjang teks:', text.length);
         const { parsed, errors: parseErrors } = parseCSV(text);
+        console.log('📊 [IMPORT-CSV] Hasil Parsing:', parsed.length, 'baris valid. Error:', parseErrors.length);
 
         // Tampilkan error parsing di console
         if (parseErrors.length > 0) {
