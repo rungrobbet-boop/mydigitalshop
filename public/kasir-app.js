@@ -7776,6 +7776,14 @@ try {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
+    // ✅ GUARD: Blokir import jika Firestore belum terinisialisasi
+    if (typeof FB_FS === 'undefined' || FB_FS === null) {
+      console.error('[IMPORT-CSV] FB_FS undefined — Firestore belum diinisialisasi. Cek kasir.html & firebase-config.js');
+      this.showToast('Firestore belum siap — import dibatalkan. Cek koneksi Firebase.', 'error');
+      this.playSound('error');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -7940,7 +7948,10 @@ try {
               writeCount++;
             });
 
+            // ✅ Log ketat sebelum commit
+            console.log("Mencoba menulis ke Firestore...", batch);
             await batch.commit();
+            console.log("Commit Firestore Sukses!");
             console.log(`[IMPORT-CSV] ✅ ${writeCount} produk ditulis ke Firestore 'products'`);
             this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore)`, 'success');
             this.playSound('success');
