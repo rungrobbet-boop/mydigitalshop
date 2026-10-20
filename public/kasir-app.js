@@ -1561,8 +1561,11 @@ try {
             price: Number(data.price) || 0,
             priceEcer: Number(data.priceEcer) || Number(data.price) || 0,
             unit: data.unit || 'pcs',
+            stock: Number(data.stock) || 0,
+            stok: Number(data.stok) || Number(data.stock) || 0,
             desc: data.desc || '',
-            image: data.image || '',
+            image: data.image || data.imageUrl || '',
+            imageUrl: data.imageUrl || data.image || '',
             sku: data.sku || '',
             barcode: data.barcode || '',
           });
@@ -6528,6 +6531,11 @@ try {
             ((inv.stok !== undefined && inv.stok !== null) ? inv.stok : 0)
           );
         }
+      }
+      // ✅ FIX BUG-2: Cek stok langsung pada menu item (produk impor CSV tanpa resep)
+      if (menu) {
+        if (typeof menu.stok !== 'undefined' && menu.stok !== null) return Number(menu.stok) || 0;
+        if (typeof menu.stock !== 'undefined' && menu.stock !== null) return Number(menu.stock) || 0;
       }
       const linkedInv = (this.inventoryList || []).find(i => i.linkedMenuId === menuId);
       if (linkedInv) {

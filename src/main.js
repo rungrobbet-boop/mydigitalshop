@@ -161,9 +161,11 @@
                   cleanData[k] = typeof v === 'number' ? 0 : '';
                 }
               }
-              // Gunakan docData.id jika tersedia (untuk overwrite/re-import), otomatis jika tidak
-              const docRef = docData.id
-                ? doc(doc(firestoreDb, collectionName), docData.id)
+              // Gunakan docData.id jika tersedia dan non-kosong (untuk overwrite/re-import),
+              // pakai doc(collectionRef, docId) yang benar untuk Firestore v9 modular SDK.
+              // Hindari doc(db, collectionName) tanpa doc ID (1 segment = error "even number of segments").
+              const docRef = (docData.id && String(docData.id).trim() !== '')
+                ? doc(collection(firestoreDb, collectionName), String(docData.id))
                 : doc(collection(firestoreDb, collectionName));
               console.log("DATA YANG AKAN DIKIRIM:", cleanData);
               batch.set(docRef, cleanData);
