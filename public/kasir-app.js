@@ -16,6 +16,7 @@
 
 // ✅ Simpan Firebase & AudioContext di MODULE SCOPE (bukan di this/Alpine) — hindari Proxy pollution
 let FB_DB = null;
+let FB_FS = null;
 let GLOBAL_AUDIO_CTX = null;
 
 window.kasirApp = () => ({
@@ -1371,6 +1372,14 @@ try {
       FB_DB = firebase.database();
       this._fbDb = true;
 
+      // ✅ Inisialisasi Firestore (module scope) — dipakai getProducts() one-time fetch
+      try {
+        FB_FS = firebase.firestore();
+        this._fbFs = true;
+      } catch (e) {
+        console.warn('[FB-INIT] Firestore tidak tersedia:', e);
+      }
+
       // ✅ _fbRef IGNORE parameter database, selalu pakai FB_DB (module scope, tidak di-Proxy)
       this._fbRef = (database, path) => FB_DB.ref(path);
 
@@ -1406,9 +1415,49 @@ try {
   // =========================================================================
 
   /**
-   * Realtime listener untuk /menu_items
+   * Ambil katalog produk dari Firestore (one-time fetch, bukan realtime).
+   * Dipakai listenMenuItems() sebagai pengganti listener /menu_items RTDB.
+   * Setiap dokumen produk di collection 'products' diharapkan memiliki field:
+   * id, name, category, price, priceEcer (harga ecer), unit (sak/batang/pcs), desc, image, sku, barcode
    */
-  listenMenuItems() {
+  async getProducts() {
+    if (!FB_FS) {
+      console.warn('[FB-FS] Firestore belum diinisialisasi — gunakan fallback');
+      return [];
+    }
+    try {
+      const snap = await FB_FS.collection('products').get();
+      const list = [];
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data) {
+          list.push({
+            id: data.id || doc.id,
+            name: data.name || '',
+            category: data.category || '',
+            price: Number(data.price) || 0,
+            priceEcer: Number(data.priceEcer) || Number(data.price) || 0,
+            unit: data.unit || 'pcs',
+            desc: data.desc || '',
+            image: data.image || '',
+            sku: data.sku || '',
+            barcode: data.barcode || '',
+          });
+        }
+      });
+      console.log(`[FB-FS] Loaded ${list.length} products dari Firestore`);
+      return list;
+    } catch (e) {
+      console.warn('[FB-FS] getProducts gagal:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Realtime listener untuk /menu_items
+   * (DIGANTI: sekarang ambil katalog dari Firestore via getProducts() one-time fetch)
+   */
+  async listenMenuItems() {
     this.isLoadingMenu = true;
 
     // Fallback menu standar jika database belum terisi / offline / timeout
@@ -1437,69 +1486,43 @@ try {
       }
     }, 15000);
 
-    if (this._fbDb && this._fbOnValue && this._fbRef) {
-      try {
-        const menuRef = this._fbRef(this._fbDb, 'menu_items');
-        this._fbOnValue(menuRef, (snapshot) => {
-          clearTimeout(menuTimeout);
-          const val = snapshot.val();
-          console.log('[FB-MENU] Menu listener:', val ? Object.keys(val).length + ' items' : 'kosong');
-          if (val) {
-  const rawList = Array.isArray(val) ? val : Object.values(val);
-  // Dedupe by ID — hindari duplicate key x-for
-  const seen = new Map();
-  rawList.forEach(m => {
-    if (m && m.id) {
-      seen.set(m.id, m);
-    } else if (m && m.name) {
-      // Fallback: generate ID dari name kalau kosong
-      m.id = 'menu_' + m.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      seen.set(m.id, m);
+    // Ambil katalog dari Firestore (one-time fetch)
+    try {
+      const products = await this.getProducts();
+      clearTimeout(menuTimeout);
+      if (products && products.length > 0) {
+        // Dedupe by ID — hindari duplicate key x-for
+        const seen = new Map();
+        products.forEach(m => {
+          if (m && m.id) {
+            seen.set(m.id, m);
+          } else if (m && m.name) {
+            // Fallback: generate ID dari name kalau kosong
+            m.id = 'menu_' + m.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            seen.set(m.id, m);
+          }
+        });
+        this.menuList = Array.from(seen.values());
+        console.log(`[FB-FS] Loaded ${this.menuList.length} unique products`);
+      } else {
+        this.menuList = fallbackMenu;
+      }
+      this.syncCategoriesWithMainStore();
+      this.isLoadingMenu = false;
+    } catch (e) {
+      clearTimeout(menuTimeout);
+      console.warn('Menu listener setup exception:', e);
+      this.menuList = fallbackMenu;
+      this.isLoadingMenu = false;
     }
-  });
-  this.menuList = Array.from(seen.values());
-  console.log(`[FB-MENU] Loaded ${this.menuList.length} unique items (raw: ${rawList.length})`);
-} else {
-            this.menuList = fallbackMenu;
-          }
-          this.syncCategoriesWithMainStore();
-          this.isLoadingMenu = false;
-        }, (err) => {
-          clearTimeout(menuTimeout);
-          console.warn('Firebase menu listener error:', err);
-          if (!this.menuList || this.menuList.length === 0) {
-            this.menuList = fallbackMenu;
-          }
-          this.syncCategoriesWithMainStore();
-          this.isLoadingMenu = false;
-        });
 
-        // Realtime Listener Kategori Menu Toko Utama
-        const catRef = this._fbRef(this._fbDb, 'menu_categories');
-        this._fbOnValue(catRef, (catSnapshot) => {
-          const catVal = catSnapshot.val();
-          if (catVal && Array.isArray(catVal)) {
-            try { localStorage.setItem('dapur_menu_categories', JSON.stringify(catVal)); } catch(e) {}
-            this.syncCategoriesWithMainStore();
-          }
-        }, (catErr) => {
-          console.warn('Firebase category listener error:', catErr);
-        });
-
-        return;
-      } catch (e) {
+    // Fallback load lokal (jika Firestore gagal & menuList masih kosong)
+    setTimeout(() => {
+      if (!this.menuList || this.menuList.length === 0) {
         clearTimeout(menuTimeout);
-        console.warn('Menu listener setup exception:', e);
         this.menuList = fallbackMenu;
         this.isLoadingMenu = false;
       }
-    }
-
-    // Fallback load lokal
-    setTimeout(() => {
-      clearTimeout(menuTimeout);
-      this.menuList = fallbackMenu;
-      this.isLoadingMenu = false;
     }, 200);
   },
 
