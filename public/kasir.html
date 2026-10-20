@@ -221,7 +221,7 @@
     mobileMenuOpen: false,
     cart: [],
     menuList: [],
-    categories: ['semua', 'rice-bowl', 'chicken', 'mie-bakso', 'dimsum', 'minuman'],
+    categories: ['semua', 'semen', 'cat', 'besi', 'lainnya'],
     selectedCategory: 'semua',
     searchQuery: '',
     isLoadingMenu: false,
@@ -1877,8 +1877,8 @@
                 type="button" 
                 @click="openNewMenuModal()"
                 class="min-h-[48px] px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-xs">
-                <i class="fa-solid fa-utensils text-xs"></i>
-                <span>+ Tambah Menu</span>
+                <i class="fa-solid fa-box text-xs"></i>
+                <span>+ Tambah Produk</span>
             </button>
 
             <button 
@@ -2119,7 +2119,7 @@
                       class="min-h-[44px] px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs flex items-center justify-center gap-1 transition cursor-pointer"
                       title="Jadikan produk siap jual di POS">
                       <i class="fa-solid fa-utensils text-[11px] text-amber-600"></i>
-                      <span>🍽️ Jadi Menu</span>
+                      <span>📦 Jadi Produk</span>
                     </button>
                   </template>
                   <template x-if="item.isReadyToSell && item.linkedMenuId">
@@ -2152,7 +2152,7 @@
               <i class="fa-solid fa-boxes-stacked"></i>
             </div>
             <h4 class="font-extrabold text-stone-900 text-base">Belum Ada Bahan Baku Ditampilkan</h4>
-            <p class="text-xs text-stone-500 max-w-md mx-auto">Klik tombol <strong>"+ Tambah Bahan Baku"</strong> untuk mendaftarkan stok bahan awal (seperti Beras, Ayam, Tepung, Minyak, dll).</p>
+            <p class="text-xs text-stone-500 max-w-md mx-auto">Klik tombol <strong>"+ Tambah Bahan Baku"</strong> untuk mendaftarkan stok bahan awal (seperti Semen, Cat, Besi, Bata, dll).</p>
             <button 
               type="button" 
               @click="openAddInventoryModal()"
@@ -2267,7 +2267,7 @@
                     <input 
                       type="text" 
                       x-model="pembelianForm.unit" 
-                      placeholder="kg, pack, botol" 
+                      placeholder="gram, kg, sak, karung, pcs, batang, rol, liter" 
                       required 
                       class="w-full min-h-[42px] px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" 
                     />
@@ -5127,7 +5127,7 @@
           <input 
             type="text" 
             x-model="newInventoryForm.nama" 
-            placeholder="Contoh: Beras Premium, Daging Ayam Fillet"
+            placeholder="Contoh: Semen Portland, Cat Tembok, Besi Beton 12mm"
             class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
           />
         </div>
@@ -5137,11 +5137,10 @@
           <select 
             x-model="newInventoryForm.category"
             class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="Bahan Baku">Bahan Baku</option>
-            <option value="Daging & Ayam">Daging & Ayam</option>
-            <option value="Sayur & Bumbu">Sayur & Bumbu</option>
-            <option value="Minuman">Bahan Minuman</option>
-            <option value="Packaging">Packaging & Box</option>
+            <option value="Bahan Bangunan">Bahan Bangunan</option>
+            <option value="Semen">Semen</option>
+            <option value="Cat">Cat</option>
+            <option value="Besi">Besi</option>
             <option value="Lainnya">Lainnya</option>
           </select>
         </div>
@@ -5153,7 +5152,7 @@
             <input 
               type="number" 
               x-model.number="newInventoryForm.purchasePrice" 
-              placeholder="Contoh: 14000 (Beras/kg) atau 38000 (Daging/kg)"
+              placeholder="Contoh: 85000 (Semen/sak) atau 75000 (Besi/batang)"
               min="0"
               class="w-full h-11 pl-9 pr-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
             />
@@ -5200,15 +5199,33 @@
             <select 
               x-model="newInventoryForm.unit"
               class="w-full h-11 px-2 rounded-xl border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="kg">kg</option>
               <option value="gram">gram</option>
-              <option value="mililiter">mililiter (ml)</option>
-              <option value="liter">liter</option>
-              <option value="porsi">porsi</option>
-              <option value="bungkus">bungkus</option>
-              <option value="pcs">pieces (pcs)</option>
-              <option value="botol">botol</option>
+              <option value="kg">kg</option>
+              <option value="ton">ton</option>
+              <option value="kuintal">kuintal</option>
+              <option value="pcs">pcs</option>
+              <option value="unit">unit</option>
+              <option value="set">set</option>
               <option value="pack">pack</option>
+              <option value="kotak">kotak</option>
+              <option value="karton">karton</option>
+              <option value="lusin">lusin</option>
+              <option value="meter">meter</option>
+              <option value="msquare">m2 (msquare)</option>
+              <option value="mkubik">m3 (mkubik)</option>
+              <option value="lembar">lembar</option>
+              <option value="batang">batang</option>
+              <option value="rol">rol</option>
+              <option value="roll">roll</option>
+              <option value="sak">sak</option>
+              <option value="karung">karung</option>
+              <option value="kaleng">kaleng</option>
+              <option value="dus">dus</option>
+              <option value="tossa">tossa</option>
+              <option value="gerobak">gerobak</option>
+              <option value="truk">truk</option>
+              <option value="liter">liter</option>
+              <option value="mliter">mliter</option>
             </select>
           </div>
         </div>
@@ -5536,13 +5553,31 @@
                   class="w-full h-10 px-1.5 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
                   <option value="gram">gram</option>
                   <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="liter">liter</option>
+                  <option value="ton">ton</option>
+                  <option value="kuintal">kuintal</option>
                   <option value="pcs">pcs</option>
-                  <option value="bungkus">bungkus</option>
-                  <option value="porsi">porsi</option>
+                  <option value="unit">unit</option>
+                  <option value="set">set</option>
                   <option value="pack">pack</option>
-                  <option value="botol">botol</option>
+                  <option value="kotak">kotak</option>
+                  <option value="karton">karton</option>
+                  <option value="lusin">lusin</option>
+                  <option value="meter">meter</option>
+                  <option value="msquare">m2</option>
+                  <option value="mkubik">m3</option>
+                  <option value="lembar">lembar</option>
+                  <option value="batang">batang</option>
+                  <option value="rol">rol</option>
+                  <option value="roll">roll</option>
+                  <option value="sak">sak</option>
+                  <option value="karung">karung</option>
+                  <option value="kaleng">kaleng</option>
+                  <option value="dus">dus</option>
+                  <option value="tossa">tossa</option>
+                  <option value="gerobak">gerobak</option>
+                  <option value="truk">truk</option>
+                  <option value="liter">liter</option>
+                  <option value="mliter">mliter</option>
                 </select>
               </div>
             </div>
@@ -5789,13 +5824,31 @@
                       class="w-full h-9 px-1 rounded-lg border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
                       <option value="gram">gram</option>
                       <option value="kg">kg</option>
-                      <option value="ml">ml</option>
-                      <option value="liter">liter</option>
+                      <option value="ton">ton</option>
+                      <option value="kuintal">kuintal</option>
                       <option value="pcs">pcs</option>
-                      <option value="bungkus">bungkus</option>
-                      <option value="porsi">porsi</option>
+                      <option value="unit">unit</option>
+                      <option value="set">set</option>
                       <option value="pack">pack</option>
-                      <option value="botol">botol</option>
+                      <option value="kotak">kotak</option>
+                      <option value="karton">karton</option>
+                      <option value="lusin">lusin</option>
+                      <option value="meter">meter</option>
+                      <option value="msquare">m2</option>
+                      <option value="mkubik">m3</option>
+                      <option value="lembar">lembar</option>
+                      <option value="batang">batang</option>
+                      <option value="rol">rol</option>
+                      <option value="roll">roll</option>
+                      <option value="sak">sak</option>
+                      <option value="karung">karung</option>
+                      <option value="kaleng">kaleng</option>
+                      <option value="dus">dus</option>
+                      <option value="tossa">tossa</option>
+                      <option value="gerobak">gerobak</option>
+                      <option value="truk">truk</option>
+                      <option value="liter">liter</option>
+                      <option value="mliter">mliter</option>
                     </select>
                   </div>
                 </div>

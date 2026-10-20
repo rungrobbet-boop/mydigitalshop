@@ -317,8 +317,8 @@ window.kasirApp = () => ({
     supplierName: '',
     purchasePrice: 0,
     sellingPrice: 0,
-    category: 'rice_bowl',
-    unit: 'porsi',
+    category: 'bahan_bangunan',
+    unit: 'pcs',
     initialStock: 0,
     minStock: 5,
     sku: '',
@@ -364,7 +364,7 @@ window.kasirApp = () => ({
     inventoryId: '',
     name: '',
     price: 0,
-    category: 'rice_bowl',
+    category: 'bahan_bangunan',
     desc: '',
     image: ''
   },
@@ -540,10 +540,10 @@ window.kasirApp = () => ({
   newMenuModal: false,
   newMenuForm: {
     name: '',
-    category: 'rice-bowl',
-    price: 25000,
+    category: 'bahan_bangunan',
+    price: 0,
     desc: '',
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'
+    image: ''
   },
   get menuItems() {
     return Array.isArray(this.menuList) ? this.menuList : [];
@@ -5171,9 +5171,42 @@ try {
         } catch (e) {
           console.warn('Firebase inventory listener warning:', e);
         }
-      }
+        }
 
-      // ✅ FIX: Fetch backend HANYA kalau Firebase listener belum kasih data
+        // ✅ Sumber data utama: Firestore collection 'products' (hasil import CSV Landing Page)
+        // Dipakai saat RTDB /inventory masih kosong, agar inventory di Kasir selaras dengan data Landing Page.
+        if ((!this.inventoryList || this.inventoryList.length === 0) && FB_FS) {
+        try {
+          const products = await this.getProducts();
+          if (products && products.length > 0) {
+            this.inventoryList = products.map(p => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku || '',
+              category: p.category || 'Bahan Bangunan',
+              categoryId: p.category || '',
+              priceEcer: Number(p.priceEcer) || 0,
+              price: Number(p.priceEcer) || 0,
+              purchasePrice: Number(p.price) || 0,
+              pricePartai: Number(p.pricePartai) || 0,
+              priceAgen: Number(p.priceAgen) || 0,
+              unit: p.unit || 'pcs',
+              stock: Number(p.stock) || 0,
+              stok: Number(p.stock) || 0,
+              minStock: Number(p.minStock) || 5,
+              source: 'firestore-products',
+              isCountable: true,
+              isReadyToSell: false,
+              linkedMenuId: null
+            }));
+            console.log(`[FB-FS] Inventory dimuat dari Firestore 'products': ${this.inventoryList.length} item`);
+          }
+        } catch (e) {
+          console.warn('[FB-FS] Gagal muat inventory dari Firestore products:', e);
+        }
+        }
+
+        // ✅ FIX: Fetch backend HANYA kalau Firebase listener belum kasih data
       // Jangan override Firebase state (source of truth) dengan backend stale
       if (!this.inventoryList || this.inventoryList.length === 0) {
         const res = await fetch('/inventory');
@@ -6211,7 +6244,7 @@ try {
     this.recipeForm = {
       menuId: menu.id,
       menuName: menu.name || '',
-      category: menu.category || 'rice_bowl',
+      category: menu.category || 'bahan_bangunan',
       price: Number(menu.price) || 0,
       desc: menu.desc || '',
       showOnMain: menu.showOnMain !== false,
@@ -6258,7 +6291,7 @@ try {
     try {
       const menuId = this.recipeForm.menuId;
       const updatedName = (this.recipeForm.menuName || '').trim() || 'Menu';
-      const updatedCategory = this.recipeForm.category || 'rice_bowl';
+      const updatedCategory = this.recipeForm.category || 'bahan_bangunan';
       const updatedPrice = Number(this.recipeForm.price) || 0;
       const updatedDesc = this.recipeForm.desc || '';
       const updatedShowOnMain = this.recipeForm.showOnMain !== false;
@@ -6610,11 +6643,10 @@ try {
 
     if (list.length === 0) {
       list = [
-        { id: 'rice_bowl', name: 'Bento & Rice Bowl' },
-        { id: 'mie', name: 'Aneka Mie' },
-        { id: 'cemilan', name: 'Cemilan / Side Dish' },
-        { id: 'ala_carte', name: 'Ala Carte' },
-        { id: 'viral', name: 'Viral & Dessert' }
+        { id: 'semen', name: 'Semen' },
+        { id: 'cat', name: 'Cat' },
+        { id: 'besi', name: 'Besi' },
+        { id: 'lainnya', name: 'Lainnya' }
       ];
     }
 
@@ -6627,7 +6659,7 @@ try {
   openNewMenuModal() {
     this.syncCategoriesWithMainStore();
     const availCats = this.getAvailableMenuCategories();
-    const defaultCat = (availCats && availCats.length > 0) ? availCats[0].id : 'rice_bowl';
+    const defaultCat = (availCats && availCats.length > 0) ? availCats[0].id : 'bahan_bangunan';
     const defaultItem = (this.inventoryList && this.inventoryList[0]) ? this.inventoryList[0] : null;
     this.newMenuForm = {
       name: '',
@@ -6635,7 +6667,7 @@ try {
       customCategory: '',
       price: 25000,
       desc: '',
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      image: '',
       showOnMain: true,
       ingredients: defaultItem ? [{ 
         itemId: defaultItem.id, 
@@ -6651,13 +6683,13 @@ try {
    */
   async tambahMenuBaru(form) {
     const name = (form.name || '').trim();
-    let category = (form.category || 'rice_bowl').trim();
+    let category = (form.category || 'bahan_bangunan').trim();
     if (category === '__custom__' && form.customCategory) {
       category = form.customCategory.trim();
     }
     const price = Number(form.price) || 0;
     const desc = (form.desc || '').trim();
-    const image = (form.image || '').trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+    const image = (form.image || '').trim() || '';
     const showOnMain = form.showOnMain !== false;
 
     if (!name || price <= 0) {
@@ -7540,32 +7572,7 @@ try {
       if (raw) {
         this.inventoryLogs = JSON.parse(raw);
       } else {
-        this.inventoryLogs = [
-          {
-            id: 'log_init_1',
-            time: new Date().toLocaleDateString('id-ID') + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            itemName: 'Filet Dada Ayam Segar',
-            oldStock: 10,
-            newStock: 18,
-            diff: '+8',
-            unit: 'kg',
-            changeType: 'Restock Supplier',
-            note: 'Penerimaan bahan baku awal',
-            user: 'Kasir Utama'
-          },
-          {
-            id: 'log_init_2',
-            time: new Date().toLocaleDateString('id-ID') + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            itemName: 'Beras Pulen Premium',
-            oldStock: 50,
-            newStock: 45,
-            diff: '-5',
-            unit: 'kg',
-            changeType: 'Stok Opname CSV',
-            note: 'Penyesuaian stok fisik harian',
-            user: 'Supervisor'
-          }
-        ];
+        this.inventoryLogs = [];
       }
     } catch (e) {
       this.inventoryLogs = [];
@@ -7603,19 +7610,18 @@ try {
     try {
       const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
       let csvContent = "\uFEFF"; // UTF-8 BOM agar rapi di Microsoft Excel
-      csvContent += "ID,Nama Item,Kategori,Stok Fisik,Batas Min Stok,Satuan,Harga Beli Modal (Rp),Status Hitung\n";
+      csvContent += "name,categoryId,priceEcer,pricePartai,priceAgen,stock,unit\n";
 
       list.forEach(item => {
-        const id = (item.id || '').replace(/,/g, '');
         const name = `"${(item.name || '').replace(/"/g, '""')}"`;
-        const cat = `"${(item.category || 'Bahan Baku').replace(/"/g, '""')}"`;
+        const categoryId = `"${(item.categoryId || item.category || '').replace(/"/g, '""')}"`;
+        const priceEcer = Number(item.priceEcer || item.purchasePrice || item.hargaBeli || 0);
+        const pricePartai = Number(item.pricePartai || item.priceEcer || item.purchasePrice || 0);
+        const priceAgen = Number(item.priceAgen || item.priceEcer || item.purchasePrice || 0);
         const stock = Number(item.stock || item.stok || 0);
-        const minStock = Number(item.minStock || item.min || 0);
         const unit = `"${(item.unit || 'pcs').replace(/"/g, '""')}"`;
-        const price = Number(item.purchasePrice || item.hargaBeli || 0);
-        const countable = item.isCountable !== false ? 'Countable' : 'Uncountable';
 
-        csvContent += `${id},${name},${cat},${stock},${minStock},${unit},${price},${countable}\n`;
+        csvContent += `${name},${categoryId},${priceEcer},${pricePartai},${priceAgen},${stock},${unit}\n`;
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -7663,16 +7669,17 @@ try {
           if (!cols[0]) continue;
 
           const itemName = cols[0] || '';
-          const sku = cols[1] || '';
-          const category = cols[2] || 'Bahan Bangunan';
-          const priceEcer = Number(cols[3]) || 0;
-          const unit = cols[4] || 'pcs';
+          const categoryId = cols[1] || '';
+          const priceEcer = Number(cols[2]) || 0;
+          const pricePartai = Number(cols[3]) || 0;
+          const priceAgen = Number(cols[4]) || 0;
           const stock = Number(cols[5]) || 0;
+          const unit = cols[6] || 'pcs';
           const minStock = 5;
-          const itemId = sku || (`inv_${Date.now()}_${i}`);
+          const itemId = (`inv_${Date.now()}_${i}`);
 
-          // Cari item yang ada (cocokkan via SKU atau nama)
-          let existing = this.inventoryList.find(inv => inv.sku === sku || inv.id === itemId || (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
+          // Cari item yang ada (cocokkan via nama)
+          let existing = this.inventoryList.find(inv => (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
 
           if (existing) {
             const oldStock = Number(existing.stock || existing.stok || 0);
@@ -7680,18 +7687,22 @@ try {
             existing.stok = stock;
             existing.purchasePrice = priceEcer;
             existing.priceEcer = priceEcer;
+            existing.pricePartai = pricePartai;
+            existing.priceAgen = priceAgen;
             existing.unit = unit;
-            existing.category = category;
+            existing.category = categoryId || 'Bahan Bangunan';
+            existing.categoryId = categoryId || '';
             existing.minStock = minStock;
-            existing.sku = sku;
             updatedCount++;
 
             itemsForFirestore.push({
               id: existing.id,
               name: existing.name,
-              sku: existing.sku || '',
+              categoryId: existing.categoryId || '',
               category: existing.category || 'Bahan Bangunan',
               priceEcer: Number(existing.priceEcer) || 0,
+              pricePartai: Number(existing.pricePartai) || 0,
+              priceAgen: Number(existing.priceAgen) || 0,
               price: Number(existing.priceEcer) || 0,
               unit: existing.unit || 'pcs',
               stock: Number(existing.stock) || 0,
@@ -7711,10 +7722,12 @@ try {
             const newItemObj = {
               id: itemId,
               name: itemName,
-              sku: sku,
-              category: category,
+              categoryId: categoryId || '',
+              category: categoryId || 'Bahan Bangunan',
               priceEcer: priceEcer,
               price: priceEcer,
+              pricePartai: pricePartai,
+              priceAgen: priceAgen,
               unit: unit,
               stock: stock,
               stok: stock,
@@ -7729,9 +7742,11 @@ try {
             itemsForFirestore.push({
               id: newItemObj.id,
               name: newItemObj.name,
-              sku: newItemObj.sku || '',
+              categoryId: newItemObj.categoryId || '',
               category: newItemObj.category || 'Bahan Bangunan',
               priceEcer: Number(newItemObj.priceEcer) || 0,
+              pricePartai: Number(newItemObj.pricePartai) || 0,
+              priceAgen: Number(newItemObj.priceAgen) || 0,
               price: Number(newItemObj.priceEcer) || 0,
               unit: newItemObj.unit || 'pcs',
               stock: Number(newItemObj.stock) || 0,
@@ -9265,11 +9280,11 @@ try {
       supplierName: defaultSup.name,
       purchasePrice: 15000,
       sellingPrice: 18000,
-      category: 'rice_bowl',
-      unit: 'porsi',
+      category: 'bahan_bangunan',
+      unit: 'pcs',
       initialStock: 0,
       minStock: 5,
-      sku: this.generateSKU('rice_bowl', 'internal', defaultSup.name),
+      sku: this.generateSKU('bahan_bangunan', 'internal', defaultSup.name),
       barcode: '',
       autoPrintBarcode: true,
       sellingPriceManual: false   // ✅ BUG-3: reset flag saat modal dibuka
@@ -9313,7 +9328,7 @@ try {
       stock: 0,
       stok: 0,
       minStock: Number(this.preRegisterForm.minStock) || 5,
-      unit: this.preRegisterForm.unit || 'porsi',
+      unit: this.preRegisterForm.unit || 'pcs',
       purchasePrice: beli,
       isCountable: true,
       sku: this.preRegisterForm.sku,
@@ -9332,11 +9347,11 @@ try {
     const newMenuItem = {
       id: menuId,
       name: menuTitle,
-      category: this.preRegisterForm.category || 'rice_bowl',
+      category: this.preRegisterForm.category || 'bahan_bangunan',
       price: jual,
       cost: beli,
       desc: `Produk titipan konsinyasi dari ${supName}`,
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      image: '',
       inventoryId: itemId,
       isConsignment: true,
       supplierId: this.preRegisterForm.supplierId,
@@ -10964,9 +10979,9 @@ try {
       name: item.name,
       price: suggestedPrice,
       cost: cost,
-      category: 'rice_bowl',
+      category: 'bahan_bangunan',
       desc: `Menu siap saji langsung dari bahan baku ${item.name}`,
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'
+      image: ''
     };
     this.generateMenuModal = true;
   },
@@ -10986,7 +11001,7 @@ try {
     const newMenuItem = {
       id: newMenuId,
       name: this.generateMenuForm.name.trim(),
-      category: this.generateMenuForm.category || 'rice_bowl',
+      category: this.generateMenuForm.category || 'bahan_bangunan',
       price: price,
       cost: Number(this.generateMenuForm.cost) || Number(inv.purchasePrice) || 0,
       desc: this.generateMenuForm.desc || '',
