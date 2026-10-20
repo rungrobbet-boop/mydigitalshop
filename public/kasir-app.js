@@ -723,6 +723,13 @@ window.kasirApp = () => ({
   _fbOnValue: null,
   _audioCtx: null,
 
+  // ✅ Default Firebase config utama — digunakan sebagai base saat window.firebaseConfig
+  // dan localStorage kosong. Tidak ada hardcoded apiKey (diambil dari Vite Env via Landing Page),
+  // tapi databaseURL disediakan agar RTDB bisa terhubung secara otomatis.
+  _defaultFirebaseConfig: {
+    databaseURL: 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app'
+  },
+
   // =========================================================================
   // 2. INISIALISASI (init & initKasir)
   // =========================================================================
@@ -1458,57 +1465,56 @@ try {
    * Inisialisasi Firebase Modular SDK secara dinamis
    */
     async initFirebaseSDK() {
-    try {
-      // Ambil kredensial Firebase dari window.firebaseConfig (kasir.html) atau
-      // localStorage (dapur_firebase_custom_config — diisi via Panel Admin Kasir).
-      // Landing Page (index.html) menggunakan import.meta.env VITE_FIREBASE_*,
-      // JANGAN memuat firebase-config.js secara statis di sini.
-      let cfg = null;
-      // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di kasir.html)
-      if (window.firebaseConfig && window.firebaseConfig.apiKey) {
-        cfg = { ...window.firebaseConfig };
-      }
-      // 2. Gabungkan dengan localStorage (dapur_firebase_custom_config) — diisi manual lewat Panel Admin
-      try {
-        const stored = localStorage.getItem('dapur_firebase_custom_config');
-        if (stored) {
-          const lsCfg = JSON.parse(stored);
-          if (!cfg || !cfg.apiKey) {
-            cfg = lsCfg;
-          } else {
-            cfg = { ...cfg, ...lsCfg };
-          }
-        }
-      } catch (e) {
-        console.warn('[FB-INIT] Gagal parse localStorage config:', e);
-      }
-      if (!cfg || !cfg.apiKey) {
-        console.warn('[FB-INIT] Firebase konfigurasi tidak ditemukan — masuk mode Demo/Offline.');
-        this.appReady = true;
-        return;
-      }
+     try {
+       // Ambil kredensial Firebase — gabungkan tiga lapis:
+       //   1. _defaultFirebaseConfig (databaseURL selalu tersedia)
+       //   2. window.firebaseConfig (dari kasir.html ES module import)
+       //   3. localStorage (dapur_firebase_custom_config — diisi via Panel Admin Kasir)
+       // Landing Page (index.html) menggunakan import.meta.env VITE_FIREBASE_*,
+       // JANGAN memuat firebase-config.js secara statis di sini.
+       let cfg = { ...this._defaultFirebaseConfig };
 
-      this._fbConfig = cfg;
+       // 1. Lapisan window.firebaseConfig
+       if (window.firebaseConfig && window.firebaseConfig.apiKey) {
+         cfg = { ...cfg, ...window.firebaseConfig };
+       }
+       // 2. Lapisan localStorage (override paling atas)
+       try {
+         const stored = localStorage.getItem('dapur_firebase_custom_config');
+         if (stored) {
+           const lsCfg = JSON.parse(stored);
+           cfg = { ...cfg, ...lsCfg };
+         }
+       } catch (e) {
+         console.warn('[FB-INIT] Gagal parse localStorage config:', e);
+       }
+       if (!cfg || !cfg.apiKey) {
+         console.warn('[FB-INIT] Firebase konfigurasi tidak ditemukan — masuk mode Demo/Offline (RTDB hanya databaseURL tanpa auth).');
+         this.appReady = true;
+         return;
+       }
 
-      // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di kasir.html)
-      if (typeof firebase === 'undefined' || !firebase.database) {
-        console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek kasir.html');
-        this.appReady = true;
-        return;
-      }
+       this._fbConfig = cfg;
 
-      // Inisialisasi App terlebih dahulu (defensif: jangan inisialisasi dua kali)
-      let app;
-      if (!firebase.apps || firebase.apps.length === 0) {
-        app = firebase.initializeApp(cfg);
-      } else {
-        app = firebase.app();
-      }
+       // ✅ Pakai Firebase COMPAT SDK (di-load via <script> tag di kasir.html)
+       if (typeof firebase === 'undefined' || !firebase.database) {
+         console.warn('[FB-INIT] Firebase compat SDK belum dimuat — cek kasir.html');
+         this.appReady = true;
+         return;
+       }
 
-      // ✅ Panggil database menggunakan instance app, JANGAN string URL
-      FB_DB = firebase.database(app);
-      this._fbDb = true;
-      console.log("[FB-INIT] RTDB Connected to:", FB_DB.ref().toString());
+       // Inisialisasi App terlebih dahulu (defensif: jangan inisialisasi dua kali)
+       let app;
+       if (!firebase.apps || firebase.apps.length === 0) {
+         app = firebase.initializeApp(cfg);
+       } else {
+         app = firebase.app();
+       }
+
+       // ✅ Panggil database menggunakan instance app, JANGAN string URL
+       FB_DB = firebase.database(app);
+       this._fbDb = true;
+       console.log("[FB-INIT] RTDB Connected to:", FB_DB.ref().toString());
 
       // ✅ Inisialisasi Firestore (module scope) — dipakai getProducts() one-time fetch
       try {
@@ -3049,10 +3055,48 @@ try {
 
     // 4. ✅ Potong stok di RTDB dulu, lalu sinkronkan ke Firestore (stok keluar via penjualan)
     try {
-      // 4a. Potong stok di RTDB /inventory/{itemId}
+      // 4a. Potong stok di RTDB /inventory/{itemId} — dengan mapping ID Firestore → RTDB key
+      // Karena cart item.id adalah Firestore doc ID (m_inv_inv_...) sedangkan RTDB mungkin
+      // menggunakan custom key (besi-ulir-13mm). Bangun mapping sekali sebelum deduct.
       if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
+        // Build mapping: RTDB key → Firestore id / name
+        let idToRtdbKey = {};
+        try {
+          const allInvSnap = await this._fbGet(this._fbRef(this._fbDb, 'inventory'));
+          const allInv = allInvSnap.val() || {};
+          for (const [rtdbKey, invData] of Object.entries(allInv || {})) {
+            if (!invData || typeof invData !== 'object') continue;
+            // Map by Firestore id field (invData.id) — jika RTDB key sama dengan Firestore id, mapping 1:1
+            if (invData.id) idToRtdbKey[invData.id] = rtdbKey;
+            // Map by name (lowercase) sebagai fallback
+            if (invData.name) idToRtdbKey[String(invData.name).toLowerCase()] = rtdbKey;
+            // Map by sku
+            if (invData.sku) idToRtdbKey[String(invData.sku).toLowerCase()] = rtdbKey;
+          }
+          console.log('[INV-DEDUCT-RTDB] ID map built:', Object.keys(idToRtdbKey).length, 'entries');
+        } catch (e) {
+          console.warn('[INV-DEDUCT-RTDB] Gagal membangun ID map:', e.message);
+        }
+
         for (const item of normalizedItems) {
-          const stockRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
+          // Tentukan RTDB key: coba langsung item.id, lalu lewat mapping
+          let rtdbKey = item.id;
+          const directSnap = await this._fbGet(this._fbRef(this._fbDb, `inventory/${item.id}`));
+          const directData = directSnap.val() || {};
+          const directEmpty = !directData || Object.keys(directData).length === 0;
+
+          if (directEmpty && idToRtdbKey[item.id]) {
+            rtdbKey = idToRtdbKey[item.id];
+            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey}`);
+          } else if (directEmpty && idToRtdbKey[String(item.id).toLowerCase()]) {
+            rtdbKey = idToRtdbKey[String(item.id).toLowerCase()];
+            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey} (lowercase)`);
+          } else if (directEmpty && item.id && idToRtdbKey[item.id.toLowerCase()]) {
+            rtdbKey = idToRtdbKey[item.id.toLowerCase()];
+            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey} (name fallback)`);
+          }
+
+          const stockRef = this._fbRef(this._fbDb, `inventory/${rtdbKey}`);
           const snap = await this._fbGet(stockRef);
           const current = snap.val() || {};
           const currentStock = Number(current.stock || current.stok || 0);
