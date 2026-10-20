@@ -1657,8 +1657,8 @@ async loadMoreProducts() {
     console.warn('[FB-FS] loadMoreProducts gagal:', e);
   } finally {
     this.isLoadingMoreProducts = false;
-  },
-}
+  }
+},
 /**
  * Realtime listener untuk /menu_items
    * (DIGANTI: sekarang ambil katalog dari Firestore via getProducts() one-time fetch)
