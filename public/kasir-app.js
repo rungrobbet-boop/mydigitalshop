@@ -147,6 +147,16 @@ function parseCSV(text) {
   return { parsed, errors };
 }
 
+// Slugify nama produk untuk ID dokumen unik (mencegah duplikat saat re-import)
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 window.kasirApp = () => ({
     _scanBuffer: '',
     _scanLastTime: 0,
@@ -2107,46 +2117,71 @@ try {
    * TIDAK mengubah logika Auto Jurnal, Void, Reversal, atau penyesuaian stok internal.
    */
   async syncStokKeFirestore() {
-    console.log('[SYNC-STOK] Memulai sinkronisasi stok...');
+    console.log('[SYNC-STOK] ============================================');
+    console.log('[SYNC-STOK] Memulai sinkronisasi stok ke Firestore...');
+    console.log('[SYNC-STOK] inventoryList panjang:', this.inventoryList ? this.inventoryList.length : 0);
+
     if (!FB_FS) {
+      console.warn('[SYNC-STOK] FB_FS belum tersedia (Firestore belum diinisialisasi)');
       this.showToast('Firestore belum siap — sinkronisasi dibatalkan', 'error');
       this.playSound('error');
       return false;
     }
+    console.log('[SYNC-STOK] FB_FS tersedia ✓');
+
     const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
     if (list.length === 0) {
+      console.warn('[SYNC-STOK] inventoryList kosong, tidak ada yang disinkronkan');
       this.showToast('Tidak ada data stok untuk disinkronkan', 'notify');
       return false;
     }
+    console.log('[SYNC-STOK] Daftar inventory yang akan disinkronkan:');
+    list.forEach((item, idx) => {
+      console.log(`  [${idx + 1}] id=${item.id} name="${item.name}" stock=${item.stock} unit=${item.unit}`);
+    });
+
     try {
-      // 1. Ambil data terbaru dari RTDB inventory (sumber stok aktual)
+      // 1. (Referensi saja) Ambil data RTDB inventory — tidak akan menimpa stok lokal
       let rtdbData = {};
+      let rtdbCount = 0;
       try {
         if (this._fbDb && this._fbRef && FB_DB) {
           const snap = await FB_DB.ref('inventory').once('value');
           const val = snap.val();
-          if (val) rtdbData = val;
-          console.log(`[SYNC-STOK] RTDB inventory muat ${Object.keys(rtdbData).length} item`);
+          if (val) {
+            rtdbData = val;
+            rtdbCount = Object.keys(rtdbData).length;
+          }
+          console.log(`[SYNC-STOK] RTDB inventory muat ${rtdbCount} item (hanya referensi, tidak menimpa stok lokal)`);
+        } else {
+          console.warn('[SYNC-STOK] RTDB (_fbDb/_fbRef/FB_DB) belum siap, lewati baca RTDB');
         }
       } catch (e) {
         console.warn('[SYNC-STOK] Gagal baca RTDB inventory:', e);
       }
 
-      // 2. Gabungkan: gunakan data RTDB jika ada, fallback ke inventoryList lokal
+      // 2. Gunakan inventoryList lokal sebagai sumber utama (stok terbaru setelah transaksi)
       const mergedList = list.map((item) => {
         const rtdbItem = rtdbData[item.id] || {};
+        const localStock = Number(item.stock) || 0;
+        const rtdbStock = Number(rtdbItem.stock) || 0;
+        // Prioritaskan stok lokal (inventoryList) karena sudah terupdate setelah transaksi
+        const finalStock = localStock !== 0 ? localStock : rtdbStock;
+        console.log(`[SYNC-STOK] Item "${item.name}": lokal=${localStock}, RTDB=${rtdbStock}, final=${finalStock}`);
         return {
           ...item,
-          stock: Number(rtdbItem.stock !== undefined ? rtdbItem.stock : item.stock) || 0,
-          unit: rtdbItem.unit || item.unit || 'pcs',
+          stock: finalStock,
+          unit: item.unit || rtdbItem.unit || 'pcs',
         };
       });
 
-      // 3. Tulis ke Firestore collection 'products'
+      // 3. Tulis ke Firestore collection 'products' menggunakan setDoc (merge)
       const batch = FB_FS.batch();
       const now = new Date().toISOString();
       mergedList.forEach((item) => {
-        const ref = FB_FS.collection('products').doc(String(item.id || item.name));
+        const docId = String(item.id || item.name);
+        const ref = FB_FS.collection('products').doc(docId);
+        console.log(`[SYNC-STOK] Menyiapkan setDoc: products/${docId} stock=${item.stock}`);
         batch.set(ref, {
           id: item.id,
           name: item.name,
@@ -2163,13 +2198,16 @@ try {
           source: 'kasir-pos-sync',
         }, { merge: true });
       });
+
+      console.log(`[SYNC-STOK] Men-commit batch ${mergedList.length} item ke Firestore...`);
       await batch.commit();
       this.showToast(`✅ Stok sinkron: ${mergedList.length} item ke Firestore products`, 'success');
       this.playSound('success');
-      console.log(`[SYNC-STOK] ${mergedList.length} item ditulis ke Firestore products`);
+      console.log(`[SYNC-STOK] ✅ ${mergedList.length} item berhasil ditulis ke Firestore products`);
+      console.log('[SYNC-STOK] ============================================');
       return true;
     } catch (e) {
-      console.warn('[SYNC-STOK] Gagal:', e);
+      console.warn('[SYNC-STOK] ❌ Gagal:', e);
       this.showToast('Gagal sinkronkan stok: ' + (e && e.message ? e.message : e), 'error');
       this.playSound('error');
       return false;
@@ -3157,7 +3195,7 @@ try {
    */
   strukFooterText() {
     const brand = (this.siteInfo && this.siteInfo.brandName) ? String(this.siteInfo.brandName).trim() : 'MyDigitalShop';
-    return `Terima kasih sudah berbelanja di ${brand} & selamat menikmati.`;
+    return `Terima kasih sudah berbelanja di ${brand}.`;
   },
 
   strukFooterLines(doc, width = 72) {
@@ -7765,7 +7803,7 @@ try {
           const stock = row.stock;
           const imageUrl = row.imageUrl || '';
           const minStock = 5;
-          const itemId = `inv_${Date.now()}_${idx}`;
+          const itemId = `inv_${slugify(itemName)}_${idx}`;
 
           // Cari item yang ada (cocokkan via nama)
           let existing = this.inventoryList.find(inv => (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));

@@ -4361,7 +4361,7 @@
         <div id="receiptPrintArea" class="bg-stone-50 p-5 rounded-2xl border border-stone-200 font-mono text-[12px] space-y-3 text-stone-800">
           <div class="text-center border-b border-dashed border-stone-300 pb-3">
             <h5 class="font-black text-sm uppercase" x-text="(siteInfo && siteInfo.brandName ? siteInfo.brandName : 'MyDigitalShop').toUpperCase()">MYDIGITALSHOP</h5>
-            <p class="text-[10px] text-stone-500" x-text="(siteInfo && siteInfo.address) || 'Jl. Kuliner Viral No. 88, Jakarta Selatan'">Jl. Kuliner Viral No. 88, Jakarta Selatan</p>
+            <p class="text-[10px] text-stone-500" x-text="(siteInfo && siteInfo.address) ? String(siteInfo.address) : 'Toko Bangunan - Pusat Material & Konstruksi'"></p>
             <p class="text-[10px] text-stone-500" x-text="'Telp/WA: ' + ((siteInfo && siteInfo.phone) || '0812-3456-7890')">Telp/WA: 0812-3456-7890</p>
           </div>
 

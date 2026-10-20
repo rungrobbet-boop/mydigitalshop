@@ -789,10 +789,10 @@
 
               <!-- Stock Indicator -->
               <div class="absolute top-2 left-2 z-10">
-                <span 
-                  :class="item.stock === 0 ? 'bg-red-600 text-white' : 'bg-white/95 text-slate-800 border border-slate-200'"
+                <span
+                  :class="getMenuItemStock(item).stock === 0 ? 'bg-red-600 text-white' : 'bg-white/95 text-slate-800 border border-slate-200'"
                   class="px-2 py-0.5 text-[10px] font-bold shadow-xs rounded-full backdrop-blur-sm"
-                  x-text="item.stock === 0 ? 'Stok Habis' : ('Stok: ' + (item.stock || 0) + ' ' + (item.unit ? item.unit.replace('/', '') : 'unit'))">
+                  x-text="getMenuItemStock(item).stock === 0 ? 'Stok Habis' : ('Stok: ' + getMenuItemStock(item).stock + ' ' + (getMenuItemStock(item).unit ? getMenuItemStock(item).unit.replace('/', '') : 'unit'))">
                 </span>
               </div>
             </div>
@@ -874,14 +874,14 @@
               </div>
 
                             <!-- Stock Indicator Inventory — Sold Out saat 0 -->
-              <template x-if="siteConfig.showMenuStockOnMain && getInventoryStockForMenu(item)">
+              <template x-if="siteConfig.showMenuStockOnMain && getMenuItemStock(item).stock > 0">
                 <div class="absolute top-1.5 left-1.5 z-10">
                   <span 
-                    :class="getInventoryStockForMenu(item).stock === 0 
+                    :class="getMenuItemStock(item).stock === 0 
                       ? 'bg-red-600 text-white border-red-400' 
                       : 'bg-white/95 backdrop-blur-sm text-stone-800 border-stone-200'"
                     class="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black shadow-sm border rounded-full"
-                    x-text="getInventoryStockForMenu(item).stock === 0 ? 'Sold Out' : ('Stok: ' + getInventoryStockForMenu(item).stock)">
+                    x-text="getMenuItemStock(item).stock === 0 ? 'Sold Out' : ('Stok: ' + getMenuItemStock(item).stock)">
                   </span>
                 </div>
               </template>
@@ -942,14 +942,14 @@
             <div class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden flex-shrink-0 border border-stone-100 bg-stone-100">
               <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
                             <!-- Stock Inventory — Sold Out saat 0 -->
-              <template x-if="siteConfig.showMenuStockOnMain && getInventoryStockForMenu(item)">
+              <template x-if="siteConfig.showMenuStockOnMain && getMenuItemStock(item).stock > 0">
                 <div class="absolute top-1 left-1 z-10">
                   <span 
-                    :class="getInventoryStockForMenu(item).stock === 0 
+                    :class="getMenuItemStock(item).stock === 0 
                       ? 'bg-red-600 text-white border-red-400' 
                       : 'bg-white/95 backdrop-blur-sm text-stone-800 border-stone-200'"
                     class="px-1.5 py-0.5 text-[9px] font-black shadow-xs border rounded-full"
-                    x-text="getInventoryStockForMenu(item).stock === 0 ? 'Sold Out' : ('Stok: ' + getInventoryStockForMenu(item).stock)">
+                    x-text="getMenuItemStock(item).stock === 0 ? 'Sold Out' : ('Stok: ' + getMenuItemStock(item).stock)">
                   </span>
                 </div>
               </template>
@@ -5960,6 +5960,16 @@ git push -u origin main</pre>
       return { parsed, errors };
     }
 
+    // Slugify nama produk untuk ID dokumen unik (mencegah duplikat saat re-import)
+    function slugify(text) {
+      return String(text || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')      // hapus karakter khusus
+        .replace(/[\s_-]+/g, '-')      // spasi/underscore jadi strip
+        .replace(/^-+|-+$/g, '');      // hapus strip di awal/akhir
+    }
+
     function dapurApp() {
       return {
         appReady: false,
@@ -7086,7 +7096,22 @@ git push -u origin main</pre>
           return null;
         },
 
-        cycleMenuViewMode() {
+        /**
+         * Ambil stok menu untuk tampilan landing page.
+         * Prioritaskan getInventoryStockForMenu (resep/inventory link),
+         * fallback ke item.stock langsung jika tersedia.
+         */
+        getMenuItemStock(item) {
+          if (!item) return { stock: 0, unit: 'pcs' };
+          const inv = this.getInventoryStockForMenu(item);
+          if (inv && Number.isFinite(inv.stock)) {
+            return { stock: Number(inv.stock), unit: inv.unit || item.unit || 'pcs' };
+          }
+          if (item.stock !== null && item.stock !== undefined && item.stock !== '') {
+            return { stock: Number(item.stock) || 0, unit: item.unit || 'pcs' };
+          }
+          return { stock: 0, unit: item.unit || 'pcs' };
+        },
           if (this.activeTab !== 'menu') {
             this.activeTab = 'menu';
           }
@@ -9552,7 +9577,11 @@ git push -u origin main</pre>
             // Buat otomatis kategori yang belum ada sebelum menyimpan produk ke Firestore
             await this.ensureCategoriesFromCsv(this.csvImportParsed);
 
-            const toImport = this.csvImportParsed.slice(0, 500); // maksimal 500 per eksekusi
+            const toImport = this.csvImportParsed.slice(0, 500).map((item) => ({
+              ...item,
+              // ID unik berdasarkan slug nama produk → re-import menimpa, tidak duplikat
+              id: item.id || slugify(item.name) || ('prod_' + Date.now()),
+            }));
             const remainder = this.csvImportParsed.length - toImport.length;
             if (remainder > 0) {
               this.showToast('Melebihi batas 500 produk per eksekusi. ' + remainder + ' produk akan diimpor pada eksekusi berikutnya.');
