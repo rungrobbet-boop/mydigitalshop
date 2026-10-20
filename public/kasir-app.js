@@ -7960,7 +7960,11 @@ try {
 
             // ✅ Log ketat sebelum commit
             console.log("Mencoba menulis ke Firestore...", batch);
-            await batch.commit();
+            const commitPromise = batch.commit();
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error("Koneksi ke Firestore Timeout. Periksa koneksi internet atau Firebase Security Rules.")), 15000);
+            });
+            await Promise.race([commitPromise, timeoutPromise]);
             console.log("Commit Firestore Sukses!");
             console.log(`[IMPORT-CSV] ✅ ${writeCount} produk ditulis ke Firestore 'products'`);
             this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore)`, 'success');
