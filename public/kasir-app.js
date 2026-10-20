@@ -25,8 +25,8 @@ window.kasirApp = () => ({
     _scanListenerBound: false,
     appReady: false,
     scannerEnabled: true,
-    splashKasirTitle: 'KASIR',
-    splashKasirSubtitle: 'Digital Culinary',
+    splashKasirTitle: 'MyDigitalShop POS',
+    splashKasirSubtitle: '',
 
   // =========================================================================
   // 1. STATE DASAR & NAVIGASI
@@ -646,10 +646,10 @@ try {
     this._fbOnValue(configRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
-        if (val.kasirTitle) this.customKasirTitle = val.kasirTitle;
-        if (val.kasirSubtitle) this.customKasirSubtitle = val.kasirSubtitle;
-        this.splashKasirTitle = 'KASIR';
-        this.splashKasirSubtitle = this.customKasirSubtitle || 'Digital Culinary';
+        this.customKasirTitle = 'MyDigitalShop POS';
+        this.customKasirSubtitle = '';
+        this.splashKasirTitle = 'MyDigitalShop POS';
+        this.splashKasirSubtitle = '';
         console.log('[KASIR] Custom title loaded:', val.kasirTitle);
 
                // 🏢 Sync info bisnis (brand, alamat, telepon)
@@ -2314,7 +2314,7 @@ try {
       time: new Date().toLocaleTimeString('id-ID'),
       date: new Date().toLocaleDateString('id-ID'),
       customer: 'TES PRINTER POS',
-      items: [{ name: 'Rice Bowl Chicken Katsu', qty: 1, price: 28000 }],
+      items: [{ name: 'Semen Portland', qty: 1, price: 75000 }],
       total: 28000,
       paymentMethod: 'Tunai'
     };
@@ -2490,7 +2490,7 @@ try {
 
     const txId = 'T' + Date.now();
     this.qrisOrderId = txId;
-    this.qrisQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=DAPUR-KULINER-${txId}-${this.getCartGrandTotal()}`;
+    this.qrisQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=MYDIGITALSHOP-${txId}-${this.getCartGrandTotal()}`;
 
     // Kirim request payment intent ke server
     try {
@@ -2909,7 +2909,7 @@ try {
     if (custPhone) {
       const custName = (orderData && (orderData.customerName || orderData.name)) || this.customerName || 'Pelanggan';
       const itemsSummary = (this.currentOrder.items || []).map(it => `- ${it.name || it.id} x${it.qty}`).join('\n');
-      const waMsg = `Halo Kak ${custName}, terima kasih sudah bertransaksi di ${this.customKasirTitle || 'Dapur Kuliner Viral'}! ✨\n\nNo. Order: #${txId}\nTotal: ${this.formatRupiah(grandTotal)}\nMetode: ${pm.toUpperCase()}\nTanggal: ${dateStr}\n\nPesanan:\n${itemsSummary}\n\nStruk transaksi Anda telah berhasil diproses. Semoga puas dengan barang kami! 🙏`;
+      const waMsg = `Halo Kak ${custName}, terima kasih sudah bertransaksi di ${this.customKasirTitle || 'MyDigitalShop POS'}! ✨\n\nNo. Order: #${txId}\nTotal: ${this.formatRupiah(grandTotal)}\nMetode: ${pm.toUpperCase()}\nTanggal: ${dateStr}\n\nPesanan:\n${itemsSummary}\n\nStruk transaksi Anda telah berhasil diproses. Semoga puas dengan barang kami! 🙏`;
       this.sendWhatsAppNotification(custPhone, waMsg, 'pos_receipt');
     }
 
@@ -3199,10 +3199,10 @@ try {
 
       doc.setFont('courier', 'bold');
       doc.setFontSize(11);
-      doc.text('DAPUR KULINER VIRAL', 40, 9, { align: 'center' });
+      doc.text('MyDigitalShop POS', 40, 9, { align: 'center' });
       doc.setFont('courier', 'normal');
       doc.setFontSize(7.5);
-      doc.text('Jl. Kuliner Viral No. 88, Jaksel', 40, 13, { align: 'center' });
+      doc.text('Jl. Raya Toko Bangunan No. 88, Jaksel', 40, 13, { align: 'center' });
       doc.text('Telp/WA: 0812-3456-7890', 40, 17, { align: 'center' });
       doc.text('================================', 40, 21, { align: 'center' });
 
@@ -3314,10 +3314,10 @@ try {
 
         doc.setFont('courier', 'bold');
         doc.setFontSize(11);
-        doc.text('DAPUR KULINER VIRAL', 40, 9, { align: 'center' });
+        doc.text('MyDigitalShop POS', 40, 9, { align: 'center' });
         doc.setFont('courier', 'normal');
         doc.setFontSize(7.5);
-        doc.text('Jl. Kuliner Viral No. 88, Jaksel', 40, 13, { align: 'center' });
+        doc.text('Jl. Raya Toko Bangunan No. 88, Jaksel', 40, 13, { align: 'center' });
         doc.text('Telp/WA: 0812-3456-7890', 40, 17, { align: 'center' });
         doc.text('--------------------------------', 40, 21, { align: 'center' });
         let y = 25;
@@ -3435,10 +3435,10 @@ try {
         let details = `Subtotal: ${this.formatRupiah(subtotal)}\n`;
     // ✅ Reorder: Diskon → Service → Pajak
     if (disc > 0) details += `Diskon Total: -${this.formatRupiah(disc)}\n`;
-    if (sCharge > 0) details += `Service Charge (5%): ${this.formatRupiah(sCharge)}\n`;
+    if (sCharge > 0) details += `Biaya Layanan (5%): ${this.formatRupiah(sCharge)}\n`;
     if (tax > 0) details += `PPN (11%): ${this.formatRupiah(tax)}\n`;
 
-    const text = `*DAPUR KULINER VIRAL - STRUK TRANSAKSI*\n\n` +
+    const text = `*MyDigitalShop POS - STRUK TRANSAKSI*\n\n` +
       `No. Order: *${order.id}*\n` +
       `Tanggal: ${order.date || this.formatDate(Date.now())}\n` +
       `Kasir: ${this.kasirInfo.name}\n` +
@@ -4479,7 +4479,7 @@ try {
       const phone = orderData.customerPhone || orderData.phone || orderData.customer_phone || '';
       if (phone) {
         const custName = orderData.customerName || orderData.customer_name || 'Pelanggan';
-        const confMsg = `Halo Kak ${custName}, pesanan Anda #${orderId} telah kami KONFIRMASI dan sedang disiapkan di dapur! 🍳 Terima kasih telah memesan di ${this.customKasirTitle || 'Dapur Kuliner Viral'}.`;
+        const confMsg = `Halo Kak ${custName}, pesanan Anda #${orderId} telah kami KONFIRMASI dan sedang diproses di gudang! 📦 Terima kasih telah memesan di ${this.customKasirTitle || 'MyDigitalShop POS'}.`;
         this.sendWhatsAppNotification(phone, confMsg, 'order_confirmed');
       }
     } catch (e) {
@@ -5150,28 +5150,8 @@ try {
     }, 15000);
 
     try {
-      if (this._fbDb && this._fbOnValue && this._fbRef) {
-        try {
-          const invRef = this._fbRef(this._fbDb, 'inventory');
-          this._fbOnValue(invRef, (snapshot) => {
-            clearTimeout(invTimeout);
-            const val = snapshot.val();
-            console.log('[FB-INV] inventory listener:', val ? Object.keys(val).length + ' items' : 'kosong');
-            if (val) {
-              this.inventoryList = Array.isArray(val) 
-                ? JSON.parse(JSON.stringify(val)) 
-                : Object.entries(val).map(([k, v]) => ({ id: k, ...v }));
-            }
-            this.loadingStates.inventory = false;
-          }, (err) => {
-            clearTimeout(invTimeout);
-            console.warn('Firebase inventory listener error:', err);
-            this.loadingStates.inventory = false;
-          });
-        } catch (e) {
-          console.warn('Firebase inventory listener warning:', e);
-        }
-        }
+      // ✅ HANYA ambil dari Firestore collection 'products' — tidak ada RTDB /inventory listener, tidak ada backend fetch, tidak ada localStorage restore
+      // Jika Firestore kosong, inventory tetap kosong (tampilkan pesan "Silakan Import CSV")
 
         // ✅ Sumber data utama: Firestore collection 'products' (hasil import CSV Landing Page)
         // Dipakai saat RTDB /inventory masih kosong, agar inventory di Kasir selaras dengan data Landing Page.
@@ -5206,34 +5186,7 @@ try {
         }
         }
 
-        // ✅ FIX: Fetch backend HANYA kalau Firebase listener belum kasih data
-      // Jangan override Firebase state (source of truth) dengan backend stale
-      if (!this.inventoryList || this.inventoryList.length === 0) {
-        const res = await fetch('/inventory');
-        if (res.ok) {
-          const ct = res.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            try {
-              const json = await res.json();
-              if (Array.isArray(json.data) && json.data.length > 0) {
-                this.inventoryList = json.data;
-              }
-            } catch (jsonErr) {
-              console.warn('Gagal parse JSON dari /inventory:', jsonErr);
-            }
-          }
-        }
-      }
 
-      // Restore dari localStorage jika kosong
-      if (!this.inventoryList || this.inventoryList.length === 0) {
-        try {
-          const saved = localStorage.getItem('dapur_inventory_list');
-          if (saved) {
-            this.inventoryList = JSON.parse(saved);
-          }
-        } catch (e) {}
-      }
 
       // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong
       if (!this.inventoryList || this.inventoryList.length === 0) {
@@ -7269,18 +7222,12 @@ try {
       doc.setFontSize(8);
       doc.setTextColor(75, 85, 99);
       doc.text('No', 18, y + 5);
-      doc.text('Nama Menu Makanan / Minuman', 30, y + 5);
+      doc.text('Nama Produk Bangunan', 30, y + 5);
       doc.text('Porsi Terjual', 150, y + 5, { align: 'right' });
       doc.text('Estimasi Omset', 190, y + 5, { align: 'right' });
       y += 8;
 
-      const topItems = (this.topMenuData.length > 0 ? this.topMenuData : [
-        { name: 'Rice Bowl Chicken Katsu Curry', qty: 38, revenue: 1064000 },
-        { name: 'Rice Bowl Beef Teriyaki', qty: 29, revenue: 1015000 },
-        { name: 'Dimsum Mentai Mozzarella (4 pcs)', qty: 25, revenue: 600000 },
-        { name: 'Mie Pedas Viral Level 3', qty: 22, revenue: 484000 },
-        { name: 'Es Lemon Tea Segar', qty: 45, revenue: 360000 }
-      ]).slice(0, 5);
+      const topItems = (this.topMenuData.length > 0 ? this.topMenuData : []).slice(0, 5);
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(31, 41, 55);
@@ -7288,7 +7235,7 @@ try {
       topItems.forEach((it, idx) => {
         doc.text(String(idx + 1), 18, y + 4.5);
         doc.text(it.name, 30, y + 4.5);
-        doc.text(`${it.qty} porsi`, 150, y + 4.5, { align: 'right' });
+        doc.text(`${it.qty} pcs`, 150, y + 4.5, { align: 'right' });
         doc.text(this.formatRupiah(it.revenue || (it.qty * 25000)), 190, y + 4.5, { align: 'right' });
         y += 7;
         doc.setDrawColor(243, 244, 246);
@@ -9940,7 +9887,7 @@ try {
       ctx.fillStyle = '#111827';
       ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(this.customKasirTitle || 'DAPUR KULINER VIRAL', 200, 35);
+      ctx.fillText(this.customKasirTitle || 'MyDigitalShop POS', 200, 35);
 
       ctx.font = 'bold 13px sans-serif';
       ctx.fillStyle = '#047857';
@@ -10033,7 +9980,7 @@ try {
       const doc = new window.jspdf.jsPDF('p', 'mm', [80, 140]);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.text(this.customKasirTitle || 'DAPUR KULINER VIRAL', 40, 8, { align: 'center' });
+      doc.text(this.customKasirTitle || 'MyDigitalShop POS', 40, 8, { align: 'center' });
 
       doc.setFontSize(9);
       doc.text('BUKTI TANDA TERIMA KONSINYASI', 40, 13, { align: 'center' });
@@ -10101,7 +10048,7 @@ try {
     const itemsText = (rec.items || []).map(i =>
       `- ${i.name} (${i.sku}): ${i.qty} ${i.unit} x Rp ${this.formatNumber(i.price)} = Rp ${this.formatNumber(i.total)}`
     ).join('\n');
-    const msg = `*BUKTI TANDA TERIMA BARANG KONSINYASI*\n${this.customKasirTitle || 'Dapur Kuliner Viral'}\n\nNo. Terima: ${rec.receiveId}\nTanggal: ${rec.date} ${rec.time || ''}\nSupplier: ${rec.supplierName}\n\n*Daftar Barang:*\n${itemsText}\n\n*Total Nilai: Rp ${this.formatNumber(rec.totalValue)}*\n\nBarang titipan konsinyasi telah diterima dengan baik. Terima kasih! 🙏`;
+    const msg = `*BUKTI TANDA TERIMA BARANG KONSINYASI*\n${this.customKasirTitle || 'MyDigitalShop POS'}\n\nNo. Terima: ${rec.receiveId}\nTanggal: ${rec.date} ${rec.time || ''}\nSupplier: ${rec.supplierName}\n\n*Daftar Barang:*\n${itemsText}\n\n*Total Nilai: Rp ${this.formatNumber(rec.totalValue)}*\n\nBarang titipan konsinyasi telah diterima dengan baik. Terima kasih! 🙏`;
 
     // ✅ FIX: window.open SINKRON (dalam user gesture) — popup blocker tidak block
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
@@ -10389,7 +10336,7 @@ try {
 
       // WhatsApp Notifikasi ke Supplier
       if (supSummary.contact) {
-        const msg = `*BUKTI SETTLEMENT KONSINYASI HARIAN*\n${this.customKasirTitle || 'Dapur Kuliner Viral'}\n\nID Settlement: ${stlId}\nTanggal: ${this.settlementDate}\nSupplier: ${supSummary.supplierName}\n\nTotal Barang Laku : ${supSummary.soldQty} pcs\nTotal Pembayaran  : Rp ${this.formatNumber(amount)}\nMetode Pembayaran : ${pm.toUpperCase()}\nStatus: LUNAS DIBAYARKAN ✅\n\nTerima kasih atas kerja samanya! 🙏`;
+        const msg = `*BUKTI SETTLEMENT KONSINYASI HARIAN*\n${this.customKasirTitle || 'MyDigitalShop POS'}\n\nID Settlement: ${stlId}\nTanggal: ${this.settlementDate}\nSupplier: ${supSummary.supplierName}\n\nTotal Barang Laku : ${supSummary.soldQty} pcs\nTotal Pembayaran  : Rp ${this.formatNumber(amount)}\nMetode Pembayaran : ${pm.toUpperCase()}\nStatus: LUNAS DIBAYARKAN ✅\n\nTerima kasih atas kerja samanya! 🙏`;
         this.sendWhatsAppNotification(supSummary.contact, msg, 'settlement');
       }
     } catch (err) {
@@ -10809,7 +10756,7 @@ try {
         `💵 Laba Kotor: Rp ${this.formatNumber(labaKotor)}`,
         '━━━━━━━━━━━━━━━━━━━━━━━━',
         '',
-        '🤖 Auto-report POS Digital Culinary'
+        '🤖 Auto-report POS MyDigitalShop'
       ];
 
       return lines.join('\n');
@@ -10883,7 +10830,7 @@ try {
       `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `Terima kasih atas kerja samanya!\n` +
       `Besok titipan lagi ya 🙏\n\n` +
-      `_POS Digital Culinary_`;
+      `_POS MyDigitalShop_`;
 
         // ✅ FIX: Langsung buka WhatsApp Web/App (bypass API)
     if (!phone) {
@@ -10916,7 +10863,7 @@ try {
       const doc = new window.jspdf.jsPDF('p', 'mm', [80, 150]);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.text(this.customKasirTitle || 'DAPUR KULINER VIRAL', 40, 8, { align: 'center' });
+      doc.text(this.customKasirTitle || 'MyDigitalShop POS', 40, 8, { align: 'center' });
       doc.setFontSize(9);
       doc.text('LAPORAN SETTLEMENT KONSINYASI', 40, 13, { align: 'center' });
       doc.setLineWidth(0.2);
@@ -11041,7 +10988,7 @@ try {
         body: JSON.stringify({
           menuId: newMenuId,
           ingredients: [
-            { itemId: inv.id, amount: 1, unit: inv.unit || 'porsi' }
+            { itemId: inv.id, amount: 1, unit: inv.unit || 'pcs' }
           ]
         })
       });

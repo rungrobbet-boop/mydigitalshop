@@ -312,17 +312,17 @@
       <div class="flex flex-row items-center gap-2 sm:gap-3 min-w-0">
         <a href="/"
            class="flex flex-row items-center gap-2.5 sm:gap-3 flex-shrink-0 group py-0.5 sm:py-1"
-           title="Kembali ke Beranda Dapur Kuliner">
+           title="Kembali ke Beranda MyDigitalShop POS">
           <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform flex-shrink-0">
             <i class="fa-solid fa-cash-register text-base sm:text-lg"></i>
           </div>
           <!-- Blok nama aplikasi: sejajar horizontal di samping logo -->
           <div class="hidden sm:flex flex-col justify-center leading-tight min-w-0 text-left">
             <div class="flex flex-row flex-wrap items-center gap-1.5">
-              <span class="font-extrabold text-sm sm:text-base tracking-tight text-stone-900 truncate" x-text="customKasirTitle || 'POS Toko Bangunan'"></span>
+              <span class="font-extrabold text-sm sm:text-base tracking-tight text-stone-900 truncate" x-text="customKasirTitle || 'MyDigitalShop POS'"></span>
               <span class="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase flex-shrink-0">POS</span>
             </div>
-            <p class="text-[10px] text-stone-500 truncate mt-0.5" x-text="customKasirSubtitle || 'MyDigitalShop'"></p>
+            <p class="text-[10px] text-stone-500 truncate mt-0.5" x-text="customKasirSubtitle || ''"></p>
           </div>
         </a>
 
@@ -1033,7 +1033,7 @@
                   <span class="font-bold text-stone-900 font-mono" x-text="formatRupiah(getCartSubtotal())"></span>
                 </div>
 
-                                <!-- Checkbox Opsional Pajak Restoran (PB1 11%) -->
+                                <!-- Checkbox Opsional Pajak (PPN 11%) -->
                 <div class="py-0.5 space-y-1">
                   <div class="flex items-center justify-between">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -1042,7 +1042,7 @@
                         x-model="isTaxEnabled" 
                         class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
                       />
-                      <span class="font-semibold text-stone-700">Pajak Restoran PB1 (11%)</span>
+                      <span class="font-semibold text-stone-700">Pajak (PPN) (11%)</span>
                     </label>
                     <span class="font-bold font-mono" :class="isTaxEnabled ? 'text-stone-900' : 'text-stone-400 line-through'" x-text="formatRupiah(getCartTax())"></span>
                   </div>
@@ -1060,7 +1060,7 @@
                   </div>
                 </div>
 
-                <!-- Checkbox Opsional Service Charge (5%) -->
+                <!-- Checkbox Opsional Biaya Layanan (5%) -->
                 <div class="flex items-center justify-between py-0.5">
                   <label class="flex items-center gap-2 cursor-pointer select-none">
                     <input 
@@ -1068,7 +1068,7 @@
                       x-model="isServiceChargeEnabled" 
                       class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
                     />
-                    <span class="font-semibold text-stone-700">Service Charge (5%)</span>
+                    <span class="font-semibold text-stone-700">Biaya Layanan (5%)</span>
                   </label>
                   <span class="font-bold font-mono" :class="isServiceChargeEnabled ? 'text-stone-900' : 'text-stone-400 line-through'" x-text="formatRupiah(getCartServiceCharge())"></span>
                 </div>
@@ -3292,7 +3292,7 @@
                   <span>IDR</span>
                 </div>
                 <div class="flex justify-between text-xs px-3">
-                  <span class="text-stone-600">Pendapatan Penjualan Makanan &amp; Minuman POS</span>
+                  <span class="text-stone-600">Pendapatan Penjualan Produk Bangunan POS</span>
                   <span class="font-mono font-bold text-stone-900" x-text="formatRupiah(getAccountingSummary().totalRev)"></span>
                 </div>
                 <div class="flex justify-between text-xs font-black px-3 pt-1 border-t border-stone-200 text-emerald-900">
@@ -3326,7 +3326,7 @@
               <!-- BEBAN OPERASIONAL -->
               <div class="space-y-2 pt-2">
                 <div class="flex items-center justify-between font-extrabold text-xs uppercase text-stone-700 bg-stone-200/60 p-2 rounded-lg">
-                  <span>3. BEBAN OPERASIONAL DAPUR</span>
+                  <span>3. BEBAN OPERASIONAL GUDANG</span>
                   <span>IDR</span>
                 </div>
                 <template x-for="opex in getAccountingSummary().opExList" :key="opex.name">
@@ -4107,7 +4107,7 @@
 
       <div class="w-52 h-52 mx-auto bg-stone-50 rounded-2xl p-3 border-2 border-dashed border-stone-300 flex items-center justify-center">
         <img 
-          :src="'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=EWALLET-DAPUR-' + Date.now()" 
+          :src="`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=EWALLET-MYDIGITALSHOP-${Date.now()}`"
           alt="E-Wallet QR" 
           class="w-full h-full object-contain" 
         />
@@ -4407,7 +4407,7 @@
 
             <template x-if="((currentOrder && currentOrder.serviceCharge !== undefined ? currentOrder.serviceCharge : getCartServiceCharge()) > 0)">
               <div class="flex justify-between">
-                <span>Service Charge (5%):</span>
+                <span>Biaya Layanan (5%):</span>
                 <span x-text="formatRupiah(currentOrder && currentOrder.serviceCharge !== undefined ? currentOrder.serviceCharge : getCartServiceCharge())"></span>
               </div>
             </template>
@@ -7327,11 +7327,11 @@
               x-model="preRegisterForm.category" 
               @change="onPreRegisterNameOrSupplierChange()" 
               class="w-full min-h-[42px] px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="rice_bowl">Rice Bowl / Makanan</option>
-              <option value="drink">Minuman</option>
-              <option value="snack">Cemilan / Snack</option>
-              <option value="dessert">Dessert</option>
-              <option value="mie">Mie &amp; Pasta</option>
+              <option value="bahan_bangunan">Bahan Bangunan</option>
+              <option value="semen">Semen</option>
+              <option value="cat">Cat</option>
+              <option value="besi">Besi</option>
+              <option value="lainnya">Lainnya</option>
             </select>
           </div>
         </div>
@@ -7933,11 +7933,11 @@
             <select 
               x-model="generateMenuForm.category" 
               class="w-full min-h-[42px] px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="rice_bowl">Rice Bowl / Makanan</option>
-              <option value="drink">Minuman</option>
-              <option value="snack">Cemilan / Snack</option>
-              <option value="dessert">Dessert</option>
-              <option value="mie">Mie &amp; Pasta</option>
+              <option value="bahan_bangunan">Bahan Bangunan</option>
+              <option value="semen">Semen</option>
+              <option value="cat">Cat</option>
+              <option value="besi">Besi</option>
+              <option value="lainnya">Lainnya</option>
             </select>
           </div>
         </div>
