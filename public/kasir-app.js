@@ -1459,24 +1459,24 @@ try {
    */
     async initFirebaseSDK() {
     try {
-      // Ambil kredensial Firebase
+      // Ambil kredensial Firebase — HANYA dari window.firebaseConfig atau localStorage,
+      // TIDAK ada hardcoded fallback (mencegah crash di Incognito / mode lokal)
       let cfg = null;
       try {
         const stored = localStorage.getItem('dapur_firebase_custom_config');
         if (stored) cfg = JSON.parse(stored);
       } catch (e) {}
-
       if (!cfg || !cfg.apiKey) {
-        cfg = {
-          apiKey: "AIzaSyB08og0350ZhwX9LYqxwyFuEppbdKEXAEg",
-          authDomain: "digitalculinary-app.firebaseapp.com",
-          databaseURL: "https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app",
-          projectId: "digitalculinary-app",
-          storageBucket: "digitalculinary-app.firebasestorage.app",
-          messagingSenderId: "650221083781",
-          appId: "1:650221083781:web:e44211db213b81ae19ddec"
-        };
-        console.log('[FB-INIT] Menggunakan fallback config hardcoded');
+        if (window.firebaseConfig && window.firebaseConfig.apiKey) {
+          cfg = window.firebaseConfig;
+        }
+      }
+      if (!cfg || !cfg.apiKey) {
+        const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di kasir.html atau atur dapur_firebase_custom_config di localStorage.');
+        console.error('[FB-INIT]', err.message);
+        this.showToast(err.message, 'error');
+        this.playSound('error');
+        return;
       }
 
       this._fbConfig = cfg;
@@ -7962,11 +7962,8 @@ try {
 
             // ✅ Log ketat sebelum commit
             console.log("Mencoba menulis ke Firestore...", batch);
-            const commitPromise = batch.commit();
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error("Koneksi ke Firestore Timeout. Periksa koneksi internet atau Firebase Security Rules.")), 15000);
-            });
-            await Promise.race([commitPromise, timeoutPromise]);
+            this.showToast('Sedang mengunggah ke Firestore, mohon tunggu...', 'notify');
+            await batch.commit();
             console.log("Commit Firestore Sukses!");
             console.log(`[IMPORT-CSV] ✅ ${writeCount} produk ditulis ke Firestore 'products'`);
             this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore)`, 'success');
