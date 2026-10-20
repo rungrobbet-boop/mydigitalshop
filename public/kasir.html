@@ -920,6 +920,7 @@
         <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span class="text-[11px] text-stone-500 font-mono" x-text="formatRupiah(item.price)"></span>
+          <span class="text-[10px] text-stone-400 font-semibold uppercase tracking-tighter" x-text="item.unit || 'pcs'"></span>
           <template x-if="item.itemDiscountValue > 0">
             <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black font-mono whitespace-nowrap">
               Disc <span x-text="item.itemDiscountType === 'nominal' ? formatRupiah(item.itemDiscountValue) : item.itemDiscountValue + '%'"></span>

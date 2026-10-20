@@ -1877,7 +1877,9 @@ try {
       this.cart.push({
         id: menuItem.id,
         name: menuItem.name,
-        price: Number(menuItem.price) || 0,
+        price: Number(menuItem.priceEcer) || Number(menuItem.price) || 0,
+        priceEcer: Number(menuItem.priceEcer) || Number(menuItem.price) || 0,
+        unit: menuItem.unit || 'pcs',
         qty: 1
       });
     }
