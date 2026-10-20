@@ -793,6 +793,8 @@ window.kasirApp = () => ({
 
     // 4. Inisialisasi Koneksi Firebase Realtime Database
     await this.initFirebaseSDK();
+    // ✅ FIX BUG-OFFLINE: Sinkronkan antrian transaksi offline yang tertunda setelah Firebase siap
+    await this.syncPendingTransactions();
 // Load custom kasir title & payment config dari Firebase site_config
 try {
   if (this._fbRef && this._fbDb) {
@@ -2990,8 +2992,16 @@ async loadMoreProducts() {
    * Simpan Transaksi Lengkap ke Firebase Cloud & Jalankan Otomasi POS
    */
       async simpanTransaksi(paymentData = {}) {
-    // ✅ FIX BUG-4: Block transaksi kalau shift sudah closed
-    if (this.shiftStatus === 'closed' || this._shiftClosedHandled) {
+      // ✅ FIX BUG-DOUBLE: Guard anti double-submit — cegah transaksi & jurnal duplikat saat double-klik
+      if (this._submittingTx) {
+        console.warn('[SUBMIT-GUARD] Transaksi sudah diproses, abaikan panggilan duplikat');
+        this.showToast('Transaksi sedang diproses, mohon tunggu...', 'notify');
+        return;
+      }
+      this._submittingTx = true;
+
+      // ✅ FIX BUG-4: Block transaksi kalau shift sudah closed
+      if (this.shiftStatus === 'closed' || this._shiftClosedHandled) {
       this.showToast('⚠️ Shift sudah ditutup. Transaksi ditolak.', 'error');
       this.playSound('error');
       setTimeout(() => { window.location.href = '/'; }, 800);
@@ -3211,19 +3221,38 @@ async loadMoreProducts() {
       console.warn('[INV-DEDUCT-RTDB] ❌ Gagal potong stok RTDB:', e.message);
     }
 
-    // 4b. Sync stok keluar ke Firestore (increment -qty) — non-blocking, offline queue jika gagal
+    // 4b. Sync stok keluar ke Firestore — baca stok dulu, tidak biarkan negatif (clamp ke 0)
     try {
       if (FB_FS) {
-        const batch = FB_FS.batch();
+        // Baca stok saat ini dari Firestore sebelum deduct, cegah minus
+        const productDocs = {};
         for (const item of normalizedItems) {
+          const docSnap = await FB_FS.collection('products').doc(item.id).get();
+          productDocs[item.id] = docSnap.data() || {};
+        }
+
+        const batch = FB_FS.batch();
+        let deductedCount = 0;
+        let skippedCount = 0;
+        for (const item of normalizedItems) {
+          const currentData = productDocs[item.id] || {};
+          const currentStock = Number(currentData.stock || currentData.stok || 0);
+          if (currentStock < item.qty) {
+            console.warn(`[INV-DEDUCT-FS] ⚠️ Stok tidak cukup untuk ${item.id}: sisa ${currentStock}, permintaan ${item.qty} — dilewati (tidak negatif)`);
+            skippedCount++;
+            continue;
+          }
           const productRef = FB_FS.collection('products').doc(item.id);
           batch.update(productRef, {
             stock: firebase.firestore.FieldValue.increment(-item.qty),
             stok: firebase.firestore.FieldValue.increment(-item.qty)
           });
+          deductedCount++;
         }
-        await batch.commit();
-        console.log('[INV-DEDUCT-FS] ✅ Stok keluar disinkronkan ke Firestore:', normalizedItems.length, 'produk');
+        if (deductedCount > 0) {
+          await batch.commit();
+        }
+        console.log(`[INV-DEDUCT-FS] ✅ Stok keluar disinkronkan ke Firestore: ${deductedCount} terpotong, ${skippedCount} dilewati (stok tidak cukup)`);
       } else {
         console.warn('[INV-DEDUCT-FS] FB_FS tidak tersedia, stok tidak dapat disinkronkan ke Firestore');
       }
@@ -3339,14 +3368,16 @@ async loadMoreProducts() {
     }
 
         // 12. Sound & Toast
-    this.playSound('success');
-    if (!isReconciliation) {
-      this.showToast('Transaksi berhasil!', 'success');
-      this.receiptModal = true;
-      this.receiptWAPhone = ''; // ✅ FEATURE-3: reset field WA tiap struk baru
-      this.receiptWaAuto = false; // FASE 5: reset mode auto-populate (struk kasir walk-in)
-    }
-  },
+        this.playSound('success');
+        if (!isReconciliation) {
+          this.showToast('Transaksi berhasil!', 'success');
+          this.receiptModal = true;
+          this.receiptWAPhone = ''; // ✅ FEATURE-3: reset field WA tiap struk baru
+          this.receiptWaAuto = false; // FASE 5: reset mode auto-populate (struk kasir walk-in)
+        }
+        // ✅ FIX BUG-DOUBLE: Reset guard agar transaksi berikutnya bisa diproses
+        this._submittingTx = false;
+        },
 
   /** 
    * Sinkronisasi antrian transaksi offline ke Cloud Firebase 
