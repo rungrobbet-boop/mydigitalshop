@@ -1464,15 +1464,22 @@ try {
       let cfg = null;
       // 1. Coba baca dari window.firebaseConfig (dimuat via firebase-config.js di kasir.html)
       if (window.firebaseConfig && window.firebaseConfig.apiKey) {
-        cfg = window.firebaseConfig;
+        cfg = { ...window.firebaseConfig };
       }
-      // 2. Fallback ke localStorage jika window config tidak ada
-      if (!cfg || !cfg.apiKey) {
-        try {
-          const stored = localStorage.getItem('dapur_firebase_custom_config');
-          if (stored) cfg = JSON.parse(stored);
-        } catch (e) {}
-      }
+      // 2. Baca localStorage (dapur_firebase_custom_config) — gunakan untuk melengkapi/override cfg,
+      //    terutama databaseURL yang diisi manual lewat Panel Admin
+      try {
+        const stored = localStorage.getItem('dapur_firebase_custom_config');
+        if (stored) {
+          const lsCfg = JSON.parse(stored);
+          if (!cfg || !cfg.apiKey) {
+            cfg = lsCfg;
+          } else {
+            // Merge: localStorage override field yang tersedia (terutama databaseURL)
+            cfg = { ...cfg, ...lsCfg };
+          }
+        }
+      } catch (e) {}
       if (!cfg || !cfg.apiKey) {
         const err = new Error('Firebase konfigurasi tidak ditemukan. Pastikan firebase-config.js dimuat di kasir.html atau atur dapur_firebase_custom_config di localStorage.');
         console.error('[FB-INIT]', err.message);
@@ -1496,8 +1503,10 @@ try {
       }
 
       // ✅ Simpan db di MODULE SCOPE — bukan di this (Alpine tidak bisa Proxy module var)
-      FB_DB = firebase.database();
+      const rtdbUrl = cfg.databaseURL || null;
+      FB_DB = rtdbUrl ? firebase.database(rtdbUrl) : firebase.database();
       this._fbDb = true;
+      console.log('[FB-INIT] RTDB Connected to:', rtdbUrl || '(default dari config)');
 
       // ✅ Inisialisasi Firestore (module scope) — dipakai getProducts() one-time fetch
       try {
