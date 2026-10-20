@@ -1238,7 +1238,7 @@
 
     <!-- FORM PESANAN, CHECKOUT, & AUTO-DOWNLOAD STRUK PDF -->
     <!-- ==== RTO-QRIS-MODAL (BLOK BARU) ==== -->
-    <div x-cloak x-show="rtoModal" class="fixed inset-0 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" style="z-index:99990">
+    <div x-cloak x-show="rtoModal && !RTO_IS_LOCKED" style="display: none; z-index:99990" class="fixed inset-0 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
         <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -1337,7 +1337,7 @@
           <p class="text-stone-600 text-xs sm:text-sm mt-1">Tanpa kartu kredit. Mendukung QRIS (GoPay/ShopeePay/DANA/OVO/BCA) & Virtual Account Bank.</p>
         </div>
 
-        <form @submit.prevent="(rtoPickup || isRtoRestricted) ? startRtoCheckout() : proceedToPayment()" class="space-y-6">
+        <form @submit.prevent="proceedToPayment()" class="space-y-6">
           
           <!-- Informasi Pemesan -->
           <div class="bg-stone-50 p-5 rounded-2xl border border-stone-200 space-y-4">
@@ -1363,7 +1363,7 @@
             </div>
 
             <!-- ==== RTO-PICKUP-TOGGLE (BLOK BARU) ==== -->
-            <div class="grid gap-1.5 p-1 bg-stone-100 rounded-xl" :class="isRtoRestricted ? 'grid-cols-1' : 'grid-cols-2'">
+            <div class="grid gap-1.5 p-1 bg-stone-100 rounded-xl" style="display: none" :class="isRtoRestricted ? 'grid-cols-1' : 'grid-cols-2'">
               <button type="button" @click="setRtoPickup(true)"
                 :class="rtoPickup ? 'bg-white text-brand-700 shadow-sm' : 'text-stone-500'"
                 class="py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5">

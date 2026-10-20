@@ -799,6 +799,7 @@ try {
   // =========================================================================
   // ==== RTO (ORDER ONLINE) — STATE & METHODS (BLOK BARU) ====
   // =========================================================================
+  RTO_IS_LOCKED: true,
   orderOnlineList: [],
   orderOnlineView: [],
   orderOnlineStats: { pending_payment: 0, pending: 0, paid: 0, done: 0, totalOrdersToday: 0, revenueToday: 0, queue: 0 },
@@ -837,6 +838,7 @@ try {
   },
 
   rtoStatusLabel(status) {
+    if (this.RTO_IS_LOCKED) return '-';
     const map = {
       pending_payment: 'Menunggu Bayar',
       pending: 'Perlu Konfirmasi',
@@ -849,6 +851,7 @@ try {
   },
 
   rtoStatusClass(status) {
+    if (this.RTO_IS_LOCKED) return 'bg-stone-100 text-stone-600';
     const map = {
       pending_payment: 'bg-stone-200 text-stone-700',
       pending: 'bg-amber-100 text-amber-800',
@@ -861,6 +864,7 @@ try {
   },
 
   rtoTime(iso) {
+    if (this.RTO_IS_LOCKED) return '-';
     if (!iso) return '-';
     try {
       return new Date(iso).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -870,6 +874,7 @@ try {
   },
 
   rtoItemsSummary(order) {
+    if (this.RTO_IS_LOCKED) return '-';
     const items = (order && Array.isArray(order.items)) ? order.items : [];
     if (items.length === 0) return '-';
     const txt = items.map(i => `${i.qty || 1}x ${i.name || i.id}`).join(', ');
@@ -877,6 +882,7 @@ try {
   },
 
   orderOnlineWaNumber(order) {
+    if (this.RTO_IS_LOCKED) return '';
     let p = String((order && order.customer && order.customer.phone) || '').replace(/[^0-9]/g, '');
     if (p.startsWith('0')) p = '62' + p.slice(1);
     return p;
@@ -886,12 +892,14 @@ try {
    * Polling queue order online (badge + notifikasi audio saat order baru masuk)
    */
   startOrderOnlineWatcher() {
+    if (this.RTO_IS_LOCKED) return;
     if (this.orderOnlineTimer) return;
     this.loadOrderOnline(true);
     this.orderOnlineTimer = setInterval(() => { this.loadOrderOnline(true); }, 15000);
   },
 
   async loadOrderOnline(silent = false) {
+    if (this.RTO_IS_LOCKED) return;
     if (this.orderOnlineLoading) return;
     this.orderOnlineLoading = true;
     try {
@@ -930,6 +938,7 @@ try {
   },
 
   applyOrderOnlineFilter() {
+    if (this.RTO_IS_LOCKED) return;
     const filter = this.orderOnlineFilter;
     const q = String(this.orderOnlineSearch || '').toLowerCase().trim();
     let list = Array.isArray(this.orderOnlineList) ? this.orderOnlineList.slice() : [];
@@ -951,10 +960,12 @@ try {
   },
 
   openOrderOnlineDetail(order) {
+    if (this.RTO_IS_LOCKED) return;
     this.orderOnlineDetail = order || null;
   },
 
   closeOrderOnlineDetail() {
+    if (this.RTO_IS_LOCKED) return;
     this.orderOnlineDetail = null;
   },
 
@@ -962,6 +973,7 @@ try {
    * Kasir verifikasi pembayaran QRIS statis → status paid (semua efek kasir auto)
    */
   async konfirmasiOrderOnline(order) {
+    if (this.RTO_IS_LOCKED) return;
     if (!order || !order.orderId || this.orderOnlineBusy) return;
     this.orderOnlineBusy = true;
     let sukses = false;
@@ -1007,6 +1019,7 @@ try {
    * Kasir serahkan pesanan → Done (shift dicatat dari kasir yang klik Done)
    */
   async selesaikanOrderOnline(order) {
+    if (this.RTO_IS_LOCKED) return;
     if (!order || !order.orderId || this.orderOnlineBusy) return;
     if (!confirm('Tandai order ' + order.orderId + ' sebagai DONE (pesanan sudah diserahkan ke customer)?')) return;
 
@@ -1055,6 +1068,7 @@ try {
    * Dipakai verify (→ paid) & Done (→ done) supaya tombol di kartu/detail langsung benar.
    */
   setOrderOnlineStatusLocal(orderId, status) {
+    if (this.RTO_IS_LOCKED) return;
     if (!orderId || !status) return;
     const flip = (o) => (o && o.orderId === orderId) ? Object.assign({}, o, { status }) : o;
     this.orderOnlineList = (this.orderOnlineList || []).map(flip);
@@ -1071,6 +1085,7 @@ try {
    * selama menggantung, finally yang melepas orderOnlineBusy tidak pernah jalan.
    */
   refreshOrderOnlineData(orderId) {
+    if (this.RTO_IS_LOCKED) return;
     Promise.resolve()
       .then(() => this.loadOrderOnline(true))
       .then(() => (typeof this.loadLaporanHariIni === 'function') ? this.loadLaporanHariIni() : null)
@@ -1089,6 +1104,7 @@ try {
    * lalu window.print(). Dipakai tombol manual "Cetak Struk" dan auto-print setelah Done.
    */
   printOnlineOrderStruk(order) {
+    if (this.RTO_IS_LOCKED) return false;
     if (!order || !order.orderId) return false;
     const payload = {
       id: order.orderId,
@@ -1130,6 +1146,7 @@ try {
    * kasir tetap bisa cetak manual lewat tombol "Cetak Struk".
    */
   autoPrintOrderOnlineStruk(order) {
+    if (this.RTO_IS_LOCKED) return false;
     try {
       if (!order || !order.orderId) return false;
       if (!this.printerConfig || this.printerConfig.autoPrint === false) {
@@ -1149,11 +1166,13 @@ try {
    * pending = refund (gateway/manual) + lepas reserved; paid = refund + reverse stok/jurnal/POS.
    */
   rtoCanVoid(order) {
+    if (this.RTO_IS_LOCKED) return false;
     const s = String((order && order.status) || '');
     return s === 'pending_payment' || s === 'pending' || s === 'paid';
   },
 
   rtoVoidRefundPlan(order) {
+    if (this.RTO_IS_LOCKED) return { amount: 0, mode: 'none', text: '-' };
     if (!order) return { amount: 0, mode: 'none', text: '-' };
     const s = String(order.status || '');
     const total = Number(order.total) || 0;
@@ -1182,6 +1201,7 @@ try {
 
   /** Klik tombol VOID: minta PIN supervisor dulu, lalu buka modal konfirmasi + alasan. */
   async openVoidOrderOnline(order) {
+    if (this.RTO_IS_LOCKED) return;
     if (!order || !order.orderId || this.rtoVoidBusy || this.orderOnlineBusy) return;
     if (String(order.status) === 'done') {
       this.showToast('Order sudah Done (pesanan diserahkan) — tidak bisa di-void', 'notify');
@@ -1218,6 +1238,7 @@ try {
   },
 
   closeVoidOrderOnline() {
+    if (this.RTO_IS_LOCKED) return;
     if (this.rtoVoidBusy) return;
     this.rtoVoidModal = false;
     this.rtoVoidTarget = null;
@@ -1229,6 +1250,7 @@ try {
 
   /** Kirim void ke endpoint /online-orders/{id} (action: void) */
   async confirmVoidOrderOnline() {
+    if (this.RTO_IS_LOCKED) return;
     const order = this.rtoVoidTarget;
     if (!order || !order.orderId || this.rtoVoidBusy) return;
 

@@ -434,6 +434,7 @@
       <!-- ==== RTO: MENU ORDER ONLINE (BLOK BARU) ==== -->
       <button 
         type="button"
+        x-show="!RTO_IS_LOCKED"
         @click="activeTab = 'orderonline'; loadOrderOnline(); mobileMenuOpen = false"
         :class="activeTab === 'orderonline' ? 'bg-emerald-600 text-white font-bold' : 'text-stone-700 hover:bg-stone-100'"
         class="w-full min-h-[48px] px-3.5 rounded-xl flex items-center justify-between text-sm transition text-left cursor-pointer">
@@ -582,6 +583,7 @@
                 <!-- ==== RTO: Menu Order Online (BLOK BARU) ==== -->
         <button 
           type="button"
+          x-show="!RTO_IS_LOCKED"
           @click="activeTab = 'orderonline'; loadOrderOnline()"
           :class="activeTab === 'orderonline' ? 'bg-emerald-600 text-white font-bold shadow-sm shadow-emerald-600/30' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900 font-semibold'"
           class="w-full min-h-[48px] px-3.5 rounded-2xl flex items-center justify-between text-sm transition-all duration-150 text-left cursor-pointer group">
@@ -2719,7 +2721,7 @@
       <!-- TAB 5: LAPORAN                                                      -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- ==== RTO: TAB ORDER ONLINE (BLOK BARU) ==== -->
-      <section x-show="activeTab === 'orderonline'" x-cloak class="space-y-6">
+      <section x-show="activeTab === 'orderonline' && !RTO_IS_LOCKED" x-cloak class="space-y-6">
         <!-- Ringkasan & statistik -->
         <div class="bg-white rounded-3xl border border-stone-200 p-5 sm:p-6 shadow-sm">
           <div class="flex flex-wrap items-start justify-between gap-3">
