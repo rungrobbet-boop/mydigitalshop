@@ -7777,7 +7777,7 @@ try {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target.result;
         const { parsed, errors: parseErrors } = parseCSV(text);
@@ -7905,68 +7905,65 @@ try {
           }
         });
 
-        // ✅ Persist ke Firebase — pakai Promise.all + .then() (TIDAK pakai await)
-        if (this._fbDb && this._fbSet && this._fbRef) {
-          const listToSync = JSON.parse(JSON.stringify(this.inventoryList));
-          const promises = listToSync
-            .filter(item => item && item.id)
-            .map(item => {
-              const itemRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
-              return this._fbSet(itemRef, item).catch(err => {
-                console.warn(`[IMPORT-CSV] Gagal sync ${item.id}:`, err);
-              });
-            });
-
-          Promise.all(promises)
-            .then(() => {
-              console.log(`[IMPORT-CSV] ✅ Firebase sync selesai untuk ${promises.length} item`);
-            })
-            .catch(err => {
-              console.warn('[IMPORT-CSV] Firebase sync error:', err);
-            });
-        } else {
-          console.warn('[IMPORT-CSV] Firebase tidak siap, skip persist');
-        }
-
-        // ✅ Tulis ke Firestore collection 'products' (sumber data inventory & menu)
+        // ✅ Tulis ke Firestore collection 'products' — paksa Firestore, tidak RTDB/LocalStorage
         if (FB_FS) {
           try {
             const batch = FB_FS.batch();
-            itemsForFirestore.forEach(item => {
-              const ref = FB_FS.collection('products').doc(String(item.id || item.name));
+            let writeCount = 0;
+
+            itemsForFirestore.forEach((item) => {
+              // Validasi ID dokumen — slugify harus sudah terisi, fallback ke nama produk, terakhir auto-ID
+              let docId = String(item.id || item.name || '').trim();
+              if (!docId || docId === '') {
+                docId = null; // biarkan Firestore generate ID otomatis
+              }
+              const ref = docId
+                ? FB_FS.collection('products').doc(docId)
+                : FB_FS.collection('products').doc();
+
               batch.set(ref, {
-                id: item.id,
-                name: item.name,
-                sku: item.sku || '',
+                id: docId || ref.id,
+                name: item.name || '',
+                supplier: item.supplier || '',
                 category: item.category || 'Bahan Bangunan',
+                categoryId: item.categoryId || '',
                 price: Number(item.priceEcer) || 0,
                 priceEcer: Number(item.priceEcer) || 0,
+                pricePartai: Number(item.pricePartai) || 0,
+                priceAgen: Number(item.priceAgen) || 0,
                 unit: item.unit || 'pcs',
                 stock: Number(item.stock) || 0,
                 minStock: Number(item.minStock) || 5,
-                source: 'csv-import'
+                imageUrl: item.imageUrl || '',
+                source: 'csv-import',
               }, { merge: true });
+              writeCount++;
             });
-            batch.commit()
-              .then(() => {
-                console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk ditulis ke Firestore 'products'`);
-              })
-              .catch(e => {
-                console.warn('[IMPORT-CSV] Gagal tulis Firestore products:', e);
-              });
-          } catch (e) {
-            console.warn('[IMPORT-CSV] Firestore batch error:', e);
-          }
-        }
 
-        this.showToast(`Import Berhasil! (${updatedCount} stok diperbarui, ${addedCount} bahan baru)`, 'success');
-        this.playSound('success');
+            await batch.commit();
+            console.log(`[IMPORT-CSV] ✅ ${writeCount} produk ditulis ke Firestore 'products'`);
+            this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore)`, 'success');
+            this.playSound('success');
+          } catch (e) {
+            console.error('[IMPORT-CSV] Gagal tulis Firestore products:', e);
+            this.showToast('Gagal menyimpan ke Firestore: ' + (e && e.message ? e.message : e), 'error');
+            this.playSound('error');
+            return;
+          }
+        } else {
+          this.showToast('Firestore belum siap — data hanya disimpan lokal', 'error');
+          this.playSound('error');
+        }
       } catch (err) {
         console.error('Import CSV Error:', err);
         this.showToast('Gagal memproses file CSV', 'error');
       } finally {
         event.target.value = '';
       }
+    };
+    reader.onerror = () => {
+      this.showToast('Gagal membaca file CSV', 'error');
+      this.playSound('error');
     };
     reader.readAsText(file);
   },
