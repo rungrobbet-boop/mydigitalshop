@@ -1767,7 +1767,7 @@
             <input 
               type="text" 
               x-model="inventorySearch"
-              placeholder="Cari bahan, katsu, mie, beras..." 
+              placeholder="Cari bahan bangunan, produk siap jual..." 
               class="w-full min-h-[48px] pl-11 pr-4 rounded-xl border border-stone-300 bg-stone-50 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
             />
             <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400">
@@ -1850,6 +1850,17 @@
                 <span>Export CSV</span>
             </button>
 
+            <!-- Tombol Generate Semua Produk Siap Jual -->
+            <button 
+                type="button"
+                @click="generateAllMenuFromInventory()"
+                :class="loadingStates.inventory ? 'bg-amber-100 text-amber-800 cursor-not-allowed' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900'"
+                class="min-h-[44px] px-3.5 rounded-xl text-stone-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border border-stone-300"
+                :disabled="loadingStates.inventory"
+                title="Generate semua bahan baku menjadi menu siap jual (1:1 resep)">
+                <i class="fa-solid fa-magic text-xs text-emerald-600"></i>
+                <span>Generate Semua Produk Siap Jual</span>
+            </button>
             <!-- Tombol Import CSV Stok Opname -->
             <button 
                 type="button" 

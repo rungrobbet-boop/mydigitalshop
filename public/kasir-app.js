@@ -5202,17 +5202,39 @@ try {
         } catch (e) {}
       }
 
-      // Default fallback dataset jika masih kosong (bahan bangunan, bukan makanan)
+      // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong
       if (!this.inventoryList || this.inventoryList.length === 0) {
-        this.inventoryList = [
-          { id: 'inv1', name: 'Semen Portland', category: 'Bahan Bangunan', stock: 100, minStock: 10, unit: 'sak', purchasePrice: 75000, isCountable: true },
-          { id: 'inv2', name: 'Cat Tembok Interior', category: 'Cat', stock: 50, minStock: 5, unit: 'kaleng', purchasePrice: 150000, isCountable: true },
-          { id: 'inv3', name: 'Besi Beton 12mm', category: 'Besi', stock: 80, minStock: 15, unit: 'batang', purchasePrice: 120000, isCountable: true }
-        ];
+        try {
+          if (FB_FS) {
+            const snap = await FB_FS.collection('products').get();
+            const invFromProducts = [];
+            snap.forEach((doc) => {
+              const d = doc.data() || {};
+              if (!d.name) return;
+              invFromProducts.push({
+                id: d.id || doc.id,
+                name: d.name,
+                sku: d.sku || '',
+                category: d.category || 'Bahan Bangunan',
+                stock: Number(d.stock) || 0,
+                stok: Number(d.stock) || 0,
+                minStock: Number(d.minStock) || 5,
+                unit: d.unit || 'pcs',
+                purchasePrice: Number(d.priceEcer) || Number(d.price) || 0,
+                priceEcer: Number(d.priceEcer) || Number(d.price) || 0,
+                isCountable: true,
+                source: 'firestore-products'
+              });
+            });
+            this.inventoryList = invFromProducts;
+            console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
+          }
+        } catch (e) {
+          console.warn('[FB-FS-INV] Gagal muat inventory dari Firestore products:', e);
+        }
       }
 
-      // ❌ REMOVED: auto-save Firestore — ini bikin race condition & timpa data retur
-      // Firebase listener sudah jadi source of truth, write langsung via _persistShortCode dkk.
+      // Tidak ada dummy data — inventory kosong sampai ada data dari Firestore / CSV import
 
     } catch (e) {
       console.warn('loadInventory exception:', e);
@@ -7631,32 +7653,51 @@ try {
         let updatedCount = 0;
         let addedCount = 0;
 
+        const itemsForFirestore = [];
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
 
           // Parse CSV (handling quotes & delimiter)
           const cols = line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
-          if (cols.length < 4) continue;
+          if (!cols[0]) continue;
 
-          const itemId = cols[0];
-          const itemName = cols[1];
-          const category = cols[2] || 'Bahan Baku';
-          const newStock = Number(cols[3]) || 0;
-          const minStock = Number(cols[4]) || 5;
-          const unit = cols[5] || 'kg';
-          const purchasePrice = Number(cols[6]) || 0;
+          const itemName = cols[0] || '';
+          const sku = cols[1] || '';
+          const category = cols[2] || 'Bahan Bangunan';
+          const priceEcer = Number(cols[3]) || 0;
+          const unit = cols[4] || 'pcs';
+          const stock = Number(cols[5]) || 0;
+          const minStock = 5;
+          const itemId = sku || (`inv_${Date.now()}_${i}`);
 
-          // Cari item yang ada
-          let existing = this.inventoryList.find(inv => inv.id === itemId || (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
+          // Cari item yang ada (cocokkan via SKU atau nama)
+          let existing = this.inventoryList.find(inv => inv.sku === sku || inv.id === itemId || (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
 
           if (existing) {
             const oldStock = Number(existing.stock || existing.stok || 0);
-            existing.stock = newStock;
-            existing.stok = newStock;
-            existing.purchasePrice = purchasePrice;
+            existing.stock = stock;
+            existing.stok = stock;
+            existing.purchasePrice = priceEcer;
+            existing.priceEcer = priceEcer;
+            existing.unit = unit;
+            existing.category = category;
             existing.minStock = minStock;
+            existing.sku = sku;
             updatedCount++;
+
+            itemsForFirestore.push({
+              id: existing.id,
+              name: existing.name,
+              sku: existing.sku || '',
+              category: existing.category || 'Bahan Bangunan',
+              priceEcer: Number(existing.priceEcer) || 0,
+              price: Number(existing.priceEcer) || 0,
+              unit: existing.unit || 'pcs',
+              stock: Number(existing.stock) || 0,
+              minStock: Number(existing.minStock) || 5,
+              source: 'csv-import'
+            });
 
             this.addInventoryLog(
               existing.name,
@@ -7667,20 +7708,36 @@ try {
               `Diperbarui via CSV Stok Opname (Harga: Rp ${purchasePrice.toLocaleString()})`
             );
           } else if (itemName) {
-            const newId = itemId || 'inv_' + Date.now() + '_' + i;
             const newItemObj = {
-              id: newId,
+              id: itemId,
               name: itemName,
+              sku: sku,
               category: category,
-              stock: newStock,
-              stok: newStock,
-              minStock: minStock,
+              priceEcer: priceEcer,
+              price: priceEcer,
               unit: unit,
-              purchasePrice: purchasePrice,
-              isCountable: true
+              stock: stock,
+              stok: stock,
+              minStock: minStock,
+              purchasePrice: priceEcer,
+              isCountable: true,
+              source: 'csv-import'
             };
             this.inventoryList.push(newItemObj);
             addedCount++;
+
+            itemsForFirestore.push({
+              id: newItemObj.id,
+              name: newItemObj.name,
+              sku: newItemObj.sku || '',
+              category: newItemObj.category || 'Bahan Bangunan',
+              priceEcer: Number(newItemObj.priceEcer) || 0,
+              price: Number(newItemObj.priceEcer) || 0,
+              unit: newItemObj.unit || 'pcs',
+              stock: Number(newItemObj.stock) || 0,
+              minStock: Number(newItemObj.minStock) || 5,
+              source: 'csv-import'
+            });
 
             this.addInventoryLog(
               itemName,
@@ -7719,6 +7776,37 @@ try {
             });
         } else {
           console.warn('[IMPORT-CSV] Firebase tidak siap, skip persist');
+        }
+
+        // ✅ Tulis ke Firestore collection 'products' (sumber data inventory & menu)
+        if (FB_FS) {
+          try {
+            const batch = FB_FS.batch();
+            itemsForFirestore.forEach(item => {
+              const ref = FB_FS.collection('products').doc(String(item.id || item.name));
+              batch.set(ref, {
+                id: item.id,
+                name: item.name,
+                sku: item.sku || '',
+                category: item.category || 'Bahan Bangunan',
+                price: Number(item.priceEcer) || 0,
+                priceEcer: Number(item.priceEcer) || 0,
+                unit: item.unit || 'pcs',
+                stock: Number(item.stock) || 0,
+                minStock: Number(item.minStock) || 5,
+                source: 'csv-import'
+              }, { merge: true });
+            });
+            batch.commit()
+              .then(() => {
+                console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk ditulis ke Firestore 'products'`);
+              })
+              .catch(e => {
+                console.warn('[IMPORT-CSV] Gagal tulis Firestore products:', e);
+              });
+          } catch (e) {
+            console.warn('[IMPORT-CSV] Firestore batch error:', e);
+          }
         }
 
         this.showToast(`Import Berhasil! (${updatedCount} stok diperbarui, ${addedCount} bahan baru)`, 'success');
@@ -10961,6 +11049,102 @@ try {
       this.showToast(`Gagal generate menu: ${err.message}`, 'error');
     }
   },
+
+  /**
+   * Generate Semua Produk Siap Jual dari seluruh data Bahan Baku (Inventory).
+   * 1 Bahan Baku = 1 Menu Siap Jual, resep 1:1 (1 porsi = 1 bahan baku).
+   * Simpan ke tabel Menu (menuList), endpoint /menu, resep, dan Firestore.
+   */
+  async generateAllMenuFromInventory() {
+    const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
+    if (list.length === 0) {
+      this.showToast('Tidak ada data Bahan Baku untuk di-generate. Import CSV dulu atau tambah bahan baku.', 'error');
+      this.playSound('error');
+      return 0;
+    }
+
+    const existingLinked = new Set((this.menuList || []).map(m => m.inventoryId).filter(Boolean));
+    const toGenerate = list.filter(inv => !existingLinked.has(inv.id));
+
+    if (toGenerate.length === 0) {
+      this.showToast('Semua Bahan Baku sudah di-generate menjadi Menu Siap Jual.', 'notify');
+      this.playSound('notify');
+      return 0;
+    }
+
+    let generated = 0;
+    const now = Date.now();
+
+    for (const inv of toGenerate) {
+      const menuId = `m_inv_${inv.id || now + generated}`;
+      const price = Number(inv.priceEcer || inv.purchasePrice || 0) || 15000;
+      const newMenuItem = {
+        id: menuId,
+        name: inv.name || 'Produk Tanpa Nama',
+        category: inv.category || 'lainnya',
+        price: price,
+        priceEcer: price,
+        cost: Number(inv.purchasePrice) || 0,
+        unit: inv.unit || 'pcs',
+        sku: inv.sku || '',
+        barcode: inv.barcode || '',
+        desc: `Produk siap jual dari bahan baku ${inv.name}`,
+        image: inv.image || '',
+        inventoryId: inv.id,
+        active: true,
+        generatedAt: now
+      };
+
+      const recipe = {
+        menuId: menuId,
+        ingredients: [
+          { itemId: inv.id, amount: 1, unit: inv.unit || 'pcs' }
+        ]
+      };
+
+      try {
+        this.menuList.push(newMenuItem);
+        this.menuRecipes[menuId] = recipe;
+
+        await fetch(`/menu/${encodeURIComponent(menuId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newMenuItem)
+        });
+        await fetch(`/inventory/recipes/${encodeURIComponent(menuId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(recipe)
+        });
+
+        inv.isReadyToSell = true;
+        inv.linkedMenuId = menuId;
+        await fetch(`/inventory/${encodeURIComponent(inv.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isReadyToSell: true, linkedMenuId: menuId })
+        });
+
+        if (this._fbDb && this._fbSet && this._fbRef) {
+          try {
+            await this._fbSet(this._fbRef(this._fbDb, `menu_items/${menuId}`), newMenuItem);
+            await this._fbSet(this._fbRef(this._fbDb, `inventory/${inv.id}`), inv);
+            await this._fbSet(this._fbRef(this._fbDb, `menu_recipes/${menuId}`), recipe);
+          } catch (e) { /* non-fatal */ }
+        }
+
+        generated++;
+      } catch (err) {
+        console.warn(`[GENERATE-ALL] Gagal menu ${inv.name}:`, err);
+      }
+    }
+
+    this.playSound(generated > 0 ? 'success' : 'error');
+    this.showToast(`Berhasil meng-generate ${generated} Produk Siap Jual`, generated > 0 ? 'success' : 'error');
+    console.log(`[GENERATE-ALL] ${generated}/${toGenerate.length} produk siap jual dibuat dari inventory`);
+    return generated;
+  },
+
 
     setupBarcodeScanner() {
       if (this._scanListenerBound) return;
