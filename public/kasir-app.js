@@ -1497,9 +1497,11 @@ try {
 
       // ✅ Inisialisasi Firestore (module scope) — dipakai getProducts() one-time fetch
       try {
-        FB_FS = firebase.firestore({ experimentalForceLongPolling: true });
+        FB_FS = firebase.firestore();
+        FB_FS.settings({ experimentalForceLongPolling: true });
         this._fbFs = true;
       } catch (e) {
+        console.error("Gagal init Firestore:", e);
         console.warn('[FB-INIT] Firestore tidak tersedia:', e);
       }
 
