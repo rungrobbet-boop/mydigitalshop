@@ -3035,9 +3035,32 @@ try {
       } catch (e) {}
     }
 
-    // 4. ✅ Potong stok langsung di Firestore (bypass backend /inventory/deduct yang tidak ada di Cloudflare Pages)
+    // 4. ✅ Potong stok di RTDB dulu, lalu sinkronkan ke Firestore (stok keluar via penjualan)
     try {
-      console.log('[INV-DEDUCT] Memotong stok langsung ke Firestore:', { orderId: txId, items: normalizedItems });
+      // 4a. Potong stok di RTDB /inventory/{itemId}
+      if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
+        for (const item of normalizedItems) {
+          const stockRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
+          const snap = await this._fbGet(stockRef);
+          const current = snap.val() || {};
+          const currentStock = Number(current.stock || current.stok || 0);
+          await this._fbSet(stockRef, {
+            ...current,
+            stock: Math.max(0, currentStock - item.qty),
+            stok: Math.max(0, currentStock - item.qty),
+            updatedAt: Date.now()
+          });
+        }
+        console.log('[INV-DEDUCT-RTDB] ✅ Stok dipotong di RTDB untuk', normalizedItems.length, 'produk');
+      } else {
+        console.warn('[INV-DEDUCT-RTDB] RTDB tidak tersedia, lewati potong stok RTDB');
+      }
+    } catch (e) {
+      console.warn('[INV-DEDUCT-RTDB] ❌ Gagal potong stok RTDB:', e.message);
+    }
+
+    // 4b. Sync stok keluar ke Firestore (increment -qty) — non-blocking, offline queue jika gagal
+    try {
       if (FB_FS) {
         const batch = FB_FS.batch();
         for (const item of normalizedItems) {
@@ -3048,21 +3071,36 @@ try {
           });
         }
         await batch.commit();
-        console.log('[INV-DEDUCT] ✅ Stok dipotong untuk', normalizedItems.length, 'produk di Firestore');
-
-        // Update lokal inventoryList agar UI segera refleksi
-        for (const item of normalizedItems) {
-          const it = this.inventoryList.find(i => i.id === item.id);
-          if (it) {
-            it.stock = Math.max(0, Number(it.stock || 0) - item.qty);
-            it.stok = it.stock;
-          }
-        }
+        console.log('[INV-DEDUCT-FS] ✅ Stok keluar disinkronkan ke Firestore:', normalizedItems.length, 'produk');
       } else {
-        console.warn('[INV-DEDUCT] FB_FS tidak tersedia, stok tidak dapat dipotong');
+        console.warn('[INV-DEDUCT-FS] FB_FS tidak tersedia, stok tidak dapat disinkronkan ke Firestore');
       }
     } catch (e) {
-      console.warn('[INV-DEDUCT] ❌ Gagal potong stok Firestore:', e.message);
+      console.warn('[INV-DEDUCT-FS] ❌ Gagal sinkronkan stok keluar ke Firestore:', e.message);
+      // Offline queue: simpan untuk dikirim ulang saat internet kembali
+      try {
+        const pendingQueue = JSON.parse(localStorage.getItem('dapur_pending_fs') || '[]');
+        for (const item of normalizedItems) {
+          pendingQueue.push({
+            type: 'firestore_increment',
+            collection: 'products',
+            docId: item.id,
+            field: 'stock',
+            value: -item.qty,
+            createdAt: Date.now()
+          });
+        }
+        localStorage.setItem('dapur_pending_fs', JSON.stringify(pendingQueue));
+      } catch (ee) {}
+    }
+
+    // Update lokal inventoryList agar UI segera refleksi
+    for (const item of normalizedItems) {
+      const it = this.inventoryList.find(i => i.id === item.id);
+      if (it) {
+        it.stock = Math.max(0, Number(it.stock || 0) - item.qty);
+        it.stok = it.stock;
+      }
     }
 
     // 5. ✅ AWAIT: Auto-Jurnal Akuntansi (backend — diabaikan jika gagal, non-blocker)
@@ -3158,16 +3196,16 @@ try {
     }
   },
 
-  /**
-   * Sinkronisasi antrian transaksi offline ke Cloud Firebase
+  /** 
+   * Sinkronisasi antrian transaksi offline ke Cloud Firebase 
+   * Memproses dua antrean: dapur_pending_tx (RTDB writes) dan dapur_pending_fs (Firestore increments)
    */
   async syncPendingTransactions() {
     try {
-      const queue = JSON.parse(localStorage.getItem('dapur_pending_tx') || '[]');
-      if (!queue || queue.length === 0) return;
-
-      const remaining = [];
-      for (const item of queue) {
+      // --- Antrean 1: RTDB writes (dapur_pending_tx) ---
+      const txQueue = JSON.parse(localStorage.getItem('dapur_pending_tx') || '[]');
+      const txRemaining = [];
+      for (const item of txQueue) {
         let synced = false;
         try {
           if (this._fbDb && this._fbSet && this._fbRef) {
@@ -3186,11 +3224,37 @@ try {
         } catch (err) {
           console.warn('Sync failed for queue item:', item.path, err);
         }
-        if (!synced) remaining.push(item);
+        if (!synced) txRemaining.push(item);
       }
+      localStorage.setItem('dapur_pending_tx', JSON.stringify(txRemaining));
 
-      localStorage.setItem('dapur_pending_tx', JSON.stringify(remaining));
-      if (remaining.length === 0) {
+      // --- Antrean 2: Firestore increments (dapur_pending_fs) ---
+      const fsQueue = JSON.parse(localStorage.getItem('dapur_pending_fs') || '[]');
+      const fsRemaining = [];
+      for (const item of fsQueue) {
+        let synced = false;
+        try {
+          if (FB_FS && item.type === 'firestore_increment') {
+            const productRef = FB_FS.collection(item.collection).doc(item.docId);
+            const updateData = {};
+            updateData[item.field] = firebase.firestore.FieldValue.increment(item.value);
+            await productRef.update(updateData);
+            synced = true;
+            console.log('[SYNC-FS-QUEUE] ✅ Terkirim ulang Firestore increment:', {
+              docId: item.docId,
+              field: item.field,
+              value: item.value
+            });
+          }
+        } catch (err) {
+          console.warn('Sync failed for FS queue item:', item.docId, err);
+        }
+        if (!synced) fsRemaining.push(item);
+      }
+      localStorage.setItem('dapur_pending_fs', JSON.stringify(fsRemaining));
+
+      const totalRemaining = txRemaining.length + fsRemaining.length;
+      if (totalRemaining === 0 && (txQueue.length > 0 || fsQueue.length > 0)) {
         this.showToast('Semua transaksi offline berhasil disinkronkan ke Cloud!', 'success');
       }
     } catch (e) {
@@ -5431,6 +5495,50 @@ try {
 
       // Tidak ada dummy data — inventory kosong sampai ada data dari Firestore / CSV import
 
+      // ✅ SYNC Firestore → RTDB: pastikan setiap produk di Firestore juga ada di RTDB,
+      // dan jika stok Firestore lebih besar dari RTDB (indikasi import CSV baru), sinkronkan stoknya ke RTDB.
+      if (FB_FS && this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
+        try {
+          const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
+          const rtdbSnap = await this._fbGet(rtdbInvRef);
+          const rtdbData = rtdbSnap.val() || {};
+
+          for (const item of this.inventoryList) {
+            const rtdbItem = rtdbData[item.id];
+            if (!rtdbItem) {
+              // Produk ada di Firestore tapi belum di RTDB — salin ke RTDB
+              await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
+                id: item.id,
+                name: item.name,
+                sku: item.sku || '',
+                category: item.category || 'Bahan Bangunan',
+                stock: item.stock,
+                stok: item.stok,
+                purchasePrice: item.purchasePrice || 0,
+                priceEcer: item.priceEcer || 0,
+                unit: item.unit || 'pcs',
+                minStock: item.minStock || 5,
+                source: 'firestore-products',
+                syncedAt: Date.now()
+              });
+              console.log(`[SYNC-FS→RTDB] Produk baru disalin ke RTDB: ${item.id}`);
+            } else if (Number(item.stock || 0) > Number(rtdbItem.stock || rtdbItem.stok || 0)) {
+              // Stok Firestore lebih besar dari RTDB — sinkronkan stok ke RTDB (import CSV baru)
+              await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
+                ...rtdbItem,
+                stock: item.stock,
+                stok: item.stok,
+                syncedAt: Date.now()
+              });
+              console.log(`[SYNC-FS→RTDB] Stok disinkronkan ke RTDB: ${item.id} (${rtdbItem.stock || rtdbItem.stok} → ${item.stock})`);
+            }
+          }
+          console.log('[SYNC-FS→RTDB] ✅ Selesai sinkronkan Firestore → RTDB');
+        } catch (e) {
+          console.warn('[SYNC-FS→RTDB] ❌ Gagal sinkronkan ke RTDB:', e.message);
+        }
+      }
+
     } catch (e) {
       console.warn('loadInventory exception:', e);
     } finally {
@@ -5805,6 +5913,39 @@ try {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(logPayload)
       });
+
+      // ✅ SYNC RTDB → Firestore: stok masuk dari pembelian Kasir di-sinkronkan ke Firestore
+      // agar stok di Landing Page ikut bertambah secara otomatis.
+      try {
+        if (FB_FS) {
+          const productRef = FB_FS.collection('products').doc(item.id);
+          await productRef.update({
+            stock: firebase.firestore.FieldValue.increment(+numQty),
+            stok: firebase.firestore.FieldValue.increment(+numQty)
+          });
+          console.log('[SYNC-RTDB→FS] ✅ Stok masuk pembelian disinkronkan ke Firestore:', {
+            itemId: item.id,
+            itemName: item.name,
+            qty: numQty
+          });
+        }
+      } catch (e) {
+        console.warn('[SYNC-RTDB→FS] ❌ Gagal sinkronkan stok masuk ke Firestore:', e.message);
+        // Offline queue: simpan untuk dikirim ulang saat internet kembali
+        try {
+          const pendingQueue = JSON.parse(localStorage.getItem('dapur_pending_fs') || '[]');
+          pendingQueue.push({
+            type: 'firestore_increment',
+            collection: 'products',
+            docId: item.id,
+            field: 'stock',
+            value: +numQty,
+            itemName: item.name,
+            createdAt: Date.now()
+          });
+          localStorage.setItem('dapur_pending_fs', JSON.stringify(pendingQueue));
+        } catch (ee) {}
+      }
 
       // 3. Simpan record riwayat pembelian
       const purchaseRecord = {
