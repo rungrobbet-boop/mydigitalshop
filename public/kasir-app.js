@@ -205,6 +205,15 @@ window.kasirApp = () => ({
   selectedCategory: 'semua',
   searchQuery: '',
   isLoadingMenu: false,
+
+  // Cursor-based pagination untuk katalog produk (limit 50 per halaman)
+  lastVisibleProduct: null,
+  hasMoreProducts: true,
+  isLoadingMoreProducts: false,
+  PRODUCT_LIMIT: 50,
+
+  // Cart price level: 'ecer' | 'partai' | 'agen'
+  cartPriceLevel: 'ecer',
   orderNote: '',
   discountAmount: 0,
 
@@ -1567,23 +1576,44 @@ try {
    * Setiap dokumen produk di collection 'products' diharapkan memiliki field:
    * id, name, category, price, priceEcer (harga ecer), unit (sak/batang/pcs), desc, image, sku, barcode
    */
-  async getProducts() {
+  async getProducts(isLoadMore = false) {
     if (!FB_FS) {
       console.warn('[FB-FS] Firestore belum diinisialisasi — gunakan fallback');
       return [];
     }
     try {
-      const snap = await FB_FS.collection('products').get();
+      let q = FB_FS.collection('products').limit(this.PRODUCT_LIMIT);
+      // Cursor-based pagination: mulai dari dokumen terakhir yang sebelumnya di-load
+      if (isLoadMore && this.lastVisibleProduct) {
+        q = q.startAfter(this.lastVisibleProduct);
+      }
+      const snap = await q.get();
       const list = [];
       snap.forEach((doc) => {
         const data = doc.data();
         if (data) {
+          // Fallback field harga agar tidak Rp 0 jika priceEcer kosong
+          const priceEcerVal = Number(
+            data.priceEcer !== undefined && data.priceEcer !== null
+              ? data.priceEcer
+              : data.hargaEcer !== undefined && data.hargaEcer !== null
+                ? data.hargaEcer
+                : data.harga !== undefined && data.harga !== null
+                  ? data.harga
+                  : data.price
+          ) || 0;
+          const pricePartaiVal = Number(data.pricePartai || 0) || 0;
+          const priceAgenVal = Number(data.priceAgen || 0) || 0;
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
             category: data.category || '',
-            price: Number(data.price) || 0,
-            priceEcer: Number(data.priceEcer) || Number(data.price) || 0,
+            price: priceEcerVal,
+            priceEcer: priceEcerVal,
+            pricePartai: pricePartaiVal,
+            priceAgen: priceAgenVal,
+            minOrderPartai: Number(data.minOrderPartai || 0) || 0,
+            minOrderAgen: Number(data.minOrderAgen || 0) || 0,
             unit: data.unit || 'pcs',
             stock: Number(data.stock) || 0,
             stok: Number(data.stok) || Number(data.stock) || 0,
@@ -1595,7 +1625,10 @@ try {
           });
         }
       });
-      console.log(`[FB-FS] Loaded ${list.length} products dari Firestore`);
+      // Simpan dokumen terakhir sebagai cursor untuk halaman berikutnya
+      this.lastVisibleProduct = snap.docs[snap.docs.length - 1] || null;
+      this.hasMoreProducts = snap.docs.length === this.PRODUCT_LIMIT;
+      console.log(`[FB-FS] Loaded ${list.length} products dari Firestore (cursor=${this.lastVisibleProduct ? this.lastVisibleProduct.id : 'start'}, hasMore=${this.hasMoreProducts})`);
       return list;
     } catch (e) {
       console.warn('[FB-FS] getProducts gagal:', e);
@@ -1603,12 +1636,39 @@ try {
     }
   },
 
-  /**
-   * Realtime listener untuk /menu_items
+/**
+ * Load lebih banyak produk (cursor-based pagination) — dipakai tombol "Muat Lebih Banyak"
+ * Gabungkan hasil ke this.menuList tanpa duplikasi ID.
+ */
+async loadMoreProducts() {
+  if (this.isLoadingMoreProducts || !this.hasMoreProducts) return;
+  this.isLoadingMoreProducts = true;
+  try {
+    const more = await this.getProducts(true);
+    const existingIds = new Set(this.menuList.map(m => m.id));
+    more.forEach(m => {
+      if (!existingIds.has(m.id)) {
+        this.menuList.push(m);
+        existingIds.add(m.id);
+      }
+    });
+    console.log(`[FB-FS] loadMoreProducts: ditambahkan ${more.length} produk, total=${this.menuList.length}`);
+  } catch (e) {
+    console.warn('[FB-FS] loadMoreProducts gagal:', e);
+  } finally {
+    this.isLoadingMoreProducts = false;
+  },
+}
+/**
+ * Realtime listener untuk /menu_items
    * (DIGANTI: sekarang ambil katalog dari Firestore via getProducts() one-time fetch)
    */
   async listenMenuItems() {
     this.isLoadingMenu = true;
+
+    // Reset cursor pagination untuk load awal
+    this.lastVisibleProduct = null;
+    this.hasMoreProducts = true;
 
     // Timeout safety: jangan sampai loading spinner stuck selamanya
     const menuTimeout = setTimeout(() => {
@@ -2008,6 +2068,10 @@ try {
         qty: 1
       });
     }
+    // Terapkan level harga jika bukan 'ecer'
+    if (this.cartPriceLevel !== 'ecer') {
+      this.applyPriceLevelToCart(this.cartPriceLevel);
+    }
     this.playSound('click');
   },
 
@@ -2025,6 +2089,7 @@ try {
         return;
       }
       item.qty += 1;
+      this.applyPriceLevelToCart(this.cartPriceLevel);
       this.playSound('click');
     }
   },
@@ -2044,11 +2109,41 @@ try {
       } else {
         this.cart.splice(index, 1);
       }
+      this.applyPriceLevelToCart(this.cartPriceLevel);
       this.playSound('click');
     }
   },
   decreaseQty(target) {
     this.decrementQty(target);
+  },
+
+  /**
+   * Terapkan level harga (ecer/partai/agen) ke semua item di keranjang.
+   * Jika qty mencukupi minimal order, harga otomatis turun ke harga grosir.
+   */
+  applyPriceLevelToCart(level) {
+    this.cartPriceLevel = level;
+    this.cart.forEach(item => {
+      const menu = this.menuList.find(m => m.id === item.id);
+      if (!menu) return;
+      if (level === 'ecer') {
+        item.price = menu.priceEcer;
+      } else if (level === 'partai') {
+        if (item.qty >= menu.minOrderPartai) {
+          item.price = menu.pricePartai;
+        } else {
+          item.price = menu.priceEcer;
+        }
+      } else if (level === 'agen') {
+        if (item.qty >= menu.minOrderAgen) {
+          item.price = menu.priceAgen;
+        } else if (item.qty >= menu.minOrderPartai) {
+          item.price = menu.pricePartai;
+        } else {
+          item.price = menu.priceEcer;
+        }
+      }
+    });
   },
 
   /**
@@ -2067,6 +2162,7 @@ try {
       return;
     }
     item.qty = num;
+    this.applyPriceLevelToCart(this.cartPriceLevel);
   },
 
   /**
@@ -5535,8 +5631,21 @@ try {
                 stok: Number(d.stock) || 0,
                 minStock: Number(d.minStock) || 5,
                 unit: d.unit || 'pcs',
-                purchasePrice: Number(d.priceEcer) || Number(d.price) || 0,
-                priceEcer: Number(d.priceEcer) || Number(d.price) || 0,
+                const priceEcerVal = Number(
+                  d.priceEcer !== undefined && d.priceEcer !== null
+                    ? d.priceEcer
+                    : d.hargaEcer !== undefined && d.hargaEcer !== null
+                      ? d.hargaEcer
+                      : d.harga !== undefined && d.harga !== null
+                        ? d.harga
+                        : d.price
+                ) || 0;
+                purchasePrice: priceEcerVal,
+                priceEcer: priceEcerVal,
+                pricePartai: Number(d.pricePartai || 0) || 0,
+                priceAgen: Number(d.priceAgen || 0) || 0,
+                minOrderPartai: Number(d.minOrderPartai || 0) || 0,
+                minOrderAgen: Number(d.minOrderAgen || 0) || 0,
                 isCountable: true,
                 source: 'firestore-products'
               });
@@ -6732,23 +6841,23 @@ try {
         const inv = (this.inventoryList || []).find(i => i.id === menu.inventoryId);
         if (inv) {
           // ✅ FIX BUG-12: Safe check — jangan pakai `|| 0` karena 0 falsy
-          return Number(
+          return Math.max(0, Number(
             (inv.stock !== undefined && inv.stock !== null) ? inv.stock :
             ((inv.stok !== undefined && inv.stok !== null) ? inv.stok : 0)
-          );
+          ));
         }
       }
       // ✅ FIX BUG-2: Cek stok langsung pada menu item (produk impor CSV tanpa resep)
       if (menu) {
-        if (typeof menu.stok !== 'undefined' && menu.stok !== null) return Number(menu.stok) || 0;
-        if (typeof menu.stock !== 'undefined' && menu.stock !== null) return Number(menu.stock) || 0;
+        if (typeof menu.stok !== 'undefined' && menu.stok !== null) return Math.max(0, Number(menu.stok) || 0);
+        if (typeof menu.stock !== 'undefined' && menu.stock !== null) return Math.max(0, Number(menu.stock) || 0);
       }
       const linkedInv = (this.inventoryList || []).find(i => i.linkedMenuId === menuId);
       if (linkedInv) {
-        return Number(
+        return Math.max(0, Number(
           (linkedInv.stock !== undefined && linkedInv.stock !== null) ? linkedInv.stock :
           ((linkedInv.stok !== undefined && linkedInv.stok !== null) ? linkedInv.stok : 0)
-        );
+        ));
       }
       return 0;
     }
