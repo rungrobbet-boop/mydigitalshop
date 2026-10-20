@@ -5140,6 +5140,7 @@ try {
    */
   async loadInventory() {
     this.loadingStates.inventory = true;
+    localStorage.removeItem('dapur_inventory_list');
 
     // Timeout safety 5 detik agar state loading tidak gantung
     const invTimeout = setTimeout(() => {
@@ -5318,10 +5319,6 @@ try {
       } catch (e) {
         console.warn('[INV-LOG] Failed to add log:', e);
       }
-
-      try {
-        localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-      } catch (e) {}
 
       this.showToast(`Stok "${item ? item.name : itemId}" diperbarui menjadi ${numStok}`, 'success');
       this.editStockModal = false;
@@ -5806,11 +5803,6 @@ try {
         // 2. Hapus dari state lokal
         this.inventoryList = this.inventoryList.filter(i => i.id !== itemId);
 
-        // 3. Update localStorage
-        try {
-          localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-        } catch (e) {}
-
         // 4. Tutup modal & reset
         this.selectedStockItem = { id: '', name: '', category: 'Bahan Baku', stock: 0, minStock: 0, unit: 'unit', purchasePrice: 0, isCountable: true };
         this.editStockModal = false;
@@ -6053,16 +6045,6 @@ try {
     try {
       // Simpan lokal
       this.inventoryList.push(newItem);
-      try {
-        localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-      } catch (e) {}
-
-      // Simpan ke server
-      fetch(`/inventory/${encodeURIComponent(newItemId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItem)
-      }).catch(e => console.warn('POST /inventory note:', e));
 
       // Simpan ke Firebase
       if (this._fbDb && this._fbSet && this._fbRef) {
@@ -7482,8 +7464,7 @@ try {
         laporanHariIni: this.laporanHariIni,
         shiftSummary: this.shiftSummary,
         topMenuData: this.topMenuData,
-        jamSibukData: this.jamSibukData,
-        inventoryList: this.inventoryList
+        jamSibukData: this.jamSibukData
       };
       localStorage.setItem('dapur_pos_report_snapshot', JSON.stringify(snapshot));
     } catch (e) {
@@ -7500,9 +7481,6 @@ try {
         if (data.todayTotalRevenue) this.todayTotalRevenue = data.todayTotalRevenue;
         if (data.topMenuData && data.topMenuData.length > 0) this.topMenuData = data.topMenuData;
         if (data.jamSibukData && data.jamSibukData.length > 0) this.jamSibukData = data.jamSibukData;
-        if (data.inventoryList && data.inventoryList.length > 0 && this.inventoryList.length === 0) {
-          this.inventoryList = data.inventoryList;
-        }
       }
     } catch (e) {
       console.warn('loadReportSnapshot note:', e);
@@ -7711,11 +7689,6 @@ try {
             );
           }
         }
-
-                // ✅ Persist ke localStorage
-        try {
-          localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-        } catch (err) {}
 
         // ✅ Persist ke Firebase — pakai Promise.all + .then() (TIDAK pakai await)
         if (this._fbDb && this._fbSet && this._fbRef) {
@@ -8866,9 +8839,6 @@ try {
         }
       }
     }
-    try {
-      localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-    } catch(e){}
     this.showToast(`Berhasil men-generate SKU untuk ${count} item lama`, 'success');
   },
    /**
@@ -8892,9 +8862,6 @@ try {
     } catch (e) {
       console.warn('[REGEN-SHORT] Some writes failed:', e);
     }
-    try {
-      localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-    } catch (e) {}
     this.showToast(`✅ Short code ter-generate untuk ${count} item lama`, 'success');
   },
 
@@ -9310,16 +9277,7 @@ try {
       // Simpan ke memory lokal
       this.inventoryList.unshift(newInvItem);
       this.menuList.unshift(newMenuItem);
-      try {
-        localStorage.setItem('dapur_inventory_list', JSON.stringify(this.inventoryList));
-      } catch(e){}
-
       // Simpan ke backend endpoint
-      await fetch(`/inventory/${encodeURIComponent(itemId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newInvItem)
-      });
 
       await fetch(`/menu/${encodeURIComponent(menuId)}`, {
         method: 'POST',
@@ -10074,21 +10032,6 @@ try {
     async openSettlementModal(date) {
     this.settlementDate = date || new Date().toISOString().slice(0, 10);
     this.settlementModal = true;
-
-    // ✅ FIX BUG-11: Refresh inventory dari Firebase DULU sebelum hitung settlement
-    // Biar state inventoryList tidak stale saat loadSettlementSummary dipanggil
-    try {
-      if (this._fbDb && this._fbRef && FB_DB) {
-        const snap = await FB_DB.ref('inventory').once('value');
-        const val = snap.val();
-        if (val) {
-          this.inventoryList = Object.entries(val).map(([k, v]) => ({ id: k, ...v }));
-          console.log('[SETTLEMENT] Inventory refreshed from Firebase:', this.inventoryList.length, 'items');
-        }
-      }
-    } catch (e) {
-      console.warn('[SETTLEMENT] Inventory refresh note:', e.message);
-    }
 
     await this.loadSettlementSummary(this.settlementDate);
   },
