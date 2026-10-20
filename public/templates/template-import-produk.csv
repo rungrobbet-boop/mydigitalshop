@@ -1,0 +1,4 @@
+name,supplier,categoryId,priceEcer,pricePartai,priceAgen,minOrderPartai,minOrderAgen,unit,stock,imageUrl
+Semen Portland,CV. Mitra Bangunan,cat-semen,75000,70000,65000,10,50,sak,100,
+Cat Tembok,PT. Warna Nusantara,cat-cat,120000,110000,105000,5,25,kaleng,200,
+Besi Beton 12mm,UD. Logam Jaya,cat-besi,140000,130000,125000,10,100,batang,300,

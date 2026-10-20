@@ -9371,6 +9371,7 @@ git push -u origin main</pre>
             const safeStock = isNaN(stock) ? 0 : stock;
             parsed.push({
               name: String(row.name || ''),
+              supplier: String(row.supplier || ''),
               categoryId: String(row.categoryId || ''),
               priceEcer: safePriceEcer,
               pricePartai: safePricePartai,
@@ -9388,8 +9389,8 @@ git push -u origin main</pre>
         },
 
         downloadCsvTemplate() {
-          const header = 'name,categoryId,priceEcer,pricePartai,priceAgen,minOrderPartai,minOrderAgen,unit,stock,imageUrl';
-          const sample = 'Cat Keramik 40x40,cat-01,75000,70000,65000,10,50,pcs,100,';
+          const header = 'name,supplier,categoryId,priceEcer,pricePartai,priceAgen,minOrderPartai,minOrderAgen,unit,stock,imageUrl';
+          const sample = 'Semen Portland,CV. Mitra Bangunan,cat-semen,75000,70000,65000,10,50,sak,100,';
           const csvContent = header + '\n' + sample;
           const BOM = '\uFEFF';
           const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8,' });

@@ -7565,10 +7565,11 @@ try {
     try {
       const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
       let csvContent = "\uFEFF"; // UTF-8 BOM agar rapi di Microsoft Excel
-      csvContent += "name,categoryId,priceEcer,pricePartai,priceAgen,stock,unit\n";
+      csvContent += "name,supplier,categoryId,priceEcer,pricePartai,priceAgen,stock,unit\n";
 
       list.forEach(item => {
         const name = `"${(item.name || '').replace(/"/g, '""')}"`;
+        const supplier = `"${(item.supplier || '').replace(/"/g, '""')}"`;
         const categoryId = `"${(item.categoryId || item.category || '').replace(/"/g, '""')}"`;
         const priceEcer = Number(item.priceEcer || item.purchasePrice || item.hargaBeli || 0);
         const pricePartai = Number(item.pricePartai || item.priceEcer || item.purchasePrice || 0);
@@ -7576,7 +7577,7 @@ try {
         const stock = Number(item.stock || item.stok || 0);
         const unit = `"${(item.unit || 'pcs').replace(/"/g, '""')}"`;
 
-        csvContent += `${name},${categoryId},${priceEcer},${pricePartai},${priceAgen},${stock},${unit}\n`;
+        csvContent += `${name},${supplier},${categoryId},${priceEcer},${pricePartai},${priceAgen},${stock},${unit}\n`;
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -7624,15 +7625,16 @@ try {
           if (!cols[0]) continue;
 
           const itemName = cols[0] || '';
-          const categoryId = cols[1] || '';
-          const priceEcer = Number(cols[2]) || 0;
-          const pricePartai = Number(cols[3]) || 0;
-          const priceAgen = Number(cols[4]) || 0;
-          const minOrderPartai = Number(cols[5]) || 0;
-          const minOrderAgen = Number(cols[6]) || 0;
-          const unit = cols[7] || 'pcs';
-          const stock = Number(cols[8]) || 0;
-          const imageUrl = cols[9] || '';
+          const supplier = cols[1] || '';
+          const categoryId = cols[2] || '';
+          const priceEcer = Number(cols[3]) || 0;
+          const pricePartai = Number(cols[4]) || 0;
+          const priceAgen = Number(cols[5]) || 0;
+          const minOrderPartai = Number(cols[6]) || 0;
+          const minOrderAgen = Number(cols[7]) || 0;
+          const unit = cols[8] || 'pcs';
+          const stock = Number(cols[9]) || 0;
+          const imageUrl = cols[10] || '';
           const minStock = 5;
           const itemId = (`inv_${Date.now()}_${i}`);
 
@@ -7656,6 +7658,7 @@ try {
             itemsForFirestore.push({
               id: existing.id,
               name: existing.name,
+              supplier: existing.supplier || '',
               categoryId: existing.categoryId || '',
               category: existing.category || 'Bahan Bangunan',
               priceEcer: Number(existing.priceEcer) || 0,
@@ -7680,6 +7683,7 @@ try {
             const newItemObj = {
               id: itemId,
               name: itemName,
+              supplier: supplier || '',
               categoryId: categoryId || '',
               category: categoryId || 'Bahan Bangunan',
               priceEcer: priceEcer,
@@ -7701,6 +7705,7 @@ try {
             itemsForFirestore.push({
               id: newItemObj.id,
               name: newItemObj.name,
+              supplier: newItemObj.supplier || '',
               categoryId: newItemObj.categoryId || '',
               category: newItemObj.category || 'Bahan Bangunan',
               priceEcer: Number(newItemObj.priceEcer) || 0,
