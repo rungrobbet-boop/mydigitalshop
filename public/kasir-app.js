@@ -4039,7 +4039,9 @@ try {
 
       const matchSearch = !this.searchQuery ||
         (item.name || '').toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        (item.desc || '').toLowerCase().includes(this.searchQuery.toLowerCase());
+        (item.desc || '').toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        (item.sku || '').toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        (item.barcode || '').toLowerCase().includes(this.searchQuery.toLowerCase());
       return matchCategory && matchSearch;
     });
   },
