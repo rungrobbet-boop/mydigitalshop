@@ -1811,6 +1811,16 @@
                 <span>Master Supplier</span>
               </button>
               <button 
+                type="button"
+                @click="syncStokKeFirestore()"
+                :class="loadingStates.inventory ? 'bg-amber-100 text-amber-800 cursor-not-allowed' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'"
+                class="px-3 py-2 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                :disabled="loadingStates.inventory"
+                title="Sinkronkan stok inventory ke Firestore">
+                <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                <span>Sync Stok</span>
+              </button>
+              <button 
                 type="button" 
                 @click="inventoryTab = 'settlement'; loadSettlementSummary()"
                 :class="inventoryTab === 'settlement' ? 'bg-white text-stone-900 font-black shadow-xs' : 'text-stone-500 font-semibold'"

@@ -2018,6 +2018,51 @@ try {
   },
 
   /**
+   * Sinkronkan stok inventory kasir ke Firestore (collection 'inventory_sync').
+   * Dipakai tombol "Sync Stok" di UI kasir. One-time write, tidak realtime.
+   * TIDAK mengubah logika Auto Jurnal, Void, Reversal, atau penyesuaian stok internal.
+   */
+  async syncStokKeFirestore() {
+    if (!FB_FS) {
+      this.showToast('Firestore belum siap — sinkronisasi dibatalkan', 'error');
+      this.playSound('error');
+      return false;
+    }
+    const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
+    if (list.length === 0) {
+      this.showToast('Tidak ada data stok untuk disinkronkan', 'notify');
+      return false;
+    }
+    try {
+      const batch = FB_FS.batch();
+      const now = new Date().toISOString();
+      list.forEach((item) => {
+        const ref = FB_FS.collection('inventory_sync').doc(String(item.id || item.name));
+        batch.set(ref, {
+          id: item.id,
+          name: item.name,
+          category: item.category || '',
+          stock: Number(item.stock) || 0,
+          minStock: Number(item.minStock) || 0,
+          unit: item.unit || 'pcs',
+          syncedAt: now,
+          source: 'kasir-pos',
+        }, { merge: true });
+      });
+      await batch.commit();
+      this.showToast(`✅ Stok sinkron: ${list.length} item ke Firestore`, 'success');
+      this.playSound('success');
+      console.log(`[SYNC-STOK] ${list.length} item ditulis ke Firestore inventory_sync`);
+      return true;
+    } catch (e) {
+      console.warn('[SYNC-STOK] Gagal:', e);
+      this.showToast('Gagal sinkronkan stok: ' + (e && e.message ? e.message : e), 'error');
+      this.playSound('error');
+      return false;
+    }
+  },
+
+  /**
    * Mengambil stok porsi tampilan produk di grid transaksi kasir
    */
   getMenuDisplayStock(menuItem) {
