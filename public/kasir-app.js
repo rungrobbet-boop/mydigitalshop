@@ -687,10 +687,16 @@ window.kasirApp = () => ({
   newMenuModal: false,
   newMenuForm: {
     name: '',
-    category: 'bahan_bangunan',
-    price: 0,
-    desc: '',
-    image: ''
+    supplier: '',
+    categoryId: 'bahan_bangunan',
+    priceEcer: 0,
+    pricePartai: 0,
+    priceAgen: 0,
+    minOrderPartai: 1,
+    minOrderAgen: 1,
+    unit: 'pcs',
+    stock: 0,
+    imageUrl: ''
   },
   get menuItems() {
     return Array.isArray(this.menuList) ? this.menuList : [];
@@ -699,7 +705,17 @@ window.kasirApp = () => ({
   selectedProductForRecipe: null,
   recipeForm: {
     menuId: '',
-    menuName: '',
+    name: '',
+    supplier: '',
+    categoryId: 'bahan_bangunan',
+    priceEcer: 0,
+    pricePartai: 0,
+    priceAgen: 0,
+    minOrderPartai: 1,
+    minOrderAgen: 1,
+    unit: 'pcs',
+    stock: 0,
+    imageUrl: '',
     ingredients: []
   },
   menuRecipes: {}, // { menuId: { ingredients: [...] } }
@@ -6796,11 +6812,17 @@ async loadMoreProducts() {
     
     this.recipeForm = {
       menuId: menu.id,
-      menuName: menu.name || '',
-      category: menu.category || 'bahan_bangunan',
-      price: Number(menu.price) || 0,
-      desc: menu.desc || '',
-      showOnMain: menu.showOnMain !== false,
+      name: menu.name || '',
+      supplier: menu.supplier || '',
+      categoryId: menu.categoryId || menu.category || 'bahan_bangunan',
+      priceEcer: Number(menu.priceEcer || menu.price) || 0,
+      pricePartai: Number(menu.pricePartai) || 0,
+      priceAgen: Number(menu.priceAgen) || 0,
+      minOrderPartai: Number(menu.minOrderPartai) || 1,
+      minOrderAgen: Number(menu.minOrderAgen) || 1,
+      unit: menu.unit || 'pcs',
+      stock: Number(menu.stock || menu.stok) || 0,
+      imageUrl: menu.imageUrl || menu.image || '',
       ingredients: JSON.parse(JSON.stringify(existingRecipe.ingredients || []))
     };
     this.productModal = true;
@@ -6843,39 +6865,43 @@ async loadMoreProducts() {
     if (!this.recipeForm.menuId) return;
     try {
       const menuId = this.recipeForm.menuId;
-      const updatedName = (this.recipeForm.menuName || '').trim() || 'Menu';
-      const updatedCategory = this.recipeForm.category || 'bahan_bangunan';
-      const updatedPrice = Number(this.recipeForm.price) || 0;
-      const updatedDesc = this.recipeForm.desc || '';
-      const updatedShowOnMain = this.recipeForm.showOnMain !== false;
+      const updatedName = (this.recipeForm.name || '').trim() || 'Produk';
+      const updatedSupplier = (this.recipeForm.supplier || '').trim();
+      const updatedCategoryId = (this.recipeForm.categoryId || 'bahan_bangunan').trim();
+      const updatedPriceEcer = Number(this.recipeForm.priceEcer) || 0;
+      const updatedPricePartai = Number(this.recipeForm.pricePartai) || 0;
+      const updatedPriceAgen = Number(this.recipeForm.priceAgen) || 0;
+      const updatedMinOrderPartai = Number(this.recipeForm.minOrderPartai) || 1;
+      const updatedMinOrderAgen = Number(this.recipeForm.minOrderAgen) || 1;
+      const updatedUnit = (this.recipeForm.unit || 'pcs').trim();
+      const updatedStock = Number(this.recipeForm.stock) || 0;
+      const updatedImageUrl = (this.recipeForm.imageUrl || '').trim();
 
       // 1. Update menu item in local menuList
       const menuObj = this.menuList.find(m => m.id === menuId);
       if (menuObj) {
         menuObj.name = updatedName;
-        menuObj.category = updatedCategory;
-        menuObj.price = updatedPrice;
-        menuObj.desc = updatedDesc;
-        menuObj.showOnMain = updatedShowOnMain;
+        menuObj.supplier = updatedSupplier;
+        menuObj.categoryId = updatedCategoryId;
+        menuObj.category = updatedCategoryId;
+        menuObj.priceEcer = updatedPriceEcer;
+        menuObj.pricePartai = updatedPricePartai;
+        menuObj.priceAgen = updatedPriceAgen;
+        menuObj.minOrderPartai = updatedMinOrderPartai;
+        menuObj.minOrderAgen = updatedMinOrderAgen;
+        menuObj.unit = updatedUnit;
+        menuObj.stock = updatedStock;
+        menuObj.stok = updatedStock;
+        menuObj.imageUrl = updatedImageUrl;
+        menuObj.price = updatedPriceEcer; // backward compat
+        menuObj.desc = ''; // no longer used in CSV form
       }
 
-      // 2. Filter & format ingredients
-      const rawIngs = Array.isArray(this.recipeForm.ingredients) ? this.recipeForm.ingredients : [];
-      const validIngredients = rawIngs
-        .filter(ing => ing && ing.itemId && Number(ing.amount) > 0)
-        .map(ing => {
-          const invItem = (this.inventoryList || []).find(i => i.id === ing.itemId);
-          return {
-            itemId: ing.itemId,
-            amount: Number(ing.amount) || 0.1,
-            unit: ing.unit || (invItem ? invItem.unit : 'kg')
-          };
-        });
-
+      // 2. Ingredients (BOM) — bypass for toko bangunan, keep empty array
       this.menuRecipes[menuId] = {
         menuId: menuId,
         menuName: updatedName,
-        ingredients: validIngredients
+        ingredients: []
       };
 
       // 3. LocalStorage persistence
@@ -6891,17 +6917,28 @@ async loadMoreProducts() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: updatedName,
-          category: updatedCategory,
-          price: updatedPrice,
-          desc: updatedDesc,
-          showOnMain: updatedShowOnMain
+          supplier: updatedSupplier,
+          categoryId: updatedCategoryId,
+          category: updatedCategoryId,
+          price: updatedPriceEcer,
+          priceEcer: updatedPriceEcer,
+          pricePartai: updatedPricePartai,
+          priceAgen: updatedPriceAgen,
+          minOrderPartai: updatedMinOrderPartai,
+          minOrderAgen: updatedMinOrderAgen,
+          unit: updatedUnit,
+          stock: updatedStock,
+          stok: updatedStock,
+          imageUrl: updatedImageUrl,
+          desc: '',
+          showOnMain: menuObj ? menuObj.showOnMain !== false : true
         })
       }).catch(e => console.warn('Server menu update note:', e));
 
       fetch(`/inventory/recipes/${encodeURIComponent(menuId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients: validIngredients })
+        body: JSON.stringify({ ingredients: [] })
       }).catch(e => console.warn('Server recipe save note:', e));
 
       if (this._fbDb && this._fbRef && this._fbSet) {
@@ -6910,13 +6947,37 @@ async loadMoreProducts() {
           await this._fbSet(recipeRef, {
             menuId: menuId,
             menuName: updatedName,
-            ingredients: validIngredients,
+            ingredients: [],
             updatedAt: new Date().toISOString()
           });
 
           const menuRef = this._fbRef(this._fbDb, `menu_items/${menuId}`);
           if (menuObj) {
             await this._fbSet(menuRef, menuObj);
+          }
+
+          // ✅ Sync ke Firestore products collection untuk sinkronisasi 2 arah
+          if (typeof FB_FS !== 'undefined' && FB_FS !== null) {
+            try {
+              await FB_FS.collection('products').doc(menuId).set({
+                id: menuId,
+                name: updatedName,
+                supplier: updatedSupplier,
+                category: updatedCategoryId,
+                categoryId: updatedCategoryId,
+                priceEcer: updatedPriceEcer,
+                pricePartai: updatedPricePartai,
+                priceAgen: updatedPriceAgen,
+                minOrderPartai: updatedMinOrderPartai,
+                minOrderAgen: updatedMinOrderAgen,
+                unit: updatedUnit,
+                stock: updatedStock,
+                stok: updatedStock,
+                imageUrl: updatedImageUrl,
+                source: 'csv-import',
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            } catch (fsErr) { /* non-fatal */ }
           }
         } catch (fbErr) {
           console.warn('Firebase recipe save warning:', fbErr);
@@ -7221,17 +7282,16 @@ async loadMoreProducts() {
     const defaultItem = (this.inventoryList && this.inventoryList[0]) ? this.inventoryList[0] : null;
     this.newMenuForm = {
       name: '',
-      category: defaultCat,
-      customCategory: '',
-      price: 25000,
-      desc: '',
-      image: '',
-      showOnMain: true,
-      ingredients: defaultItem ? [{ 
-        itemId: defaultItem.id, 
-        amount: defaultItem.unit === 'kg' ? 0.1 : 1,
-        unit: defaultItem.unit || 'kg'
-      }] : []
+      supplier: '',
+      categoryId: defaultCat,
+      priceEcer: 25000,
+      pricePartai: 0,
+      priceAgen: 0,
+      minOrderPartai: 1,
+      minOrderAgen: 1,
+      unit: 'pcs',
+      stock: 0,
+      imageUrl: ''
     };
     this.newMenuModal = true;
   },
@@ -7241,25 +7301,27 @@ async loadMoreProducts() {
    */
   async tambahMenuBaru(form) {
     const name = (form.name || '').trim();
-    let category = (form.category || 'bahan_bangunan').trim();
-    if (category === '__custom__' && form.customCategory) {
-      category = form.customCategory.trim();
-    }
-    const price = Number(form.price) || 0;
-    const desc = (form.desc || '').trim();
-    const image = (form.image || '').trim() || '';
-    const showOnMain = form.showOnMain !== false;
+    const supplier = (form.supplier || '').trim();
+    const categoryId = (form.categoryId || 'bahan_bangunan').trim();
+    const priceEcer = Number(form.priceEcer) || 0;
+    const pricePartai = Number(form.pricePartai) || 0;
+    const priceAgen = Number(form.priceAgen) || 0;
+    const minOrderPartai = Number(form.minOrderPartai) || 1;
+    const minOrderAgen = Number(form.minOrderAgen) || 1;
+    const unit = (form.unit || 'pcs').trim();
+    const stock = Number(form.stock) || 0;
+    const imageUrl = (form.imageUrl || '').trim();
 
-    if (!name || price <= 0) {
-      this.showToast('Nama menu dan harga jual wajib diisi (> 0)', 'error');
+    if (!name || priceEcer <= 0) {
+      this.showToast('Nama produk dan harga ecer wajib diisi (> 0)', 'error');
       return false;
     }
 
     // Pastikan kategori baru tersimpan di memori kategori kasir jika belum ada
-    if (category && category !== '__custom__') {
-      const catExists = this.categories.some(c => (c.id === category || (c.name || '').toLowerCase() === category.toLowerCase()));
+    if (categoryId && categoryId !== '__custom__') {
+      const catExists = this.categories.some(c => (c.id === categoryId || (c.name || '').toLowerCase() === categoryId.toLowerCase()));
       if (!catExists) {
-        const newCatObj = { id: category.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: category };
+        const newCatObj = { id: categoryId.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: categoryId };
         this.categories.push(newCatObj);
         try {
           const saved = JSON.parse(localStorage.getItem('dapur_menu_categories') || '[]');
@@ -7269,19 +7331,30 @@ async loadMoreProducts() {
       }
     }
 
-    const catObj = (this.categories || []).find(c => c && (c.id === category || (c.name || '').toLowerCase() === (category || '').toLowerCase()));
-    const categoryLabel = catObj ? catObj.name : (category ? (category.charAt(0).toUpperCase() + category.slice(1).replace(/[-_]/g, ' ')) : 'Menu');
+    const catObj = (this.categories || []).find(c => c && (c.id === categoryId || (c.name || '').toLowerCase() === (categoryId || '').toLowerCase()));
+    const categoryLabel = catObj ? catObj.name : (categoryId ? (categoryId.charAt(0).toUpperCase() + categoryId.slice(1).replace(/[-_]/g, ' ')) : 'Produk');
 
     const menuId = 'm_' + Date.now();
     const newMenuItem = {
       id: menuId,
       name,
-      category,
+      supplier,
+      categoryId,
+      category: categoryId,
       categoryLabel,
-      price,
-      desc: desc || 'Menu lezat & higienis',
-      image,
-      showOnMain,
+      price: priceEcer,
+      priceEcer,
+      pricePartai,
+      priceAgen,
+      minOrderPartai,
+      minOrderAgen,
+      unit,
+      stock,
+      stok: stock,
+      imageUrl,
+      image: imageUrl,
+      desc: '',
+      isReadyToSell: true,
       fromKasir: true,
       createdAt: Date.now()
     };
@@ -7292,23 +7365,11 @@ async loadMoreProducts() {
       }
       this.menuList.unshift(newMenuItem);
 
-      // Simpan resep bahan baku jika diisi
-      const rawIngredients = Array.isArray(form.ingredients) ? form.ingredients : [];
-      const validIngredients = rawIngredients
-        .filter(ing => ing && ing.itemId && Number(ing.amount) > 0)
-        .map(ing => {
-          const invItem = (this.inventoryList || []).find(i => i.id === ing.itemId);
-          return {
-            itemId: ing.itemId,
-            amount: Number(ing.amount) || 0.1,
-            unit: invItem ? invItem.unit : 'kg'
-          };
-        });
-
+      // Ingredients (BOM) — bypass for toko bangunan, keep empty array
       const recipePayload = {
         menuId,
         menuName: name,
-        ingredients: validIngredients
+        ingredients: []
       };
 
       this.menuRecipes[menuId] = recipePayload;

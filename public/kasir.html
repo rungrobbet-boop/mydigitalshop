@@ -839,9 +839,9 @@
                         type="button" 
                         @click.stop="openProductRecipeModal(menu)"
                         class="text-[10px] text-amber-700 hover:text-amber-900 font-bold inline-flex items-center gap-1 mt-0.5 transition cursor-pointer"
-                        :title="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Produk & Harga' : 'Atur Resep & Komposisi Produk'">
+                        :title="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Detail Produk & Harga' : 'Detail & Harga Grosir'">
                         <i :class="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-mortar-pestle'" class="text-[9px]"></i>
-                        <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Produk/Harga' : 'Atur Resep Produk'"></span>
+                        <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Detail Produk & Harga' : 'Detail Produk & Harga'"></span>
                       </button>
                     </div>
                     
@@ -915,7 +915,26 @@
                   <p class="text-xs text-stone-400">Klik salah satu menu di sebelah kiri untuk menambah pesanan.</p>
                 </div>
 
-                <!-- Daftar Item Keranjang (M4: layout 2-baris mobile-friendly) -->
+                <!-- Toggle Harga Grosir -->
+<div class="flex bg-stone-100 p-1 rounded-xl mb-3">
+    <button @click="applyPriceLevelToCart('ecer')" 
+            :class="cartPriceLevel === 'ecer' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Ecer
+    </button>
+    <button @click="applyPriceLevelToCart('partai')" 
+            :class="cartPriceLevel === 'partai' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Partai
+    </button>
+    <button @click="applyPriceLevelToCart('agen')" 
+            :class="cartPriceLevel === 'agen' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Agen
+    </button>
+</div>
+
+<!-- Daftar Item Keranjang (M4: layout 2-baris mobile-friendly) -->
 <template x-for="(item, idx) in cart" :key="item.id + '-' + idx">
   <div class="pt-3 first:pt-0 border-b border-stone-100 pb-2 space-y-2">
 
@@ -1929,7 +1948,7 @@
           <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
             <i class="fa-solid fa-circle-info text-amber-600 mt-0.5"></i>
             <div class="text-xs text-amber-900">
-              <strong class="font-extrabold">Stok Menu Terhubung Bahan Baku (BOM):</strong> Ketersediaan porsi menu dihitung otomatis dari persediaan bahan bakunya. Jika salah satu bahan habis, porsi otomatis menjadi 0.
+              <strong class="font-extrabold">Stok Menu Terhubung Informasi Stok:</strong> Ketersediaan porsi menu dihitung otomatis dari persediaan produknya. Jika salah satu produk habis, porsi otomatis menjadi 0.
             </div>
           </div>
 
@@ -1972,20 +1991,20 @@
                     </div>
                   </div>
 
-                  <!-- Ringkasan Komposisi, HPP & Laba Kotor -->
+                  <!-- Ringkasan Harga Dasar & Margin Kotor -->
                   <div class="mt-3 p-2.5 rounded-xl bg-stone-50 border border-stone-100 space-y-1.5 text-xs">
                     <div class="flex justify-between items-center text-[10px] font-bold text-stone-500 uppercase">
-                      <span>Bahan Baku (BOM)</span>
+                      <span>Informasi Stok</span>
                       <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) + ' Komponen'"></span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-1.5 pt-1 text-[11px] border-t border-stone-200/60">
                       <div>
-                        <span class="text-[10px] text-stone-400 block">Total HPP</span>
+                        <span class="text-[10px] text-stone-400 block">Harga Dasar</span>
                         <span class="font-bold font-mono text-amber-900" x-text="formatRupiah(calculateNewMenuHPP(menuRecipes[menu.id]?.ingredients))"></span>
                       </div>
                       <div class="text-right">
-                        <span class="text-[10px] text-stone-400 block">Laba Kotor</span>
+                        <span class="text-[10px] text-stone-400 block">Margin Kotor</span>
                         <span 
                           :class="calculateGrossProfit(menu.price, calculateNewMenuHPP(menuRecipes[menu.id]?.ingredients)).percentage >= 40 ? 'text-emerald-700' : 'text-amber-700'"
                           class="font-black font-mono" 
@@ -2003,7 +2022,7 @@
                     :class="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'"
                     class="w-full min-h-[38px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border shadow-2xs">
                     <i :class="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'fa-solid fa-pen-to-square text-emerald-700' : 'fa-solid fa-mortar-pestle text-amber-700'" class="text-[11px]"></i>
-                    <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Ubah Menu / Harga' : 'Atur Resep & Komposisi'"></span>
+                    <span x-text="(menuRecipes[menu.id]?.ingredients?.length || 0) > 0 ? 'Detail Produk & Harga' : 'Detail & Harga Grosir'"></span>
                   </button>
                 </div>
               </div>
@@ -3201,10 +3220,10 @@
             <span class="text-[10px] text-amber-700 font-semibold mt-1 block"><i class="fa-solid fa-boxes-stacked"></i> Resep &amp; Stok Baku</span>
           </div>
 
-          <!-- Card 3: Laba Kotor -->
+          <!-- Card 3: Margin Kotor -->
           <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Laba Kotor</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Margin Kotor</span>
               <span class="text-[10px] font-black px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-mono" x-text="getAccountingSummary().grossMargin + '%'"></span>
             </div>
             <div class="text-lg font-black font-mono text-emerald-800 mt-1" x-text="formatRupiah(getAccountingSummary().grossProfit)"></div>
@@ -5387,35 +5406,41 @@
       </button>
 
       <div class="flex items-center gap-3.5 pb-3 border-b border-stone-100">
-        <div 
-          :class="(recipeForm.ingredients?.length || 0) > 0 ? 'bg-emerald-600' : 'bg-amber-500'"
-          class="w-12 h-12 rounded-2xl text-white flex items-center justify-center text-xl shadow-md">
-          <i :class="(recipeForm.ingredients?.length || 0) > 0 ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-mortar-pestle'"></i>
+        <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center text-xl shadow-md">
+          <i class="fa-solid fa-box text-stone-800"></i>
         </div>
         <div>
-          <h4 class="font-extrabold text-stone-900 text-base" x-text="((recipeForm.ingredients?.length || 0) > 0 ? 'Ubah Produk / Harga & Resep: ' : 'Atur Resep Produk: ') + (recipeForm.menuName || 'Produk')"></h4>
-            <p class="text-xs text-stone-500">
-              Sesuaikan nama produk, harga jual, dan komposisi bahan baku.
-            </p>
+          <h4 class="font-extrabold text-stone-900 text-base" x-text="(recipeForm.id ? 'Detail Produk: ' : 'Tambah Produk: ') + (recipeForm.name || 'Produk')"></h4>
+          <p class="text-xs text-stone-500">Sesuaikan nama produk, harga ecer/partai/agen, satuan, dan stok.</p>
         </div>
       </div>
 
-      <!-- Form Informasi Dasar Menu (Nama, Kategori, Harga) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-2xl bg-stone-50 border border-stone-200">
+      <!-- Form Informasi Produk (sesuai template CSV) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 p-3 rounded-2xl bg-stone-50 border border-stone-200">
         <div class="sm:col-span-3">
-          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Nama Menu</label>
-          <input 
-            type="text" 
-            x-model="recipeForm.menuName" 
-            placeholder="Nama Menu" 
-            class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Nama Produk *</label>
+          <input
+            type="text"
+            x-model="recipeForm.name"
+            placeholder="Contoh: Semen Portland, Cat Tembok, Besi Beton 12mm"
+            class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
-        <div class="sm:col-span-2">
-          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Kategori Produk</label>
-          <select 
-            x-model="recipeForm.category"
+        <div>
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Supplier</label>
+          <input
+            type="text"
+            x-model="recipeForm.supplier"
+            placeholder="Nama supplier"
+            class="w-full h-10 px-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Kategori</label>
+          <select
+            x-model="recipeForm.categoryId"
             class="w-full h-10 px-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
             <template x-for="cat in getAvailableMenuCategories()" :key="cat.id">
               <option :value="cat.id" x-text="cat.name"></option>
@@ -5423,192 +5448,111 @@
           </select>
         </div>
 
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Harga Ecer (Rp)</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.priceEcer"
+            min="100"
+            step="100"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
         <div class="sm:col-span-1">
-          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Harga Jual (Rp)</label>
-          <input 
-            type="number" 
-            x-model.number="recipeForm.price" 
-            min="100" 
-            step="100" 
-            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Min. Partai</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.minOrderPartai"
+            min="1"
+            step="1"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Harga Partai (Rp)</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.pricePartai"
+            min="100"
+            step="100"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div class="sm:col-span-1">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Min. Agen</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.minOrderAgen"
+            min="1"
+            step="1"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Harga Agen (Rp)</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.priceAgen"
+            min="100"
+            step="100"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div class="sm:col-span-1">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Satuan</label>
+          <select
+            x-model="recipeForm.unit"
+            class="w-full h-10 px-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="pcs">pcs</option>
+            <option value="sak">sak</option>
+            <option value="batang">batang</option>
+            <option value="kaleng">kaleng</option>
+            <option value="kg">kg</option>
+            <option value="liter">liter</option>
+            <option value="lusin">lusin</option>
+            <option value="dus">dus</option>
+            <option value="karung">karung</option>
+            <option value="kotak">kotak</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-1">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Stok</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.stock"
+            min="0"
+            step="1"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div class="sm:col-span-3">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">URL Gambar</label>
+          <input
+            type="text"
+            x-model="recipeForm.imageUrl"
+            placeholder="https://contoh.com/produk.jpg"
+            class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
       </div>
 
-      <!-- Ringkasan HPP, Harga & Porsi Terkoneksi -->
-      <div class="grid grid-cols-3 gap-2 text-xs">
-        <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
-          <span class="text-[10px] font-extrabold text-amber-800 uppercase block">Total HPP</span>
-          <span class="font-black text-sm font-mono text-amber-950" x-text="formatRupiah(calculateNewMenuHPP(recipeForm.ingredients))"></span>
-        </div>
-        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-          <span class="text-[10px] font-extrabold text-emerald-800 uppercase block">Margin Produk</span>
-          <span class="font-black text-sm font-mono text-emerald-950" x-text="calculateGrossProfit(recipeForm.price, calculateNewMenuHPP(recipeForm.ingredients)).percentage + '%'"></span>
-        </div>
-        <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
-          <span class="text-[10px] font-extrabold text-stone-500 uppercase block">Stok Tersedia</span>
-          <span class="font-black text-sm font-mono text-stone-900" x-text="getMenuCalculatedStock(recipeForm.menuId) + ' unit'"></span>
-        </div>
-      </div>
-
-      <!-- Daftar Komponen Bahan Resep -->
-      <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-        <template x-for="(ing, idx) in recipeForm.ingredients" :key="idx">
-          <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[11px] font-extrabold text-stone-600" x-text="'Komponen #' + (idx + 1)"></span>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-mono font-bold text-emerald-700" x-text="formatRupiah(getIngredientCost(ing.itemId, ing.amount, ing.unit))"></span>
-                <button 
-                  type="button" 
-                  @click="removeIngredientRow(idx)"
-                  class="text-red-500 hover:text-red-700 text-xs font-bold transition cursor-pointer">
-                  <i class="fa-solid fa-trash-can mr-1"></i>Hapus
-                </button>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-12 gap-2">
-                            <!-- Pilihan Item Inventory (M9a-v2) -->
-              <div 
-                class="col-span-12 sm:col-span-6 relative"
-                x-data="{
-                  open: false,
-                  search: '',
-                  syncFromSelection() {
-                    const sel = inventoryList.find(i => i.id === ing.itemId);
-                    this.search = sel ? sel.name : '';
-                  },
-                  filtered() {
-                    const sel = inventoryList.find(i => i.id === ing.itemId);
-                    const selName = sel ? sel.name : '';
-                    if (!this.search || this.search === selName) return inventoryList;
-                    const q = this.search.toLowerCase();
-                    return inventoryList.filter(i =>
-                      (i.name || '').toLowerCase().includes(q) ||
-                      (i.sku || '').toLowerCase().includes(q) ||
-                      (i.category || '').toLowerCase().includes(q)
-                    );
-                  },
-                  selectItem(inv) {
-                    ing.itemId = inv.id;
-                    this.search = inv.name;
-                    this.open = false;
-                    onRecipeItemChange(ing);
-                  },
-                  onBlur() {
-                    setTimeout(() => {
-                      this.open = false;
-                      this.syncFromSelection();
-                    }, 180);
-                  }
-                }"
-                x-init="syncFromSelection()"
-                x-effect="if (!open) syncFromSelection()">
-                <input 
-                  type="text"
-                  x-model="search"
-                  @focus="open = true"
-                  @input="open = true"
-                  @blur="onBlur()"
-                  placeholder="Ketik cari bahan baku..."
-                  class="w-full h-10 px-3 pr-8 rounded-xl border-2 border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 text-[11px] pointer-events-none"></i>
-                <div 
-                  x-show="open" 
-                  x-cloak
-                  x-transition:enter="transition ease-out duration-100"
-                  x-transition:enter-start="opacity-0 -translate-y-1"
-                  class="absolute z-[80] left-0 right-0 mt-1.5 max-h-52 overflow-y-auto bg-white border-2 border-stone-300 rounded-xl shadow-2xl ring-1 ring-black/10">
-                  <template x-for="inv in filtered()" :key="'cb-' + inv.id">
-                    <button 
-                      type="button"
-                      @mousedown.prevent="selectItem(inv)"
-                      class="w-full text-left px-3 py-2.5 text-xs font-semibold text-stone-800 hover:bg-amber-50 hover:text-amber-900 active:bg-amber-100 transition border-b border-stone-100 last:border-0 cursor-pointer flex items-center justify-between gap-2">
-                      <span class="truncate" x-text="inv.name"></span>
-                      <span class="text-[10px] text-stone-400 font-mono flex-shrink-0" x-text="(inv.stock || 0) + ' ' + inv.unit"></span>
-                    </button>
-                  </template>
-                  <div x-show="filtered().length === 0" class="px-3 py-3 text-[11px] text-stone-400 text-center italic">
-                    Bahan tidak ditemukan — daftarkan dulu di tab Inventory.
-                  </div>
-                </div>
-              </div>
-
-              <!-- Takaran / Kebutuhan -->
-              <div class="col-span-6 sm:col-span-3">
-                <input 
-                  type="number" 
-                  x-model.number="ing.amount" 
-                  min="0.001" 
-                  step="any"
-                  placeholder="Jumlah"
-                  class="w-full h-10 px-2 rounded-xl border border-stone-300 bg-white text-xs font-bold font-mono text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
-                />
-              </div>
-
-              <!-- Satuan Takaran -->
-              <div class="col-span-6 sm:col-span-3">
-                <select 
-                  x-model="ing.unit"
-                  class="w-full h-10 px-1.5 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="gram">gram</option>
-                  <option value="kg">kg</option>
-                  <option value="ton">ton</option>
-                  <option value="kuintal">kuintal</option>
-                  <option value="pcs">pcs</option>
-                  <option value="unit">unit</option>
-                  <option value="set">set</option>
-                  <option value="pack">pack</option>
-                  <option value="kotak">kotak</option>
-                  <option value="karton">karton</option>
-                  <option value="lusin">lusin</option>
-                  <option value="meter">meter</option>
-                  <option value="msquare">m2</option>
-                  <option value="mkubik">m3</option>
-                  <option value="lembar">lembar</option>
-                  <option value="batang">batang</option>
-                  <option value="rol">rol</option>
-                  <option value="roll">roll</option>
-                  <option value="sak">sak</option>
-                  <option value="karung">karung</option>
-                  <option value="kaleng">kaleng</option>
-                  <option value="dus">dus</option>
-                  <option value="tossa">tossa</option>
-                  <option value="gerobak">gerobak</option>
-                  <option value="truk">truk</option>
-                  <option value="liter">liter</option>
-                  <option value="mliter">mliter</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <div x-show="recipeForm.ingredients.length === 0" class="text-center py-6 border-2 border-dashed border-stone-200 rounded-2xl text-stone-400 text-xs bg-white">
-          Belum ada bahan baku terhubung. Klik tombol di bawah untuk menambah bahan.
-        </div>
-      </div>
-
-      <!-- Tombol Tambah Baris Bahan -->
-      <button 
-        type="button" 
-        @click="addIngredientRow()"
-        class="w-full min-h-[38px] rounded-xl border border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-        <i class="fa-solid fa-plus text-xs"></i>
-        <span>+ Hubungkan ke Bahan Baku</span>
-      </button>
-
-      <!-- Tombol Simpan & Batal Resep -->
+      <!-- Tombol Simpan & Batal -->
       <div class="pt-2 border-t border-stone-100 flex items-center gap-2">
-        <button 
-          type="button" 
-          @click="productModal = false" 
+        <button
+          type="button"
+          @click="productModal = false"
           class="min-h-[46px] px-5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
           Batal
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           @click="saveProductRecipe()"
           class="flex-1 min-h-[46px] rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition cursor-pointer">
           <i class="fa-solid fa-floppy-disk text-xs"></i>
@@ -5640,15 +5584,15 @@
           <i class="fa-solid fa-utensils"></i>
         </div>
         <div>
-          <h4 class="font-extrabold text-stone-900 text-base">Tambah Produk Menu Baru</h4>
-          <p class="text-xs text-stone-500">Daftarkan menu + komposisi bahan baku (BOM) untuk hitung HPP &amp; Laba.</p>
+          <h4 class="font-extrabold text-stone-900 text-base">Tambah Produk Baru</h4>
+          <p class="text-xs text-stone-500">Daftarkan produk siap jual dengan harga ecer, partai, dan agen.</p>
         </div>
       </div>
 
       <!-- Form Tambah Menu -->
       <form @submit.prevent="tambahMenuBaru(newMenuForm)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Nama Produk Menu *</label>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Nama Produk *</label>
           <input 
             type="text" 
             x-model="newMenuForm.name" 
@@ -5660,9 +5604,9 @@
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Kategori Menu</label>
-            <select 
-              x-model="newMenuForm.category"
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Kategori</label>
+                        <select
+                          x-model="newMenuForm.categoryId"
               class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
               <template x-for="cat in getAvailableMenuCategories()" :key="cat.id">
                 <option :value="cat.id" x-text="cat.name"></option>
@@ -5681,216 +5625,112 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Jual (Rp) *</label>
-            <input 
-              type="number" 
-              x-model.number="newMenuForm.price" 
-              min="100" 
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Ecer (Rp) *</label>
+                        <input
+                          type="number"
+                          x-model.number="newMenuForm.priceEcer"
+              min="100"
               step="100"
               required
-              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Min. Partai</label>
+            <input
+              type="number"
+              x-model.number="newMenuForm.minOrderPartai"
+              min="1"
+              step="1"
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
         </div>
 
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Partai (Rp)</label>
+            <input
+              type="number"
+              x-model.number="newMenuForm.pricePartai"
+              min="100"
+              step="100"
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Min. Agen</label>
+            <input
+              type="number"
+              x-model.number="newMenuForm.minOrderAgen"
+              min="1"
+              step="1"
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Agen (Rp)</label>
+            <input
+              type="number"
+              x-model.number="newMenuForm.priceAgen"
+              min="100"
+              step="100"
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Satuan</label>
+            <select
+              x-model="newMenuForm.unit"
+              class="w-full h-11 px-3 rounded-xl border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="pcs">pcs</option>
+              <option value="sak">sak</option>
+              <option value="batang">batang</option>
+              <option value="kaleng">kaleng</option>
+              <option value="kg">kg</option>
+              <option value="liter">liter</option>
+              <option value="lusin">lusin</option>
+              <option value="dus">dus</option>
+              <option value="karung">karung</option>
+              <option value="kotak">kotak</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Deskripsi Singkat</label>
-          <input 
-            type="text" 
-            x-model="newMenuForm.desc" 
-            placeholder="Keterangan singkat menu atau porsi"
-            class="w-full h-11 px-3.5 rounded-xl border border-stone-300 text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Stok</label>
+          <input
+            type="number"
+            x-model.number="newMenuForm.stock"
+            min="0"
+            step="1"
+            class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
-        <!-- FITUR TERKONEKSI: COMPOSITION / INGREDIENT (BOM) PER 1 PORSI -->
-        <div class="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h5 class="text-xs font-extrabold text-stone-900 flex items-center gap-1.5">
-                <i class="fa-solid fa-mortar-pestle text-amber-600"></i>
-                <span>Komposisi Bahan Baku (Resep 1 Porsi)</span>
-              </h5>
-              <p class="text-[10px] text-stone-500">Pilih bahan baku &amp; takaran untuk otomatis terhubung stok</p>
-            </div>
-            <button 
-              type="button" 
-              @click="addNewMenuIngredientRow()"
-              class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1 shadow-2xs">
-              <i class="fa-solid fa-plus text-[10px]"></i>
-              <span>+ Bahan</span>
-            </button>
-          </div>
-
-          <!-- List Multiple Ingredients -->
-          <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
-            <template x-for="(ing, idx) in (newMenuForm.ingredients || [])" :key="idx">
-              <div class="p-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs space-y-1.5">
-                <div class="flex items-center justify-between text-[11px]">
-                  <span class="font-extrabold text-stone-500" x-text="'Komponen #' + (idx + 1)"></span>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-mono font-bold text-emerald-700" x-text="formatRupiah(getIngredientCost(ing.itemId, ing.amount, ing.unit))"></span>
-                    <button 
-                      type="button" 
-                      @click="removeNewMenuIngredientRow(idx)"
-                      class="text-red-500 hover:text-red-700 font-bold transition cursor-pointer text-[11px] flex items-center gap-1">
-                      <i class="fa-solid fa-trash-can"></i> Hapus
-                    </button>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-12 gap-2 items-center">
-                                    <!-- Dropdown Bahan Baku (M9b-v2) -->
-                  <div 
-                    class="col-span-12 sm:col-span-6 relative"
-                    x-data="{
-                      open: false,
-                      search: '',
-                      syncFromSelection() {
-                        const sel = inventoryList.find(i => i.id === ing.itemId);
-                        this.search = sel ? sel.name : '';
-                      },
-                      filtered() {
-                        const sel = inventoryList.find(i => i.id === ing.itemId);
-                        const selName = sel ? sel.name : '';
-                        if (!this.search || this.search === selName) return inventoryList;
-                        const q = this.search.toLowerCase();
-                        return inventoryList.filter(i =>
-                          (i.name || '').toLowerCase().includes(q) ||
-                          (i.sku || '').toLowerCase().includes(q) ||
-                          (i.category || '').toLowerCase().includes(q)
-                        );
-                      },
-                      selectItem(inv) {
-                        ing.itemId = inv.id;
-                        this.search = inv.name;
-                        this.open = false;
-                        onRecipeItemChange(ing);
-                      },
-                      onBlur() {
-                        setTimeout(() => {
-                          this.open = false;
-                          this.syncFromSelection();
-                        }, 180);
-                      }
-                    }"
-                    x-init="syncFromSelection()"
-                    x-effect="if (!open) syncFromSelection()">
-                    <input 
-                      type="text"
-                      x-model="search"
-                      @focus="open = true"
-                      @input="open = true"
-                      @blur="onBlur()"
-                      placeholder="Ketik cari bahan baku..."
-                      class="w-full h-9 px-3 pr-8 rounded-lg border-2 border-stone-300 bg-stone-50 text-xs font-bold text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 text-[11px] pointer-events-none"></i>
-                    <div 
-                      x-show="open" 
-                      x-cloak
-                      x-transition:enter="transition ease-out duration-100"
-                      x-transition:enter-start="opacity-0 -translate-y-1"
-                      class="absolute z-[80] left-0 right-0 mt-1.5 max-h-52 overflow-y-auto bg-white border-2 border-stone-300 rounded-xl shadow-2xl ring-1 ring-black/10">
-                      <template x-for="inv in filtered()" :key="'cb-' + inv.id">
-                        <button 
-                          type="button"
-                          @mousedown.prevent="selectItem(inv)"
-                          class="w-full text-left px-3 py-2.5 text-xs font-semibold text-stone-800 hover:bg-amber-50 hover:text-amber-900 active:bg-amber-100 transition border-b border-stone-100 last:border-0 cursor-pointer flex items-center justify-between gap-2">
-                          <span class="truncate" x-text="inv.name"></span>
-                          <span class="text-[10px] text-stone-400 font-mono flex-shrink-0" x-text="(inv.stock || 0) + ' ' + inv.unit"></span>
-                        </button>
-                      </template>
-                      <div x-show="filtered().length === 0" class="px-3 py-3 text-[11px] text-stone-400 text-center italic">
-                        Bahan tidak ditemukan — daftarkan dulu di tab Inventory.
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Jumlah Takaran -->
-                  <div class="col-span-6 sm:col-span-3">
-                    <input 
-                      type="number" 
-                      x-model.number="ing.amount" 
-                      min="0.001" 
-                      step="any"
-                      placeholder="Jumlah"
-                      class="w-full h-9 px-2 rounded-lg border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500" 
-                    />
-                  </div>
-
-                  <!-- Satuan Takaran -->
-                  <div class="col-span-6 sm:col-span-3">
-                    <select 
-                      x-model="ing.unit"
-                      class="w-full h-9 px-1 rounded-lg border border-stone-300 bg-stone-50 text-xs font-bold text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
-                      <option value="gram">gram</option>
-                      <option value="kg">kg</option>
-                      <option value="ton">ton</option>
-                      <option value="kuintal">kuintal</option>
-                      <option value="pcs">pcs</option>
-                      <option value="unit">unit</option>
-                      <option value="set">set</option>
-                      <option value="pack">pack</option>
-                      <option value="kotak">kotak</option>
-                      <option value="karton">karton</option>
-                      <option value="lusin">lusin</option>
-                      <option value="meter">meter</option>
-                      <option value="msquare">m2</option>
-                      <option value="mkubik">m3</option>
-                      <option value="lembar">lembar</option>
-                      <option value="batang">batang</option>
-                      <option value="rol">rol</option>
-                      <option value="roll">roll</option>
-                      <option value="sak">sak</option>
-                      <option value="karung">karung</option>
-                      <option value="kaleng">kaleng</option>
-                      <option value="dus">dus</option>
-                      <option value="tossa">tossa</option>
-                      <option value="gerobak">gerobak</option>
-                      <option value="truk">truk</option>
-                      <option value="liter">liter</option>
-                      <option value="mliter">mliter</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <div x-show="!newMenuForm.ingredients || newMenuForm.ingredients.length === 0" class="text-center py-4 border border-dashed border-stone-300 rounded-xl text-stone-400 text-xs bg-white">
-              Belum ada bahan baku. Klik <strong>"+ Bahan"</strong> di atas.
-            </div>
-          </div>
-
-          <!-- RINGKASAN HPP & PERSENTASE LABA KOTOR -->
-          <div class="pt-2 border-t border-stone-200 grid grid-cols-2 gap-2.5">
-            <div class="p-2.5 bg-amber-100/70 rounded-xl border border-amber-200">
-              <span class="text-[10px] font-extrabold text-amber-900 uppercase block">Total HPP (Modal 1 Porsi)</span>
-              <span class="font-black text-sm font-mono text-amber-950" x-text="formatRupiah(calculateNewMenuHPP(newMenuForm.ingredients))"></span>
-            </div>
-
-            <div 
-              :class="calculateGrossProfit(newMenuForm.price, calculateNewMenuHPP(newMenuForm.ingredients)).percentage >= 40 ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : (calculateGrossProfit(newMenuForm.price, calculateNewMenuHPP(newMenuForm.ingredients)).percentage >= 20 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-red-50 border-red-200 text-red-900')"
-              class="p-2.5 rounded-xl border">
-              <div class="flex items-center justify-between text-[10px] font-extrabold uppercase">
-                <span>Laba Kotor</span>
-                <span class="px-1.5 py-0.2 rounded font-mono font-black" x-text="calculateGrossProfit(newMenuForm.price, calculateNewMenuHPP(newMenuForm.ingredients)).percentage + '%'"></span>
-              </div>
-              <div class="font-black text-sm font-mono mt-0.5" x-text="formatRupiah(calculateGrossProfit(newMenuForm.price, calculateNewMenuHPP(newMenuForm.ingredients)).nominal)"></div>
-            </div>
-          </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">URL Gambar</label>
+          <input
+            type="text"
+            x-model="newMenuForm.imageUrl"
+            placeholder="https://contoh.com/produk.jpg"
+            class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
         </div>
 
-        <!-- OPSI TAMPILKAN DI HALAMAN UTAMA -->
-        <div class="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 flex items-center justify-between gap-3">
-          <div>
-            <span class="block text-xs font-extrabold text-stone-900">Tampilkan di Halaman Utama (Web Pelanggan)</span>
-            <span class="text-[10px] text-stone-500">Menu ini akan langsung muncul di katalog web utama untuk pemesanan online.</span>
+
           </div>
-          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-            <input type="checkbox" x-model="newMenuForm.showOnMain" class="sr-only peer">
-            <div class="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-          </label>
+
+
         </div>
+
+
 
         <!-- Tombol Simpan & Batal Menu Baru -->
         <div class="pt-1 flex items-center gap-2">
@@ -5904,7 +5744,7 @@
             type="submit" 
             class="flex-1 min-h-[46px] rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition cursor-pointer">
             <i class="fa-solid fa-plus text-xs"></i>
-            <span>SIMPAN &amp; SINKRONKAN PORSI</span>
+            <span>SIMPAN &amp; SINKRONKAN</span>
           </button>
         </div>
       </form>
