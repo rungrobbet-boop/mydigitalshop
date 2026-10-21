@@ -950,20 +950,20 @@
       <div class="min-w-0 flex-1">
         <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
         <!-- Info Harga & Min Order -->
-        <div class="mt-1 text-[11px] font-semibold">
+        <div class="text-[11px] font-semibold mt-1" x-data="{ minPartai: getProductMinOrder(item.id, 'partai'), minAgen: getProductMinOrder(item.id, 'agen') }">
             <!-- Jika Ecer -->
             <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
                 <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
             </span>
             <!-- Jika Partai -->
             <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
-                <span x-show="getProductMinOrder(item.id, 'partai') > 0"> (MIN <span x-text="getProductMinOrder(item.id, 'partai')"></span>)</span>
+                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span> 
+                <span x-show="minPartai > 0" x-text="' (MIN ' + minPartai + ')'"></span>
             </span>
             <!-- Jika Agen -->
             <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
                 <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
-                <span x-show="getProductMinOrder(item.id, 'agen') > 0"> (MIN <span x-text="getProductMinOrder(item.id, 'agen')"></span>)</span>
+                <span x-show="minAgen > 0" x-text="' (MIN ' + minAgen + ')'"></span>
             </span>
         </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">

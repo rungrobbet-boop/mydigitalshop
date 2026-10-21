@@ -2207,7 +2207,12 @@ async loadMoreProducts() {
   },
 
   /** Toggle Qty Lock — saat ON, qty item di keranjang tidak bisa diubah manual */
-  toggleQtyLock() {
+  async toggleQtyLock() {
+    const pinOk = await this.requestSupervisorPin('QTY LOCK', 'Kunci Qty Keranjang');
+    if (!pinOk) {
+      this.showToast('Qty Lock dibatalkan — PIN tidak valid', 'error');
+      return;
+    }
     this.isQtyLocked = !this.isQtyLocked;
     this.showToast(
       this.isQtyLocked ? 'Qty Lock ON — qty tidak bisa diubah' : 'Qty Lock OFF',
