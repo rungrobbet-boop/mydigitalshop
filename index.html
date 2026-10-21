@@ -9635,13 +9635,33 @@ git push -u origin main</pre>
 
             // Buat CSV
             const headers = ['id', 'name', 'supplier', 'category', 'purchasePrice'];
+            const catsMap = new Map();
+            (this.menuCategories || []).forEach(c => {
+              if (c && c.id) catsMap.set(String(c.id), c.name || c.id);
+              if (c && c.name) catsMap.set(String(c.name), c.name);
+            });
             const rows = products.map(p => {
               const purchasePrice = p.purchasePrice || p.hargaBeli || '';
+              // Coba banyak nama field untuk supplier agar tidak langsung '-'
+              const supplier = p.supplier
+                || p.supplierName
+                || p.namaSupplier
+                || (p.supplierId ? (catsMap.get(String(p.supplierId)) || '') : '')
+                || '';
+              // Coba banyak nama field untuk category, lalu cross-reference menuCategories via categoryId
+              let category = p.category
+                || p.categoryName
+                || p.categoryLabel
+                || p.namaKategori
+                || '';
+              if (!category && p.categoryId) {
+                category = catsMap.get(String(p.categoryId)) || String(p.categoryId);
+              }
               return [
                 p.id || '',
                 p.name || '',
-                p.supplier || p.supplierName || '-',
-                p.category || p.categoryName || '-',
+                supplier,
+                category,
                 purchasePrice
               ].map(v => {
                 const s = String(v || '');
