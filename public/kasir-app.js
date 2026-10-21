@@ -8353,13 +8353,14 @@ async loadMoreProducts() {
           const minOrderAgen = row.minOrderAgen;
           const unit = row.unit;
           const stock = row.stock;
-          const imageUrl = row.imageUrl || '';
+          const imageUrl = String(row.imageUrl || '').trim();
           const minStock = 5;
           const itemId = `inv_${slugify(itemName)}_${idx}`;
 
           // DEBUG: Lihat nilai dari CSV
           console.log("CEK CSV ROW:", {
             nama: row.name,
+            imageUrlDariCSV: imageUrl,
             minPartaiDariCSV: row.minOrderPartai,
             minAgenDariCSV: row.minOrderAgen
           });
@@ -8378,6 +8379,8 @@ async loadMoreProducts() {
             existing.unit = unit;
             existing.category = categoryId;
             existing.categoryId = categoryId;
+            existing.imageUrl = imageUrl;
+            existing.image = imageUrl;
             existing.minStock = minStock;
             updatedCount++;
 
@@ -8396,6 +8399,8 @@ async loadMoreProducts() {
               unit: existing.unit || 'pcs',
               stock: Number(existing.stock) || 0,
               minStock: Number(existing.minStock) || 5,
+              imageUrl: imageUrl,
+              image: imageUrl,
               source: 'csv-import'
             });
 
@@ -8427,6 +8432,7 @@ async loadMoreProducts() {
               purchasePrice: priceEcer,
               isCountable: true,
               imageUrl: imageUrl,
+              image: imageUrl,
               source: 'csv-import'
             };
             this.inventoryList.push(newItemObj);
@@ -8448,6 +8454,7 @@ async loadMoreProducts() {
               stock: Number(newItemObj.stock) || 0,
               minStock: Number(newItemObj.minStock) || 5,
               imageUrl: newItemObj.imageUrl || '',
+              image: newItemObj.imageUrl || '',
               source: 'csv-import'
             });
 
@@ -8501,6 +8508,7 @@ async loadMoreProducts() {
             });
 
             // ✅ Log ketat sebelum commit
+            console.log("CEK URL GAMBAR SEBELUM SIMPAN:", itemsForFirestore[0]?.imageUrl);
             console.log("Mencoba menulis ke Firestore...", batch);
             this.showToast('Sedang mengunggah ke Firestore, mohon tunggu...', 'notify');
             await batch.commit();
