@@ -2140,46 +2140,26 @@ async loadMoreProducts() {
     this.cartPriceLevel = level;
     this.cart.forEach(item => {
       const product = this.menuList.find(m => String(m.id) === String(item.id));
+      console.log(`[CEK HARGA] Nama: ${item.name} | Level: ${level} | Harga Partai: ${product?.pricePartai} | Harga Agen: ${product?.priceAgen}`);
       if (!product) return;
-
-      console.log('CEK AGEN:', {
-        level,
-        qty: item.qty,
-        priceAgen: product.priceAgen,
-        minAgen: product.minOrderAgen,
-        pricePartai: product.pricePartai,
-        minPartai: product.minOrderPartai
-      });
 
       const qty = Number(item.qty) || 1;
 
       // Pastikan angka murni, jika undefined jadikan 0
-      const hargaEcer = Number(product.priceEcer) || Number(product.price) || 0;
-      const hargaPartai = Number(product.pricePartai) || hargaEcer;
+      let finalPrice = Number(product.priceEcer) || Number(product.price) || 0;
+      const hargaPartai = Number(product.pricePartai) || finalPrice;
       const hargaAgen = Number(product.priceAgen) || hargaPartai;
 
-      const minPartai = Number(product.minOrderPartai) || 0;
-      const minAgen = Number(product.minOrderAgen) || 0;
-
-      let finalPrice = hargaEcer;
-
-      // LOGIKA BARU YANG LEBIH KAKU
       if (level === 'agen') {
-        if (minAgen === 0 || qty >= minAgen) {
-          finalPrice = hargaAgen;
-        } else if (minPartai === 0 || qty >= minPartai) {
-          finalPrice = hargaPartai;
-        }
+        finalPrice = hargaAgen;
       } else if (level === 'partai') {
-        if (minPartai === 0 || qty >= minPartai) {
-          finalPrice = hargaPartai;
-        }
+        finalPrice = hargaPartai;
       }
 
       // Set harga satuan
       item.price = finalPrice;
       // Simpan basePrice (opsional, untuk struk jika butuh harga asli)
-      item.basePrice = hargaEcer;
+      item.basePrice = Number(product.priceEcer) || Number(product.price) || 0;
     });
 
     // Paksa render ulang Alpine.js agar reaktivitas terjamin
