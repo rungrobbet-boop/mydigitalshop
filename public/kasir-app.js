@@ -3327,6 +3327,26 @@ async loadMoreProducts() {
       }
     }
 
+    // [IZIN EKSPLISIT OWNER] Audit Trail Log Stok
+    try {
+      for (const item of normalizedItems) {
+        const invItem = this.inventoryList.find(i => i.id === item.id);
+        if (invItem) {
+          this.addInventoryLog(
+            invItem.name,
+            Number(invItem.stock) + item.qty, // Stok lama (sebelum dipotong)
+            Number(invItem.stock),            // Stok baru
+            invItem.unit || 'pcs',
+            'Penjualan POS',
+            `Transaksi #${txId}`
+          );
+        }
+      }
+    } catch (logErr) {
+      console.warn('[AUDIT-TRAIL] Gagal mencatat log stok:', logErr);
+    }
+    // [AKHIR IZIN EKSPLISIT]
+
     // 5. ✅ AWAIT: Auto-Jurnal Akuntansi (backend — diabaikan jika gagal, non-blocker)
     try {
       const acctBody = {
