@@ -2149,23 +2149,38 @@ async loadMoreProducts() {
       const product = this.menuList.find(m => String(m.id) === String(item.id));
       if (!product) return;
 
-      const qty = Number(item.qty) || 1;
-      const minPartai = Number(product.minOrderPartai) || 0;
-      const minAgen = Number(product.minOrderAgen) || 0;
+      console.log('CEK AGEN:', {
+        level,
+        qty: item.qty,
+        priceAgen: product.priceAgen,
+        minAgen: product.minOrderAgen,
+        pricePartai: product.pricePartai,
+        minPartai: product.minOrderPartai
+      });
 
+      const qty = Number(item.qty) || 1;
+
+      // Pastikan angka murni, jika undefined jadikan 0
       const hargaEcer = Number(product.priceEcer) || Number(product.price) || 0;
       const hargaPartai = Number(product.pricePartai) || hargaEcer;
       const hargaAgen = Number(product.priceAgen) || hargaPartai;
 
+      const minPartai = Number(product.minOrderPartai) || 0;
+      const minAgen = Number(product.minOrderAgen) || 0;
+
       let finalPrice = hargaEcer;
 
-      if (level === 'agen' && qty >= minAgen && minAgen > 0) {
-        finalPrice = hargaAgen;
-      } else if (level === 'partai' && (minPartai === 0 || qty >= minPartai)) {
-        finalPrice = hargaPartai;
-      } else if (level === 'agen' && qty >= minPartai && minPartai > 0) {
-        // Jika pilih Agen tapi qty belum nyampe minAgen, tapi nyampe minPartai, kasih harga Partai
-        finalPrice = hargaPartai;
+      // LOGIKA BARU YANG LEBIH KAKU
+      if (level === 'agen') {
+        if (minAgen === 0 || qty >= minAgen) {
+          finalPrice = hargaAgen;
+        } else if (minPartai === 0 || qty >= minPartai) {
+          finalPrice = hargaPartai;
+        }
+      } else if (level === 'partai') {
+        if (minPartai === 0 || qty >= minPartai) {
+          finalPrice = hargaPartai;
+        }
       }
 
       // Set harga satuan
