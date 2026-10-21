@@ -402,6 +402,10 @@ window.kasirApp = () => ({
   shiftHistory: [],
   physicalCashCount: 0,
   shiftClosingNotes: '',
+  showVoidModal: false,
+  activeVoidTx: null,
+  voidReasonText: '',
+  isVoidProcessing: false,
   inventoryList: [],
   inventorySearch: '',
   inventoryTab: 'ingredients', // 'ingredients' | 'products' | 'pembelian'
@@ -12159,7 +12163,37 @@ async loadMoreProducts() {
       this.mobileMenuOpen = false;
     },
 
-    async voidTransaksi(tx) {
+    /**
+     * Buka modal input alasan void transaksi
+     */
+    openVoidModal(tx) {
+      this.activeVoidTx = tx;
+      this.voidReasonText = '';
+      this.showVoidModal = true;
+    },
+
+    /**
+     * Proses void transaksi dengan alasan dari modal
+     */
+    async submitVoidReason() {
+      const reason = String(this.voidReasonText || '').trim();
+      if (reason.length < 5) {
+        this.showToast('Alasan void wajib diisi minimal 5 karakter!', 'error');
+        return;
+      }
+
+      this.isVoidProcessing = true;
+      try {
+        await this.voidTransaksi(this.activeVoidTx, reason);
+        this.showVoidModal = false;
+      } catch (e) {
+        // Error sudah di-handle di dalam voidTransaksi
+      } finally {
+        this.isVoidProcessing = false;
+      }
+    },
+
+    async voidTransaksi(tx, reason) {
       if (!tx) return;
       const txId = tx.id || tx.orderId;
       if (!txId) { this.showToast('ID transaksi tidak valid', 'error'); return; }
@@ -12168,8 +12202,7 @@ async loadMoreProducts() {
       const pinOk = await this.requestSupervisorPin('VOID TRANSAKSI', `#${txId} — Rp ${this.formatNumber(tx.tot || tx.total || 0)}`);
       if (!pinOk) { this.showToast('Void dibatalkan', 'notify'); return; }
 
-      const reason = prompt('Alasan void (wajib min 5 karakter):', '');
-      if (!reason || reason.trim().length < 5) { this.showToast('Alasan void wajib diisi', 'error'); return; }
+      if (!reason || reason.trim().length < 5) { this.showToast('Alasan void wajib diisi minimal 5 karakter!', 'error'); return; }
 
       let dateStr;
       if (tx.t) {

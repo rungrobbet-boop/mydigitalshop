@@ -6679,10 +6679,10 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <button 
+                <button
                   type="button"
                   x-show="!tx.voided"
-                  @click="voidTransaksi(tx)"
+                  @click="openVoidModal(tx)"
                   class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition cursor-pointer flex items-center gap-1"
                   title="Void transaksi (butuh PIN supervisor)">
                   <i class="fa-solid fa-ban text-[10px]"></i>
@@ -7929,6 +7929,25 @@
       <span>Laporan</span>
     </button>
   </nav>
+
+<!-- MODAL VOID TRANSAKSI -->
+<div x-show="showVoidModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
+  <div @click.away="showVoidModal = false" class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <h3 class="text-lg font-bold text-stone-800 mb-2">Konfirmasi Void Transaksi</h3>
+    <p class="text-sm text-stone-500 mb-4">Order ID: <span x-text="activeVoidTx?.id" class="font-mono font-bold text-stone-800"></span></p>
+
+    <label class="block text-xs font-bold text-stone-700 mb-1">Alasan Void (Min. 5 Karakter) <span class="text-red-500">*</span></label>
+    <textarea x-model="voidReasonText" rows="3" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500" placeholder="Contoh: Salah input produk / Pelanggan batal beli"></textarea>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button @click="showVoidModal = false" class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200">Batal</button>
+      <button @click="submitVoidReason()" :disabled="isVoidProcessing" class="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+        <span x-show="!isVoidProcessing">Konfirmasi Void</span>
+        <span x-show="isVoidProcessing">Memproses...</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
