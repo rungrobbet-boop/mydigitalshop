@@ -2194,6 +2194,18 @@ async loadMoreProducts() {
   },
 
   /**
+   * Ambil minimal order produk berdasarkan level harga (partai/agen).
+   * Digunakan untuk tampilan info minimal order di keranjang.
+   */
+  getProductMinOrder(productId, level) {
+    const product = this.menuList.find(m => String(m.id) === String(productId));
+    if (!product) return 0;
+    if (level === 'partai') return Number(product.minOrderPartai) || 0;
+    if (level === 'agen') return Number(product.minOrderAgen) || 0;
+    return 0;
+  },
+
+  /**
    * Update kuantitas item secara manual dari input
    */
   updateItemQty(item, val) {
@@ -2279,6 +2291,21 @@ async loadMoreProducts() {
     } catch (err) {
       console.warn('Gagal sinkronkan kategori:', err);
     }
+  },
+
+  /**
+   * Ambil nama kategori yang ramah tampilan dari daftar kategori.
+   * Jika tidak ditemukan, kembalikan nilai category asli atau fallback.
+   */
+  getCategoryName(categoryId) {
+    if (!categoryId) return 'Bahan Bangunan';
+    const cat = (this.categories || []).find(c => String(c.id) === String(categoryId));
+    if (cat) return cat.name;
+    // Fallback: format ID jadi nama yang lebih readable
+    return String(categoryId)
+      .split(/[-_]/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
   },
 
   /**

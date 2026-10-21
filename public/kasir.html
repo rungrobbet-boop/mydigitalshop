@@ -814,7 +814,7 @@
                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <!-- Badge Kategori Mini -->
-                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="menu.category || 'Bahan Bangunan'"></span>
+                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="getCategoryName(menu.category)"></span>
                       
                       <!-- Badge Angka Stok Mini di Pojok Kanan Atas Gambar Menu -->
                       <span 
@@ -942,6 +942,23 @@
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
         <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
+        <!-- Info Harga & Min Order -->
+        <div class="mt-1 text-[11px] font-semibold">
+            <!-- Jika Ecer -->
+            <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
+                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
+            </span>
+            <!-- Jika Partai -->
+            <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
+                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
+                <span x-show="getProductMinOrder(item.id, 'partai') > 0"> (MIN <span x-text="getProductMinOrder(item.id, 'partai')"></span>)</span>
+            </span>
+            <!-- Jika Agen -->
+            <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
+                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
+                <span x-show="getProductMinOrder(item.id, 'agen') > 0"> (MIN <span x-text="getProductMinOrder(item.id, 'agen')"></span>)</span>
+            </span>
+        </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span class="text-[11px] text-stone-500 font-mono" x-text="formatRupiah(item.price)"></span>
           <span class="text-[10px] text-stone-400 font-semibold uppercase tracking-tighter" x-text="item.unit || 'pcs'"></span>
@@ -1958,7 +1975,7 @@
                 <div>
                   <div class="flex items-start justify-between gap-2">
                     <div>
-                      <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider" x-text="menu.category || 'Menu'"></span>
+                      <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider" x-text="getCategoryName(menu.category)"></span>
                       <h4 class="font-extrabold text-sm text-stone-900 mt-0.5 line-clamp-1" x-text="menu.name"></h4>
                       <p class="text-xs font-mono font-bold text-emerald-700 mt-0.5" x-text="formatRupiah(menu.price)"></p>
                       
@@ -2054,7 +2071,7 @@
                 <div>
                   <div class="flex items-start justify-between gap-2">
                     <div>
-                      <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider" x-text="item.category || 'Bahan Baku'"></span>
+                      <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider" x-text="getCategoryName(item.category)"></span>
                       <h4 class="font-extrabold text-sm text-stone-900 mt-0.5" x-text="item.name"></h4>
 
                       <!-- 1E. SKU Badge & 5B. Dual Role Badge -->
@@ -3626,7 +3643,7 @@
                     <div class="space-y-1 max-w-xl">
                       <p class="text-xs font-bold text-stone-800" x-text="item.desc"></p>
                       <div class="text-[11px] text-stone-500 flex items-center gap-2">
-                        <span>Kategori: <span class="capitalize font-semibold text-stone-700" x-text="item.category"></span></span>
+                        <span>Kategori: <span class="capitalize font-semibold text-stone-700" x-text="getCategoryName(item.category)"></span></span>
                         <template x-if="item.lampiran">
                           <span class="inline-flex items-center gap-1 text-blue-600">
                             <i class="fa-solid fa-paperclip"></i>
