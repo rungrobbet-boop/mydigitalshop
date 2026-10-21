@@ -4490,10 +4490,14 @@ async loadMoreProducts() {
 
   filteredMenuList() {
     return (this.menuList || []).filter(item => {
+      // ✅ HANYA tampilkan produk yang isReadyToSell === true di transaction menu
+      // Produk inventory/bahan baku (isReadyToSell false) tidak muncul di sini
+      if (!item.isReadyToSell) return false;
+
       const itemCat = (item.category || '').toLowerCase();
       const selCat = (this.selectedCategory || 'semua').toLowerCase();
-      const matchCategory = selCat === 'semua' || selCat === 'all' || 
-        itemCat === selCat || 
+      const matchCategory = selCat === 'semua' || selCat === 'all' ||
+        itemCat === selCat ||
         itemCat.replace(/[^a-z0-9]/g, '_') === selCat.replace(/[^a-z0-9]/g, '_') ||
         (item.categoryLabel && item.categoryLabel.toLowerCase() === selCat);
 
