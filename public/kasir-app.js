@@ -12171,11 +12171,22 @@ async loadMoreProducts() {
       const reason = prompt('Alasan void (wajib min 5 karakter):', '');
       if (!reason || reason.trim().length < 5) { this.showToast('Alasan void wajib diisi', 'error'); return; }
 
-      const dateStr = this.txHistoryDate || new Date().toISOString().slice(0, 10);
+      let dateStr;
+      if (tx.t) {
+        dateStr = this.getLocalDateStr(new Date(tx.t));
+      } else if (tx.__date) {
+        dateStr = tx.__date;
+      } else {
+        dateStr = this.getLocalDateStr();
+      }
+
+      console.log(`[VOID] Mencoba void txId: ${txId} pada tanggal: ${dateStr}`);
 
       try {
         // 1. PATCH /pos/transactions/{date}/{txId} — tandai voided
-        const patchRes = await fetch(`/pos/transactions/${encodeURIComponent(dateStr)}/${encodeURIComponent(txId)}`, {
+        const patchUrl = `/pos/transactions/${encodeURIComponent(dateStr)}/${encodeURIComponent(txId)}`;
+        console.log(`[VOID] PATCH Request ke: ${patchUrl}`);
+        const patchRes = await fetch(patchUrl, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
