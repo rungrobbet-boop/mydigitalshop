@@ -2196,6 +2196,15 @@ async loadMoreProducts() {
     return level === 'partai' ? minPartai : (level === 'agen' ? minAgen : 0);
   },
 
+  /** Format ID mentah menjadi nama kategori cantik (cat-besi -> Cat Besi) */
+  formatCategoryName(catId) {
+    if (!catId) return 'Tanpa Kategori';
+    return String(catId)
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  },
+
   /** Toggle Qty Lock — saat ON, qty item di keranjang tidak bisa diubah manual */
   async toggleQtyLock() {
     console.log("TOMBOL QTY LOCK DIKLIK. Status saat ini:", this.isQtyLocked);
@@ -2250,12 +2259,9 @@ async loadMoreProducts() {
    */
   getCategoryName(categoryId) {
     if (!categoryId) return 'Tanpa Kategori';
-    // Cari di menuList, jika ada categoryLabel pakai itu
     const prod = this.menuList.find(m => m.categoryId === categoryId || m.category === categoryId);
     if (prod && prod.categoryLabel) return prod.categoryLabel;
-
-    // Jika tidak ada, ubah format ID (misal 'cat-besi' -> 'Cat Besi')
-    return String(categoryId).split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return this.formatCategoryName(categoryId);
   },
 
   /**
@@ -8364,6 +8370,8 @@ async loadMoreProducts() {
               pricePartai: Number(existing.pricePartai) || 0,
               priceAgen: Number(existing.priceAgen) || 0,
               price: Number(existing.priceEcer) || 0,
+              minOrderPartai: Number(existing.minOrderPartai) || 0,
+              minOrderAgen: Number(existing.minOrderAgen) || 0,
               unit: existing.unit || 'pcs',
               stock: Number(existing.stock) || 0,
               minStock: Number(existing.minStock) || 5,
@@ -8411,6 +8419,8 @@ async loadMoreProducts() {
               pricePartai: Number(newItemObj.pricePartai) || 0,
               priceAgen: Number(newItemObj.priceAgen) || 0,
               price: Number(newItemObj.priceEcer) || 0,
+              minOrderPartai: Number(newItemObj.minOrderPartai) || 0,
+              minOrderAgen: Number(newItemObj.minOrderAgen) || 0,
               unit: newItemObj.unit || 'pcs',
               stock: Number(newItemObj.stock) || 0,
               minStock: Number(newItemObj.minStock) || 5,
@@ -8449,12 +8459,14 @@ async loadMoreProducts() {
                 id: docId || ref.id,
                 name: item.name || '',
                 supplier: item.supplier || '',
-                category: item.category || 'Bahan Bangunan',
-                categoryId: item.categoryId || '',
+                categoryId: item.categoryId || item.category || '',
+                category: item.categoryId || item.category || '',
                 price: Number(item.priceEcer) || 0,
                 priceEcer: Number(item.priceEcer) || 0,
                 pricePartai: Number(item.pricePartai) || 0,
                 priceAgen: Number(item.priceAgen) || 0,
+                minOrderPartai: Number(item.minOrderPartai) || 0,
+                minOrderAgen: Number(item.minOrderAgen) || 0,
                 unit: item.unit || 'pcs',
                 stock: Number(item.stock) || 0,
                 minStock: Number(item.minStock) || 5,
