@@ -3108,6 +3108,7 @@ async loadMoreProducts() {
     }
 
     // 1. Format transaksi hemat
+    let fifoResult = { usedBatches: [], totalHpp: 0 };
     const txRecord = {
       t: Date.now(),
       items: mappedItems,
@@ -3122,6 +3123,7 @@ async loadMoreProducts() {
       shf: this.kasirInfo.shiftId,
       orderId: orderData ? (orderData.orderId || orderData.id) : (paymentData.orderId || null),
       reconciled: isReconciliation,
+      usedBatches: fifoResult.usedBatches || [],
       payDetail: {
         cash: paymentData.cashReceived || (this.cashReceived || grandTotal),
         change: paymentData.cashChange || (this.getCashChange() > 0 ? this.getCashChange() : 0),
@@ -3197,120 +3199,29 @@ async loadMoreProducts() {
       } catch (e) {}
     }
 
-    // 4. ✅ Potong stok di RTDB dulu, lalu sinkronkan ke Firestore (stok keluar via penjualan)
+    // 4. ✅ Potong stok via FIFO engine (RTDB stock_batches) — mengganti pemotongan manual RTDB & Firestore
+    fifoResult = { usedBatches: [], totalHpp: 0 };
     try {
-      // 4a. Potong stok di RTDB /inventory/{itemId} — dengan mapping ID Firestore → RTDB key
-      // Karena cart item.id adalah Firestore doc ID (m_inv_inv_...) sedangkan RTDB mungkin
-      // menggunakan custom key (besi-ulir-13mm). Bangun mapping sekali sebelum deduct.
-      if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
-        // Build mapping: RTDB key → Firestore id / name
-        let idToRtdbKey = {};
-        try {
-          const allInvSnap = await this._fbGet(this._fbRef(this._fbDb, 'inventory'));
-          const allInv = allInvSnap.val() || {};
-          for (const [rtdbKey, invData] of Object.entries(allInv || {})) {
-            if (!invData || typeof invData !== 'object') continue;
-            // Map by Firestore id field (invData.id) — jika RTDB key sama dengan Firestore id, mapping 1:1
-            if (invData.id) idToRtdbKey[invData.id] = rtdbKey;
-            // Map by name (lowercase) sebagai fallback
-            if (invData.name) idToRtdbKey[String(invData.name).toLowerCase()] = rtdbKey;
-            // Map by sku
-            if (invData.sku) idToRtdbKey[String(invData.sku).toLowerCase()] = rtdbKey;
-          }
-          console.log('[INV-DEDUCT-RTDB] ID map built:', Object.keys(idToRtdbKey).length, 'entries');
-        } catch (e) {
-          console.warn('[INV-DEDUCT-RTDB] Gagal membangun ID map:', e.message);
-        }
+      // Panggil engine FIFO yang sudah dibuat
+      fifoResult = await this.processFifoSale(normalizedItems);
 
-        for (const item of normalizedItems) {
-          // Tentukan RTDB key: coba langsung item.id, lalu lewat mapping
-          let rtdbKey = item.id;
-          const directSnap = await this._fbGet(this._fbRef(this._fbDb, `inventory/${item.id}`));
-          const directData = directSnap.val() || {};
-          const directEmpty = !directData || Object.keys(directData).length === 0;
-
-          if (directEmpty && idToRtdbKey[item.id]) {
-            rtdbKey = idToRtdbKey[item.id];
-            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey}`);
-          } else if (directEmpty && idToRtdbKey[String(item.id).toLowerCase()]) {
-            rtdbKey = idToRtdbKey[String(item.id).toLowerCase()];
-            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey} (lowercase)`);
-          } else if (directEmpty && item.id && idToRtdbKey[item.id.toLowerCase()]) {
-            rtdbKey = idToRtdbKey[item.id.toLowerCase()];
-            console.log(`[INV-DEDUCT-RTDB] Mapped ${item.id} → RTDB key ${rtdbKey} (name fallback)`);
-          }
-
-          const stockRef = this._fbRef(this._fbDb, `inventory/${rtdbKey}`);
-          const snap = await this._fbGet(stockRef);
-          const current = snap.val() || {};
-          const currentStock = Number(current.stock || current.stok || 0);
-          await this._fbSet(stockRef, {
-            ...current,
-            stock: Math.max(0, currentStock - item.qty),
-            stok: Math.max(0, currentStock - item.qty),
-            updatedAt: Date.now()
-          });
-        }
-        console.log('[INV-DEDUCT-RTDB] ✅ Stok dipotong di RTDB untuk', normalizedItems.length, 'produk');
-      } else {
-        console.warn('[INV-DEDUCT-RTDB] RTDB tidak tersedia, lewati potong stok RTDB');
+      // Opsional: Tetap update /inventory/{id} untuk stok live UI
+      for (const item of normalizedItems) {
+        const invRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
+        const snap = await this._fbGet(invRef);
+        const current = snap.val() || {};
+        const newStock = Math.max(0, (Number(current.stock) || 0) - item.qty);
+        await this._fbSet(invRef, { ...current, stock: newStock, stok: newStock, updatedAt: Date.now() });
       }
-    } catch (e) {
-      console.warn('[INV-DEDUCT-RTDB] ❌ Gagal potong stok RTDB:', e.message);
-    }
 
-    // 4b. Sync stok keluar ke Firestore — baca stok dulu, tidak biarkan negatif (clamp ke 0)
-    try {
-      if (FB_FS) {
-        // Baca stok saat ini dari Firestore sebelum deduct, cegah minus
-        const productDocs = {};
-        for (const item of normalizedItems) {
-          const docSnap = await FB_FS.collection('products').doc(item.id).get();
-          productDocs[item.id] = docSnap.data() || {};
-        }
-
-        const batch = FB_FS.batch();
-        let deductedCount = 0;
-        let skippedCount = 0;
-        for (const item of normalizedItems) {
-          const currentData = productDocs[item.id] || {};
-          const currentStock = Number(currentData.stock || currentData.stok || 0);
-          if (currentStock < item.qty) {
-            console.warn(`[INV-DEDUCT-FS] ⚠️ Stok tidak cukup untuk ${item.id}: sisa ${currentStock}, permintaan ${item.qty} — dilewati (tidak negatif)`);
-            skippedCount++;
-            continue;
-          }
-          const productRef = FB_FS.collection('products').doc(item.id);
-          batch.update(productRef, {
-            stock: firebase.firestore.FieldValue.increment(-item.qty),
-            stok: firebase.firestore.FieldValue.increment(-item.qty)
-          });
-          deductedCount++;
-        }
-        if (deductedCount > 0) {
-          await batch.commit();
-        }
-        console.log(`[INV-DEDUCT-FS] ✅ Stok keluar disinkronkan ke Firestore: ${deductedCount} terpotong, ${skippedCount} dilewati (stok tidak cukup)`);
-      } else {
-        console.warn('[INV-DEDUCT-FS] FB_FS tidak tersedia, stok tidak dapat disinkronkan ke Firestore');
+      // Perbarui txRecord di Firebase dengan usedBatches dari FIFO (untuk void transaksi nanti)
+      if (this._fbDb && this._fbSet && this._fbRef) {
+        const txRef = this._fbRef(this._fbDb, `pos/transactions/${dateStr}/${txId}`);
+        await this._fbSet(txRef, { ...txRecord, usedBatches: fifoResult.usedBatches || [], totalHpp: fifoResult.totalHpp });
       }
-    } catch (e) {
-      console.warn('[INV-DEDUCT-FS] ❌ Gagal sinkronkan stok keluar ke Firestore:', e.message);
-      // Offline queue: simpan untuk dikirim ulang saat internet kembali
-      try {
-        const pendingQueue = JSON.parse(localStorage.getItem('dapur_pending_fs') || '[]');
-        for (const item of normalizedItems) {
-          pendingQueue.push({
-            type: 'firestore_increment',
-            collection: 'products',
-            docId: item.id,
-            field: 'stock',
-            value: -item.qty,
-            createdAt: Date.now()
-          });
-        }
-        localStorage.setItem('dapur_pending_fs', JSON.stringify(pendingQueue));
-      } catch (ee) {}
+    } catch (fifoError) {
+      console.error('[FIFO-TX] Gagal memproses FIFO, fallback ke metode lama:', fifoError);
+      // Fallback: biarkan transaksi tetap berjalan meski FIFO gagal
     }
 
     // Update lokal inventoryList agar UI segera refleksi
@@ -3356,6 +3267,7 @@ async loadMoreProducts() {
         date: dateStr,
         pm: pm,
         total: grandTotal,
+        totalHpp: fifoResult.totalHpp,
         items: normalizedItems
       };
       console.log('[KASIR→ACCT] Sending:', acctBody);
