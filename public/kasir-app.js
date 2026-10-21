@@ -12183,23 +12183,29 @@ async loadMoreProducts() {
       console.log(`[VOID] Mencoba void txId: ${txId} pada tanggal: ${dateStr}`);
 
       try {
-        // 1. PATCH /pos/transactions/{date}/{txId} — tandai voided
-        const patchUrl = `/pos/transactions/${encodeURIComponent(dateStr)}/${encodeURIComponent(txId)}`;
-        console.log(`[VOID] PATCH Request ke: ${patchUrl}`);
-        const patchRes = await fetch(patchUrl, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            voided: true,
-            voidedAt: Date.now(),
-            voidedBy: this.kasirInfo?.username || 'kasir',
-            voidReason: reason.trim()
-          })
-        });
-        const patchJson = await patchRes.json();
-        if (!patchJson.success) throw new Error(patchJson.error || 'PATCH gagal');
+        // 1. Ambil data transaksi asli dari RTDB
+        const txRef = this._fbRef(this._fbDb, `pos/transactions/${dateStr}/${txId}`);
+        const snap = await this._fbGet(txRef);
+        const existingData = snap.val();
 
-        // 2. Reverse FIFO — kembalikan stok ke batch asal (RTDB stock_batches)
+        if (!existingData) {
+          throw new Error(`Transaksi ${txId} tidak ditemukan di RTDB.`);
+        }
+
+        // 2. Gabungkan dengan data void
+        const updatedData = {
+          ...existingData,
+          voided: true,
+          voidedAt: Date.now(),
+          voidedBy: this.kasirInfo?.username || 'kasir',
+          voidReason: reason.trim()
+        };
+
+        // 3. Simpan kembali ke RTDB
+        await this._fbSet(txRef, updatedData);
+        console.log('[VOID] ✅ Transaksi berhasil di-update di RTDB');
+
+        // 2b. Reverse FIFO — kembalikan stok ke batch asal (RTDB stock_batches)
         if (tx.usedBatches && tx.usedBatches.length > 0) {
           const reversed = await this.reverseFifoSale(tx.usedBatches, txId);
           if (reversed) {
@@ -12233,6 +12239,20 @@ async loadMoreProducts() {
             menuIt.stock = Number(menuIt.stock || 0) + itemQty;
             menuIt.stok = menuIt.stock;
           }
+        }
+
+        // 3. Update state lokal
+        tx.voided = true;
+        tx.voidedAt = Date.now();
+        tx.voidReason = reason.trim();
+
+        // 4. Muat ulang inventory agar stok UI langsung benar setelah reverse FIFO
+        try {
+          if (typeof this.loadInventory === 'function') {
+            await this.loadInventory();
+          }
+        } catch (e) {
+          console.warn('[VOID] Gagal memuat ulang inventory:', e);
         }
 
         // 3. Auto-jurnal reversal (counter-entry)
