@@ -2309,17 +2309,18 @@ async loadMoreProducts() {
         console.warn('[SYNC-STOK] Gagal baca RTDB inventory:', e);
       }
 
-      // 2. Gunakan inventoryList lokal sebagai sumber utama (stok terbaru setelah transaksi)
+      // 2. Gunakan RTDB (live) sebagai sumber kebenaran, bukan inventoryList lokal yang mungkin sudah tidak sinkron
       const mergedList = list.map((item) => {
         const rtdbItem = rtdbData[item.id] || {};
         const localStock = Number(item.stock) || 0;
-        const rtdbStock = Number(rtdbItem.stock) || 0;
-        // Prioritaskan stok lokal (inventoryList) karena sudah terupdate setelah transaksi
-        const finalStock = localStock !== 0 ? localStock : rtdbStock;
+        const rtdbStock = Number(rtdbItem.stock || rtdbItem.stok || 0);
+        // RTDB menangani transaksi live → prioritas RTDB. Jika RTDB kosong, baru fallback ke lokal.
+        const finalStock = Math.max(0, Number(rtdbStock) || Number(localStock) || 0);
         console.log(`[SYNC-STOK] Item "${item.name}": lokal=${localStock}, RTDB=${rtdbStock}, final=${finalStock}`);
         return {
           ...item,
           stock: finalStock,
+          stok: finalStock,
           unit: item.unit || rtdbItem.unit || 'pcs',
         };
       });
@@ -2341,7 +2342,7 @@ async loadMoreProducts() {
           priceAgen: Number(item.priceAgen) || 0,
           purchasePrice: Number(item.purchasePrice) || 0,
           unit: item.unit || 'pcs',
-          stock: Number(item.stock) || 0,
+          stock: Math.max(0, Number(item.stock) || 0),
           minStock: Number(item.minStock) || 5,
           imageUrl: item.imageUrl || '',
           syncedAt: now,
@@ -2368,17 +2369,10 @@ async loadMoreProducts() {
    * Mengambil stok porsi tampilan produk di grid transaksi kasir
    */
   getMenuDisplayStock(menuItem) {
-    if (!menuItem) return 0;
-    // 1. Jika ada resep bahan baku terhubung
-    if (this.menuRecipes && this.menuRecipes[menuItem.id]) {
-      return this.getMenuCalculatedStock(menuItem.id);
-    }
-    // 2. Jika menu memiliki properti stok langsung
-    if (typeof menuItem.stok !== 'undefined' && menuItem.stok !== null) return Number(menuItem.stok) || 0;
-    if (typeof menuItem.stock !== 'undefined' && menuItem.stock !== null) return Number(menuItem.stock) || 0;
-
-    // Default 0 jika stok kosong
-    return 0;
+   if (!menuItem) return 0;
+   // Selalu ambil dari inventoryList (sumber kebenaran live) via getMenuCalculatedStock,
+   // bukan dari properti statis menuItem.stok/stock yang tidak ter-update setelah transaksi.
+   return this.getMenuCalculatedStock(menuItem.id);
   },
 
   /**
@@ -3325,6 +3319,13 @@ async loadMoreProducts() {
       if (it) {
         it.stock = Math.max(0, Number(it.stock || 0) - item.qty);
         it.stok = it.stock;
+      }
+
+      // ✅ Potong menuList juga agar UI Katalog (Transaksi Baru) langsung bereaksi
+      const menu = this.menuList.find(m => String(m.id) === String(item.id));
+      if (menu) {
+        menu.stock = Math.max(0, Number(menu.stock || 0) - item.qty);
+        menu.stok = menu.stock;
       }
     }
 
@@ -5846,8 +5847,8 @@ async loadMoreProducts() {
                 name: item.name,
                 sku: item.sku || '',
                 category: item.category || 'Bahan Bangunan',
-                stock: item.stock,
-                stok: item.stok,
+                stock: Math.max(0, item.stock || 0),
+                stok: Math.max(0, item.stok || 0),
                 purchasePrice: item.purchasePrice || 0,
                 priceEcer: item.priceEcer || 0,
                 unit: item.unit || 'pcs',
@@ -5856,15 +5857,9 @@ async loadMoreProducts() {
                 syncedAt: Date.now()
               });
               console.log(`[SYNC-FS→RTDB] Produk baru disalin ke RTDB: ${item.id}`);
-            } else if (Number(item.stock || 0) > Number(rtdbItem.stock || rtdbItem.stok || 0)) {
-              // Stok Firestore lebih besar dari RTDB — sinkronkan stok ke RTDB (import CSV baru)
-              await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
-                ...rtdbItem,
-                stock: item.stock,
-                stok: item.stok,
-                syncedAt: Date.now()
-              });
-              console.log(`[SYNC-FS→RTDB] Stok disinkronkan ke RTDB: ${item.id} (${rtdbItem.stock || rtdbItem.stok} → ${item.stock})`);
+            } else {
+              // RTDB adalah sumber kebenaran untuk stok live. Jangan timpa RTDB dengan stok Firestore (bisa stale).
+              console.log(`[SYNC-FS→RTDB] Lewati overwrite RTDB ${item.id} — RTDB tetap sebagai sumber kebenaran stok live`);
             }
           }
           console.log('[SYNC-FS→RTDB] ✅ Selesai sinkronkan Firestore → RTDB');
@@ -7080,15 +7075,18 @@ async loadMoreProducts() {
    * Aturan: Jika belum ada resep atau salah satu item stok = 0 / kurang -> porsi = 0
    */
     getMenuCalculatedStock(menuId) {
-     const menu = (this.menuList || []).find(m => m.id === menuId);
-     // Cari di inventoryList berdasarkan ID menu atau inventoryId
-     const inv = (this.inventoryList || []).find(i => i.id === menuId || i.id === (menu ? menu.inventoryId : null));
-     if (inv) {
-       const s = (inv.stock !== undefined && inv.stock !== null) ? inv.stock : ((inv.stok !== undefined && inv.stok !== null) ? inv.stok : 0);
-       return Math.max(0, Number(s) || 0);
-     }
-     const m = menu ? ((menu.stock !== undefined && menu.stock !== null) ? menu.stock : ((menu.stok !== undefined && menu.stok !== null) ? menu.stok : 0)) : 0;
-     return Math.max(0, Number(m) || 0);
+    // 1. Cari di inventoryList terlebih dahulu (sumber kebenaran live)
+    const invItem = (this.inventoryList || []).find(i => String(i.id) === String(menuId));
+    if (invItem) {
+       return Math.max(0, Number(invItem.stock !== undefined ? invItem.stock : invItem.stok) || 0);
+    }
+    
+    // 2. Fallback ke menuList jika tidak ada di inventory
+    const menu = (this.menuList || []).find(m => String(m.id) === String(menuId));
+    if (menu) {
+       return Math.max(0, Number(menu.stock !== undefined ? menu.stock : menu.stok) || 0);
+    }
+    return 0;
     },
 
   /**
