@@ -5636,6 +5636,19 @@ async loadMoreProducts() {
               linkedMenuId: null
             }));
             console.log(`[FB-FS] Inventory dimuat dari Firestore 'products': ${this.inventoryList.length} item`);
+            // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
+            // agar tombol "Edit Menu" tidak kembali jadi "Jadi Produk" setelah hard refresh
+            const menuByInvId1 = new Map();
+            for (const m of (this.menuList || [])) {
+              if (m.inventoryId) menuByInvId1.set(m.inventoryId, m);
+            }
+            for (const inv of this.inventoryList) {
+              const menu = menuByInvId1.get(inv.id);
+              if (menu) {
+                inv.isReadyToSell = true;
+                inv.linkedMenuId = menu.id;
+              }
+            }
           }
         } catch (e) {
           console.warn('[FB-FS] Gagal muat inventory dari Firestore products:', e);
@@ -5683,6 +5696,18 @@ async loadMoreProducts() {
             });
             this.inventoryList = invFromProducts;
             console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
+            // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
+            const menuByInvId2 = new Map();
+            for (const m of (this.menuList || [])) {
+              if (m.inventoryId) menuByInvId2.set(m.inventoryId, m);
+            }
+            for (const inv of this.inventoryList) {
+              const menu = menuByInvId2.get(inv.id);
+              if (menu) {
+                inv.isReadyToSell = true;
+                inv.linkedMenuId = menu.id;
+              }
+            }
           }
         } catch (e) {
           console.warn('[FB-FS-INV] Gagal muat inventory dari Firestore products:', e);
