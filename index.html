@@ -9662,8 +9662,8 @@ git push -u origin main</pre>
               return [
                 p.id || '',
                 p.name || '',
-                p.supplier || '',
-                p.category || '',
+                p.supplier || p.supplierName || '-',
+                p.category || p.categoryName || '-',
                 purchasePrice
               ].map(v => {
                 const s = String(v || '');

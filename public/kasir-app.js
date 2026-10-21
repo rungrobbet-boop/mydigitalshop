@@ -7059,67 +7059,16 @@ async loadMoreProducts() {
    * Aturan: Jika belum ada resep atau salah satu item stok = 0 / kurang -> porsi = 0
    */
     getMenuCalculatedStock(menuId) {
-    const recipe = this.menuRecipes[menuId];
-    if (!recipe || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
-      // ✅ FIX BUG-6: Fallback ke dual-role inventory link
-      const menu = (this.menuList || []).find(m => m.id === menuId);
-      if (menu && menu.inventoryId) {
-        const inv = (this.inventoryList || []).find(i => i.id === menu.inventoryId);
-        if (inv) {
-          // ✅ FIX BUG-12: Safe check — jangan pakai `|| 0` karena 0 falsy
-          return Math.max(0, Number(
-            (inv.stock !== undefined && inv.stock !== null) ? inv.stock :
-            ((inv.stok !== undefined && inv.stok !== null) ? inv.stok : 0)
-          ));
-        }
-      }
-      // ✅ FIX BUG-2: Cek stok langsung pada menu item (produk impor CSV tanpa resep)
-      if (menu) {
-        if (typeof menu.stok !== 'undefined' && menu.stok !== null) return Math.max(0, Number(menu.stok) || 0);
-        if (typeof menu.stock !== 'undefined' && menu.stock !== null) return Math.max(0, Number(menu.stock) || 0);
-      }
-      const linkedInv = (this.inventoryList || []).find(i => i.linkedMenuId === menuId);
-      if (linkedInv) {
-        return Math.max(0, Number(
-          (linkedInv.stock !== undefined && linkedInv.stock !== null) ? linkedInv.stock :
-          ((linkedInv.stok !== undefined && linkedInv.stok !== null) ? linkedInv.stok : 0)
-        ));
-      }
-      return 0;
-    }
-
-    let minPossiblePortions = Infinity;
-
-    for (const ing of recipe.ingredients) {
-      const invItem = this.inventoryList.find(i => i.id === ing.itemId);
-      if (!invItem) return 0;
-      if (invItem.isCountable === false) continue;
-
-      // ✅ FIX BUG-12: Safe check
-      const currentStock = Number(
-        (invItem.stock !== undefined && invItem.stock !== null) ? invItem.stock :
-        ((invItem.stok !== undefined && invItem.stok !== null) ? invItem.stok : 0)
-      );
-      const requiredAmount = Number(ing.amount) || 0;
-      if (requiredAmount <= 0) continue;
-
-      let availableAmount = currentStock;
-      const itemUnit = (invItem.unit || '').toLowerCase();
-      const ingUnit = (ing.unit || '').toLowerCase();
-
-      if (itemUnit === 'kg' && ingUnit === 'gram') availableAmount = availableAmount * 1000;
-      else if (itemUnit === 'gram' && ingUnit === 'kg') availableAmount = availableAmount / 1000;
-      else if (itemUnit === 'liter' && ingUnit === 'ml') availableAmount = availableAmount * 1000;
-      else if (itemUnit === 'ml' && ingUnit === 'liter') availableAmount = availableAmount / 1000;
-
-      const portions = Math.floor(availableAmount / requiredAmount);
-      if (portions < minPossiblePortions) {
-        minPossiblePortions = portions;
-      }
-    }
-
-    return minPossiblePortions === Infinity ? 0 : Math.max(0, minPossiblePortions);
-  },
+     const menu = (this.menuList || []).find(m => m.id === menuId);
+     // Cari di inventoryList berdasarkan ID menu atau inventoryId
+     const inv = (this.inventoryList || []).find(i => i.id === menuId || i.id === (menu ? menu.inventoryId : null));
+     if (inv) {
+       const s = (inv.stock !== undefined && inv.stock !== null) ? inv.stock : ((inv.stok !== undefined && inv.stok !== null) ? inv.stok : 0);
+       return Math.max(0, Number(s) || 0);
+     }
+     const m = menu ? ((menu.stock !== undefined && menu.stock !== null) ? menu.stock : ((menu.stok !== undefined && menu.stok !== null) ? menu.stok : 0)) : 0;
+     return Math.max(0, Number(m) || 0);
+    },
 
   /**
    * Dapatkan bahan baku yang menjadi penyebab habisnya stok menu
@@ -8923,6 +8872,10 @@ async loadMoreProducts() {
 },
 
   async submitJournalEntry() {
+    // 🔒 PIN Gate — verifikasi supervisor sebelum buat jurnal manual
+    const pinOk = await this.requestSupervisorPin('INPUT JURNAL', 'Buat Jurnal Manual');
+    if (!pinOk) { this.showToast('Dibatalkan', 'notify'); return false; }
+
     // Validasi balance
     if (!this.isJournalBalanced()) {
       this.showToast('Total Debit dan Kredit harus sama dan > 0', 'error');
