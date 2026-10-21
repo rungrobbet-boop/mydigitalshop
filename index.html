@@ -8987,6 +8987,11 @@ git push -u origin main</pre>
         },
 
         // SINKRONISASI KATEGORI MENU DENGAN KASIR POS (Mencegah Crash & Memastikan Selalu Sinkron)
+        existsCat(idOrName) {
+          if (!idOrName) return false;
+          return this.menuCategories.some(c => c && (c.id === idOrName || c.name === idOrName));
+        },
+
         syncCategoriesWithKasir() {
           try {
             if (!Array.isArray(this.menuCategories) || this.menuCategories.length === 0) {
@@ -9002,7 +9007,6 @@ git push -u origin main</pre>
           } catch (e) {
             console.warn('syncCategoriesWithKasir gagal:', e);
           }
-        },
 
             // 2. Baca kategori dari localStorage 'dapur_menu_categories'
             try {
