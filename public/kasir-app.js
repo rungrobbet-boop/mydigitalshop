@@ -6054,15 +6054,44 @@ async loadMoreProducts() {
       const res = await fetch(`/pos/transactions/${targetDate}`);
       if (res.ok) {
         const json = await res.json();
-        this.txHistoryList = Array.isArray(json.data) ? json.data : (json.transactions ? Object.values(json.transactions) : []);
+        const data = Array.isArray(json.data) ? json.data : (json.transactions ? Object.values(json.transactions) : []);
+        if (data && data.length > 0) {
+          this.txHistoryList = data;
+        } else {
+          // Data kosong — fallback ke RTDB langsung
+          this._loadTxHistoryFromRtdb(targetDate);
+        }
+      } else {
+        // Fetch gagal (CORS/HTML error) — fallback ke RTDB langsung
+        this._loadTxHistoryFromRtdb(targetDate);
+      }
+    } catch (e) {
+      console.warn('Load tx history note:', e);
+      this._loadTxHistoryFromRtdb(targetDate);
+    } finally {
+      this.txHistoryLoading = false;
+    }
+  },
+
+  /** Fallback baca riwayat transaksi langsung dari RTDB /pos/transactions/{date} */
+  async _loadTxHistoryFromRtdb(targetDate) {
+    try {
+      if (FB_DB) {
+        const snapshot = await FB_DB.ref(`pos/transactions/${targetDate}`).once('value');
+        const val = snapshot.val();
+        if (val) {
+          // Ubah object menjadi array, pastikan id transaksi (T1729...) masuk ke objek
+          const list = Object.entries(val).map(([id, data]) => ({ id, ...data }));
+          this.txHistoryList = list.sort((a, b) => (b.t || 0) - (a.t || 0));
+        } else {
+          this.txHistoryList = [];
+        }
       } else {
         this.txHistoryList = [];
       }
     } catch (e) {
-      console.warn('Load tx history note:', e);
+      console.warn('[RTDB TX HISTORY] Gagal baca dari RTDB:', e);
       this.txHistoryList = [];
-    } finally {
-      this.txHistoryLoading = false;
     }
   },
 
@@ -9298,14 +9327,14 @@ async loadMoreProducts() {
   },
 
   /** 🔒 PIN gate untuk submitPembelianBahan */
-  async requestPurchasePin() {
-    const pinOk = await this.requestSupervisorPin('INPUT PEMBELIAN', 'Catat Pembelian Bahan');
-    if (!pinOk) {
-      this.showToast('Pembelian dibatalkan', 'notify');
-      this.playSound('notify');
-    }
-    return pinOk;
-  },
+    async requestPurchasePin() {
+      const pinOk = await this.requestSupervisorPin('INPUT PEMBELIAN', 'Catat Pembelian & Auto Jurnal');
+      if (!pinOk) {
+        this.showToast('Pembelian dibatalkan', 'notify');
+        this.playSound('notify');
+      }
+      return pinOk;
+    },
 
   /**
    * Log semua aksi destructive ke /audit_logs/

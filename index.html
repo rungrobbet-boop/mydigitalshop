@@ -9712,28 +9712,39 @@ git push -u origin main</pre>
               return;
             }
 
-            // Parse header
-            const headerLine = lines[0];
-            const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            const idIdx = headers.indexOf('id');
-            const priceIdx = headers.indexOf('purchasePrice');
+            // Parse header (helper: strip BOM dan quotes)
+                        const cleanCell = (v) => String(v || '').trim().replace(/^"|"$/g, '');
+                        const headerLine = lines[0];
+                        const headers = headerLine.split(',').map(cleanCell);
+                        const idIdx = headers.indexOf('id');
+                        const nameIdx = headers.indexOf('name');
+                        const supplierIdx = headers.indexOf('supplier');
+                        const categoryIdx = headers.indexOf('category');
+                        const priceIdx = headers.indexOf('purchasePrice');
 
-            if (idIdx < 0 || priceIdx < 0) {
-              this.showToast('CSV harus memiliki kolom: id dan purchasePrice', 'error');
-              return;
-            }
+                        if (idIdx < 0 || priceIdx < 0) {
+                          this.showToast('CSV harus memiliki kolom: id dan purchasePrice', 'error');
+                          return;
+                        }
 
-            // Parse baris data
-            const updates = [];
-            for (let i = 1; i < lines.length; i++) {
-              const cols = lines[i].split(',');
-              const id = cols[idIdx] ? cols[idIdx].trim().replace(/^"|"$/g, '') : '';
-              const priceStr = cols[priceIdx] ? cols[priceIdx].trim().replace(/^"|"$/g, '') : '';
-              if (!id) continue;
-              const price = Number(priceStr);
-              if (isNaN(price) || price < 0) continue;
-              updates.push({ id, purchasePrice: price });
-            }
+                        // Parse baris data
+                        const updates = [];
+                        for (let i = 1; i < lines.length; i++) {
+                          const cols = this._parseCsvRow(lines[i]).map(cleanCell);
+                          const id = cols[idIdx] || '';
+                          if (!id) continue;
+                          const priceStr = cols[priceIdx] || '';
+                          const price = Number(priceStr);
+                          if (isNaN(price) || price < 0) continue;
+
+                          updates.push({
+                            id,
+                            purchasePrice: price,
+                            supplier: cols[supplierIdx] || '',
+                            category: cols[categoryIdx] || '',
+                            name: cols[nameIdx] || ''
+                          });
+                        }
 
             if (updates.length === 0) {
               this.showToast('Tidak ada data valid untuk diupload.', 'error');
@@ -9750,47 +9761,58 @@ git push -u origin main</pre>
             }
 
             // 1. Update Firestore satu per satu via updateProduct (merge)
-            let successCount = 0;
-            let failCount = 0;
-            for (const u of updates) {
-              try {
-                await fs.updateProduct(u.id, { purchasePrice: u.purchasePrice, updatedAt: new Date().toISOString() });
-                successCount++;
-              } catch (e) {
-                failCount++;
-                console.error('[UPDATE FIRESTORE] Gagal untuk', u.id, e);
-              }
-            }
+                        let successCount = 0;
+                        let failCount = 0;
+                        for (const u of updates) {
+                          try {
+                            const payload = {
+                              purchasePrice: u.purchasePrice,
+                              supplier: u.supplier || '',
+                              category: u.category || '',
+                              categoryId: u.category || '',
+                              updatedAt: new Date().toISOString()
+                            };
+                            await fs.updateProduct(u.id, payload);
+                            successCount++;
+                          } catch (e) {
+                            failCount++;
+                            console.error('[UPDATE FIRESTORE] Gagal untuk', u.id, e);
+                          }
+                        }
 
-            // 2. Sync ke RTDB /inventory/{id} via FirebaseBridge (if db available)
-            let rtdbSuccess = 0;
-            let rtdbFail = 0;
-            const bridge = window.FirebaseBridge;
-            if (bridge && !bridge.isDemo()) {
-              try {
-                // RTDB access via FirebaseBridge internals — use ref + update from firebase/database
-                // Since db is module-scoped in main.js, we try the global firebase database instance
-                const { getDatabase, ref, update } = await window.__firebaseDbModules || {};
-                if (getDatabase && ref && update) {
-                  const database = getDatabase();
-                  if (database) {
-                    for (const u of updates) {
-                      try {
-                        await update(ref(database, 'inventory/' + u.id), { purchasePrice: u.purchasePrice, updatedAt: new Date().toISOString() });
-                        rtdbSuccess++;
-                      } catch (e) {
-                        rtdbFail++;
-                        console.error('[UPDATE RTDB] Gagal untuk', u.id, e);
-                      }
-                    }
-                  }
-                }
-              } catch (e) {
-                console.warn('[RTDB] Sync ke RTDB dilewati:', e);
-              }
-            } else {
-              this.showToast('RTDB dalam mode demo — hanya Firestore yang diupdate.', 'notify');
-            }
+                        // 2. Sync ke RTDB /inventory/{id} via FirebaseBridge (if db available)
+                        let rtdbSuccess = 0;
+                        let rtdbFail = 0;
+                        const bridge = window.FirebaseBridge;
+                        if (bridge && !bridge.isDemo()) {
+                          try {
+                            const { getDatabase, ref, update } = await window.__firebaseDbModules || {};
+                            if (getDatabase && ref && update) {
+                              const database = getDatabase();
+                              if (database) {
+                                for (const u of updates) {
+                                  try {
+                                    await update(ref(database, 'inventory/' + u.id), {
+                                      purchasePrice: u.purchasePrice,
+                                      supplier: u.supplier || '',
+                                      category: u.category || '',
+                                      categoryId: u.category || '',
+                                      updatedAt: new Date().toISOString()
+                                    });
+                                    rtdbSuccess++;
+                                  } catch (e) {
+                                    rtdbFail++;
+                                    console.error('[UPDATE RTDB] Gagal untuk', u.id, e);
+                                  }
+                                }
+                              }
+                            }
+                          } catch (e) {
+                            console.warn('[RTDB] Sync ke RTDB dilewati:', e);
+                          }
+                        } else {
+                          this.showToast('RTDB dalam mode demo — hanya Firestore yang diupdate.', 'notify');
+                        }
 
             const msg = `Selesai! Firestore: ${successCount} berhasil, ${failCount} gagal${rtdbSuccess > 0 ? '. RTDB: ' + rtdbSuccess + ' berhasil' : ''}`;
             this.showToast(msg, successCount > 0 ? 'success' : 'error');
@@ -9802,6 +9824,39 @@ git push -u origin main</pre>
             console.error('[UPLOAD HARGA BELI] Error:', err);
             this.showToast('Gagal upload: ' + (err.message || err), 'error');
           }
+        },
+
+        /** Helper: parse satu baris CSV dengan dukungan koma di dalam kutip */
+        _parseCsvRow(row) {
+          const fields = [];
+          let field = '';
+          let inQuotes = false;
+          for (let i = 0; i < row.length; i++) {
+            const ch = row[i];
+            if (inQuotes) {
+              if (ch === '"') {
+                if (i + 1 < row.length && row[i + 1] === '"') {
+                  field += '"';
+                  i++;
+                } else {
+                  inQuotes = false;
+                }
+              } else {
+                field += ch;
+              }
+            } else {
+              if (ch === '"') {
+                inQuotes = true;
+              } else if (ch === ',') {
+                fields.push(field);
+                field = '';
+              } else {
+                field += ch;
+              }
+            }
+          }
+          fields.push(field);
+          return fields;
         },
 
         resetSiteConfig() {
