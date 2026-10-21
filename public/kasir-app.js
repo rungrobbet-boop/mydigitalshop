@@ -1624,6 +1624,8 @@ try {
             imageUrl: data.imageUrl || data.image || '',
             sku: data.sku || '',
             barcode: data.barcode || '',
+            isReadyToSell: Boolean(data.isReadyToSell) || false,
+            linkedMenuId: data.linkedMenuId || null,
           });
         }
       });
