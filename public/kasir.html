@@ -6229,16 +6229,23 @@
         <!-- ==== /RTO FASE 4 ==== -->
 
         <div class="flex items-center justify-between pt-2">
-          <button 
-            type="button" 
-            @click="testPrintPrinter()" 
+          <button
+            type="button"
+            @click="testPrintPrinter()"
             class="h-11 px-4 rounded-xl border border-stone-300 hover:bg-stone-100 font-bold text-stone-700 transition cursor-pointer flex items-center gap-2">
             <i class="fa-solid fa-receipt text-emerald-600"></i>
             <span>Tes Cetak Struk</span>
           </button>
-          <button 
-            type="button" 
-            @click="savePrinterConfig()" 
+          <button
+            type="button"
+            @click="processFifoSale([{ id: 'besi-beton-12mm_2', qty: 1 }]).then(r => console.log('FIFO RESULT:', r)).catch(e => console.error('FIFO ERR:', e))"
+            class="h-11 px-4 rounded-xl border border-blue-300 hover:bg-blue-50 font-bold text-blue-700 transition cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-box text-blue-600"></i>
+            <span>Tes FIFO (1x)</span>
+          </button>
+          <button
+            type="button"
+            @click="savePrinterConfig()"
             class="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition cursor-pointer">
             Simpan Pengaturan
           </button>

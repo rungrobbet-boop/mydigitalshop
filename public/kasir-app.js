@@ -5867,6 +5867,11 @@ async loadMoreProducts() {
           console.warn('[SYNC-FS→RTDB] ❌ Gagal sinkronkan ke RTDB:', e.message);
         }
       }
+      
+      // 🎣 FASE 7: Inisialisasi stock_batches (opening balance) setelah loadInventory selesai
+      if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
+        await this.initStockBatches();
+      }
 
     } catch (e) {
       console.warn('loadInventory exception:', e);
@@ -5874,6 +5879,129 @@ async loadMoreProducts() {
       clearTimeout(invTimeout);
       this.loadingStates.inventory = false;
     }
+  },
+
+  /**
+   * FASE 7 FIFO: Buat batch awal (opening balance) di RTDB /stock_batches/{productId}
+   * untuk setiap produk yang belum punya data batch.
+   */
+  async initStockBatches() {
+    try {
+      for (const item of this.inventoryList) {
+        const batchRef = this._fbRef(this._fbDb, `stock_batches/${item.id}`);
+        const snap = await this._fbGet(batchRef);
+        const existing = snap.val();
+        if (existing && Object.keys(existing).length > 0) {
+          console.log(`[FIFO] Batch sudah ada untuk ${item.id}, lewati inisialisasi`);
+          continue;
+        }
+        const batchId = `BATCH-INIT-${item.id}`;
+        const now = Date.now();
+        const qtyIn = Number(item.stock || item.stok || 0);
+        const batchData = {
+          batchId,
+          productId: item.id,
+          supplier: item.supplier || 'Awal (Opening)',
+          dateIn: now,
+          qtyIn,
+          qtyRemaining: qtyIn,
+          costPerUnit: Number(item.purchasePrice || 0),
+          source: 'initial'
+        };
+        await this._fbSet(this._fbRef(this._fbDb, `stock_batches/${item.id}/${batchId}`), batchData);
+        console.log(`[FIFO] Batch awal dibuat ${item.id}: ${batchId} qtyIn=${qtyIn} costPerUnit=${batchData.costPerUnit}`);
+      }
+      console.log('[FIFO] ✅ initStockBatches selesai');
+    } catch (e) {
+      console.warn('[FIFO] ❌ initStockBatches gagal:', e.message);
+    }
+  },
+
+  /**
+   * FASE 7 FIFO: Engine FIFO — potong stok dari batch tertua ke terbaru.
+   * Menerima array items [{ id, qty }]. Tidak menyentuh simpanTransaksi().
+   * Return { usedBatches: [...], totalHpp: number }.
+   */
+  async processFifoSale(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { usedBatches: [], totalHpp: 0 };
+    }
+    if (!this._fbDb || !this._fbRef || !this._fbSet || !this._fbGet) {
+      throw new Error('[FIFO] RTDB belum siap');
+    }
+    const allUsedBatches = [];
+    let totalHpp = 0;
+    for (const item of items) {
+      const productId = String(item.id);
+      const needQty = Number(item.qty) || 0;
+      if (needQty <= 0) continue;
+
+      // Baca semua batch untuk produk ini dari RTDB
+      const batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}`);
+      const snap = await this._fbGet(batchRef);
+      const batchesData = snap.val() || {};
+
+      // Ubah object menjadi array, sortir ascending by dateIn (terlama dulu)
+      const batches = Object.entries(batchesData)
+        .map(([batchId, b]) => ({ batchId, ...b }))
+        .sort((a, b) => Number(a.dateIn || 0) - Number(b.dateIn || 0));
+
+      let remaining = needQty;
+      const usedBatches = [];
+      let itemHpp = 0;
+
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const qtyRemaining = Number(batch.qtyRemaining || 0);
+        if (qtyRemaining <= 0) continue;
+
+        const take = Math.min(remaining, qtyRemaining);
+        const costPerUnit = Number(batch.costPerUnit || 0);
+
+        usedBatches.push({
+          batchId: batch.batchId,
+          qty: take,
+          costPerUnit
+        });
+
+        itemHpp += take * costPerUnit;
+        remaining -= take;
+      }
+
+      if (remaining > 0) {
+        console.warn(`[FIFO] Stok batch tidak cukup untuk ${productId}: butuh ${needQty}, tersedia ${needQty - remaining}`);
+      }
+
+      // Update qtyRemaining di RTDB untuk setiap batch yang terpotong
+      for (const ub of usedBatches) {
+        const bRef = this._fbRef(this._fbDb, `stock_batches/${productId}/${ub.batchId}`);
+        const bSnap = await this._fbGet(bRef);
+        const bData = bSnap.val() || {};
+        const newRemaining = Math.max(0, Number(bData.qtyRemaining || 0) - ub.qty);
+        await this._fbSet(bRef, { ...bData, qtyRemaining: newRemaining });
+      }
+
+      // Catat movement ke RTDB /stock_movements/{productId}/{movementId}
+      const movementId = `MOV-OUT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const movementData = {
+        movementId,
+        productId,
+        type: 'out',
+        dateOut: Date.now(),
+        qtyOut: needQty,
+        totalHpp: itemHpp,
+        usedBatches,
+        source: 'fifo-sale-test'
+      };
+      await this._fbSet(this._fbRef(this._fbDb, `stock_movements/${productId}/${movementId}`), movementData);
+
+      allUsedBatches.push(...usedBatches);
+      totalHpp += itemHpp;
+
+      console.log(`[FIFO] ${productId}: qty=${needQty}, usedBatches=${JSON.stringify(usedBatches)}, totalHpp=${itemHpp}`);
+    }
+
+    return { usedBatches: allUsedBatches, totalHpp };
   },
 
   /**
