@@ -11612,6 +11612,7 @@ async loadMoreProducts() {
       isConsignment: Boolean(inv.supplierId),
       supplierId: inv.supplierId || '',
       supplierName: inv.supplierName || '',
+      isReadyToSell: true,
       active: true
     };
 
@@ -11718,6 +11719,7 @@ async loadMoreProducts() {
         desc: `Produk siap jual dari bahan baku ${inv.name}`,
         image: inv.image || '',
         inventoryId: inv.id,
+        isReadyToSell: true,
         active: true,
         generatedAt: now
       };
