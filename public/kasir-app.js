@@ -8371,7 +8371,7 @@ async loadMoreProducts() {
             itemsForFirestore.push({
               id: existing.id,
               name: existing.name,
-              supplier: existing.supplier || '',
+              supplier: supplier || existing.supplier || '',
               categoryId: existing.categoryId || '',
               category: existing.category,
               priceEcer: Number(existing.priceEcer) || 0,
