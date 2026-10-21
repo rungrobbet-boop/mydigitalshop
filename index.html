@@ -9004,9 +9004,6 @@ git push -u origin main</pre>
               this.menuCategories.unshift({ id: 'all', name: 'Semua Menu', icon: 'fa-border-all' });
             }
             // Kategori hanya dari data yang tersimpan, tidak ada hardcode F&B fallback
-          } catch (e) {
-            console.warn('syncCategoriesWithKasir gagal:', e);
-          }
 
             // 2. Baca kategori dari localStorage 'dapur_menu_categories'
             try {
