@@ -2200,9 +2200,9 @@ async loadMoreProducts() {
   getProductMinOrder(productId, level) {
     const product = this.menuList.find(m => String(m.id) === String(productId));
     if (!product) return 0;
-    if (level === 'partai') return Number(product.minOrderPartai) || 0;
-    if (level === 'agen') return Number(product.minOrderAgen) || 0;
-    return 0;
+    const minPartai = Number(product.minOrderPartai) || 0;
+    const minAgen = Number(product.minOrderAgen) || 0;
+    return level === 'partai' ? minPartai : (level === 'agen' ? minAgen : 0);
   },
 
   /**
@@ -2298,14 +2298,12 @@ async loadMoreProducts() {
    * Jika tidak ditemukan, kembalikan nilai category asli atau fallback.
    */
   getCategoryName(categoryId) {
-    if (!categoryId) return 'Bahan Bangunan';
-    const cat = (this.categories || []).find(c => String(c.id) === String(categoryId));
-    if (cat) return cat.name;
-    // Fallback: format ID jadi nama yang lebih readable
-    return String(categoryId)
-      .split(/[-_]/)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
+    if (!categoryId) return 'Tanpa Kategori';
+    const cat = (this.categories || []).find(c =>
+        String(c.id).toLowerCase() === String(categoryId).toLowerCase() ||
+        String(c.name).toLowerCase() === String(categoryId).toLowerCase()
+    );
+    return cat ? cat.name : categoryId;
   },
 
   /**
