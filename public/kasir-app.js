@@ -214,6 +214,7 @@ window.kasirApp = () => ({
 
   // Cart price level: 'ecer' | 'partai' | 'agen'
   cartPriceLevel: 'ecer',
+  isQtyLocked: false,
   orderNote: '',
   discountAmount: 0,
 
@@ -2205,6 +2206,15 @@ async loadMoreProducts() {
     return level === 'partai' ? minPartai : (level === 'agen' ? minAgen : 0);
   },
 
+  /** Toggle Qty Lock — saat ON, qty item di keranjang tidak bisa diubah manual */
+  toggleQtyLock() {
+    this.isQtyLocked = !this.isQtyLocked;
+    this.showToast(
+      this.isQtyLocked ? 'Qty Lock ON — qty tidak bisa diubah' : 'Qty Lock OFF',
+      this.isQtyLocked ? 'info' : 'success'
+    );
+  },
+
   /**
    * Update kuantitas item secara manual dari input
    */
@@ -2224,65 +2234,27 @@ async loadMoreProducts() {
     this.applyPriceLevelToCart(this.cartPriceLevel);
   },
 
-  /**
-   * Sinkronkan kategori menu dengan toko utama (localStorage dapur_site_config & menuList)
-   */
+  /** Sinkronkan kategori menu hanya dari menuList (Firestore products) — tidak ada localStorage F&B */
   syncCategoriesWithMainStore() {
     try {
       let catList = [
         { id: 'semua', name: 'Semua' }
       ];
 
-      // Baca dari localStorage (dapur_menu_categories yang disimpan oleh admin di Toko Utama)
-      const savedCats = localStorage.getItem('dapur_menu_categories');
-      if (savedCats) {
-        try {
-          const parsed = JSON.parse(savedCats);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            parsed.forEach(c => {
-              if (c) {
-                let cId = (c.id === 'all' || c.id === 'semua') ? 'semua' : (c.id || (c.name ? c.name.toLowerCase().replace(/[^a-z0-9]/g, '_') : ''));
-                let cName = c.name || cId;
-                if (cId === 'all') cId = 'semua';
-                if (cName && !catList.some(item => item.id === cId || item.name.toLowerCase() === cName.toLowerCase())) {
-                  catList.push({ id: cId, name: cName });
-                }
-              }
-            });
-          }
-        } catch (e) {}
-      }
-
-      // Default fallback kategori jika belum ada di localStorage
-      const defaults = [
-        { id: 'semua', name: 'Semua' },
-        { id: 'semen', name: 'Semen' },
-        { id: 'cat', name: 'Cat' },
-        { id: 'besi', name: 'Besi' },
-        { id: 'lainnya', name: 'Lainnya' }
-      ];
-      defaults.forEach(d => {
-        if (!catList.some(item => item.id === d.id || item.name.toLowerCase() === d.name.toLowerCase())) {
-          catList.push(d);
-        }
-      });
-
-      // Kategori tambahan dari menuList jika ada label kategori baru
+      // Kategori hanya dari menuList yang sudah di-load dari Firestore products
       if (Array.isArray(this.menuList)) {
         this.menuList.forEach(m => {
-          if (m) {
-            const cId = m.category === 'all' ? 'semua' : (m.category || '');
-            const cName = m.categoryLabel || m.category || '';
-            if (cName && cName.toLowerCase() !== 'semua' && cName.toLowerCase() !== 'all') {
-              const normId = cId || cName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-              const exists = catList.some(item => 
-                item.id.toLowerCase() === normId.toLowerCase() || 
-                item.name.toLowerCase() === cName.toLowerCase()
-              );
-              if (!exists) {
-                catList.push({ id: normId, name: cName });
-              }
-            }
+          if (!m) return;
+          const cId = m.categoryId || m.category || '';
+          const cName = m.categoryLabel || cId || '';
+          if (!cId || cId.toLowerCase() === 'semua' || cId.toLowerCase() === 'all') return;
+          if (cName.toLowerCase() === 'semua' || cName.toLowerCase() === 'all') return;
+          const exists = catList.some(item =>
+            item.id.toLowerCase() === cId.toLowerCase() ||
+            item.name.toLowerCase() === cName.toLowerCase()
+          );
+          if (!exists) {
+            catList.push({ id: cId, name: cName });
           }
         });
       }
@@ -2303,7 +2275,12 @@ async loadMoreProducts() {
         String(c.id).toLowerCase() === String(categoryId).toLowerCase() ||
         String(c.name).toLowerCase() === String(categoryId).toLowerCase()
     );
-    return cat ? cat.name : categoryId;
+    if (cat) return cat.name;
+    // Fallback: Title Case dari ID (cat-besi -> Cat Besi)
+    return String(categoryId)
+      .split(/[-_]/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
   },
 
   /**
