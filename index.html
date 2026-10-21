@@ -321,19 +321,27 @@
       
       <!-- Brand Logo & Judul -->
       <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
-        <!-- Logo Toko -->
-        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-700 flex items-center justify-center text-white shadow-md overflow-hidden transition-all flex-shrink-0">
-          <i class="fa-solid fa-cubes text-sm sm:text-base"></i>
+        <!-- Logo Toko (dinamis dari admin panel Logo & Judul) -->
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 transition-all"
+             :style="{ backgroundColor: siteConfig.logoBgColor || '#ea580c' }">
+          <template x-if="siteConfig.logoType === 'image' && siteConfig.logoImage">
+            <img :src="siteConfig.logoImage" alt="Logo Toko" class="w-full h-full object-cover" />
+          </template>
+          <template x-if="siteConfig.logoType !== 'image' || !siteConfig.logoImage">
+            <i :class="siteConfig.logoIcon || 'fa-solid fa-utensils'" class="text-sm sm:text-base text-white"></i>
+          </template>
         </div>
 
-        <!-- Judul Wordmark: MyDigitalShop -->
+        <!-- Judul Wordmark (dinamis dari brand words admin panel) -->
         <div class="flex flex-col justify-center min-w-0 overflow-hidden">
           <div class="font-black text-sm sm:text-lg tracking-tight leading-tight uppercase truncate">
-            <span class="text-blue-700">MY</span><span class="text-slate-900">DIGITAL</span><span class="text-amber-600">SHOP</span>
+            <template x-for="(word, wIdx) in getBrandWords()" :key="'nav-word-' + wIdx">
+              <span :style="{ color: word.color }" x-text="word.text"></span>
+              <span x-show="wIdx < getBrandWords().length - 1" class="text-stone-200"> </span>
+            </template>
           </div>
-          <div class="text-[10px] sm:text-xs text-slate-500 font-bold tracking-normal truncate">
-            Pusat Material &amp; Bahan Bangunan
-          </div>
+          <div class="text-[10px] sm:text-xs text-slate-500 font-bold tracking-normal truncate"
+                x-text="siteConfig.navSubtitle || 'Toko Bahan Bangunan & Material'"></div>
         </div>
       </div>
 
@@ -859,7 +867,7 @@
               <!-- Spicy Icon -->
               <div x-show="item.isSpicy" class="absolute bottom-1.5 right-1.5 z-10">
                 <div class="flex items-center gap-1 bg-red-600/90 text-white px-1.5 py-0.5 rounded-lg shadow-sm" title="Menu Pedas">
-                  <i class="fa-solid fa-pepper-hot text-amber-300 text-[9px]"></i>
+                  <i class="fa-solid fa-star text-amber-300 text-[9px]"></i>
                   <span class="text-[8px] font-black uppercase hidden sm:inline">Pedas</span>
                 </div>
               </div>
@@ -927,7 +935,7 @@
               <!-- Spicy Icon -->
               <div x-show="item.isSpicy" class="absolute bottom-1 right-1 z-10">
                 <span class="w-5 h-5 rounded-md bg-red-600 text-white flex items-center justify-center shadow-xs" title="Menu Pedas">
-                  <i class="fa-solid fa-pepper-hot text-amber-300 text-[10px]"></i>
+                  <i class="fa-solid fa-star text-amber-300 text-[10px]"></i>
                 </span>
               </div>
             </div>
@@ -3472,7 +3480,7 @@
                     <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-14 h-14 rounded-xl object-cover border border-stone-300" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
                     <!-- Indikator Spicy di thumbnail admin -->
                     <span x-show="item.isSpicy" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] shadow-sm border border-white" title="Menu Pedas (Spicy)">
-                      <i class="fa-solid fa-pepper-hot text-[9px] text-amber-300"></i>
+                      <i class="fa-solid fa-star text-[9px] text-amber-300"></i>
                     </span>
                   </div>
                   <div class="min-w-0">
@@ -3486,8 +3494,8 @@
                         <span>Kasir POS</span>
                       </span>
                       <!-- Badge Spicy -->
-                      <span x-show="item.isSpicy" class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-red-200" title="Menu Mengandung Cabe (Spicy)">
-                        <i class="fa-solid fa-pepper-hot text-red-500 text-[10px]"></i>
+                      <span x-show="item.isSpicy" class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-red-200" title="Menu Mengandung Bintang (Spicy)">
+                        <i class="fa-solid fa-star text-red-500 text-[10px]"></i>
                         <span>Spicy</span>
                       </span>
                     </div>
@@ -3518,7 +3526,7 @@
                     class="p-2 rounded-lg border text-xs font-bold transition flex items-center gap-1"
                     :class="item.isSpicy ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-white border-stone-300 text-stone-400 hover:text-stone-700'"
                     :title="item.isSpicy ? 'Status: SPICY (Klik untuk nonaktifkan pedas)' : 'Status: TIDAK PEDAS (Klik untuk aktifkan Spicy)'">
-                    <i class="fa-solid fa-pepper-hot" :class="item.isSpicy ? 'text-red-600' : 'text-stone-300'"></i>
+                    <i class="fa-solid fa-star" :class="item.isSpicy ? 'text-red-600' : 'text-stone-300'"></i>
                     <span class="hidden md:inline" x-text="item.isSpicy ? 'Spicy' : 'No'"></span>
                   </button>
 
@@ -5158,8 +5166,8 @@ git push -u origin main</pre>
                     x-text="menuForm.isSpicy ? 'SPICY (PEDAS)' : 'NO (TIDAK PEDAS)'"></span>
                 </div>
                 <p class="text-[11px] text-stone-500 mt-0.5">
-                  <span x-show="menuForm.isSpicy" class="text-red-700 font-semibold">Aktif: Foto menu akan dipasang logo icon cabe cantik di pojok kanan bawah.</span>
-                  <span x-show="!menuForm.isSpicy">Nonaktif: Menu tidak pedas (tanpa logo cabe pada foto menu).</span>
+                  <span x-show="menuForm.isSpicy" class="text-red-700 font-semibold">Aktif: Foto menu akan dipasang logo icon bintang cantik di pojok kanan bawah.</span>
+                            <span x-show="!menuForm.isSpicy">Nonaktif: Menu tidak bintang (tanpa logo bintang pada foto menu).</span>
                 </p>
               </div>
             </div>
@@ -7155,7 +7163,15 @@ git push -u origin main</pre>
         },
 
         get filteredMenuItems() {
-          const visible = this.menuItems.filter(item => item.showOnMain !== false);
+          // Dedup by ID — cegah produk feeder/CSV duplikat muncul berulang di landing page
+          const seenIds = new Set();
+          const deduped = [];
+          for (const item of this.menuItems) {
+            if (item.id && seenIds.has(item.id)) continue;
+            seenIds.add(item.id);
+            deduped.push(item);
+          }
+          const visible = deduped.filter(item => item.showOnMain !== false);
           if (this.selectedCategory === 'all' || this.selectedCategory === 'semua') return visible;
           const selNorm = this.normalizeCatId(this.selectedCategory);
           return visible.filter(item => {
