@@ -5718,7 +5718,45 @@ async loadMoreProducts() {
         }
       }
 
-      // Tidak ada dummy data — inventory kosong sampai ada data dari Firestore / CSV import
+      // ✅ RTDB FALLBACK: jika Firestore tidak tersedia (FB_FS null), muat inventory dari RTDB /inventory
+      if ((!this.inventoryList || this.inventoryList.length === 0) && !FB_FS && this._fbDb && this._fbRef && this._fbGet) {
+        try {
+          const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
+          const rtdbSnap = await this._fbGet(rtdbInvRef);
+          const rtdbData = rtdbSnap.val() || {};
+          const invFromRtdb = [];
+          for (const [id, d] of Object.entries(rtdbData)) {
+            if (!d || !d.name) continue;
+            invFromRtdb.push({
+              id: d.id || id,
+              name: d.name,
+              sku: d.sku || '',
+              category: d.category || 'Bahan Bangunan',
+              categoryId: d.categoryId || d.category || '',
+              priceEcer: Number(d.priceEcer || d.price || 0) || 0,
+              price: Number(d.priceEcer || d.price || 0) || 0,
+              purchasePrice: Number(d.purchasePrice || d.priceEcer || d.price || 0) || 0,
+              pricePartai: Number(d.pricePartai || 0) || 0,
+              priceAgen: Number(d.priceAgen || 0) || 0,
+              unit: d.unit || 'pcs',
+              stock: Math.max(0, Number(d.stock || d.stok || 0) || 0),
+              stok: Math.max(0, Number(d.stock || d.stok || 0) || 0),
+              minStock: Number(d.minStock || 5) || 5,
+              source: 'rtdb-inventory',
+              isCountable: true,
+              isReadyToSell: Boolean(d.isReadyToSell) || false,
+              linkedMenuId: d.linkedMenuId || null,
+              image: d.image || d.imageUrl || '',
+            });
+          }
+          this.inventoryList = invFromRtdb;
+          console.log(`[RTDB-INV] Inventory dimuat dari RTDB '/inventory': ${this.inventoryList.length} item`);
+        } catch (e) {
+          console.warn('[RTDB-INV] Gagal muat inventory dari RTDB:', e);
+        }
+      }
+
+      // Tidak ada dummy data — inventory kosong sampai ada data dari Firestore / RTDB / CSV import
 
       // ✅ SYNC Firestore → RTDB: pastikan setiap produk di Firestore juga ada di RTDB,
       // dan jika stok Firestore lebih besar dari RTDB (indikasi import CSV baru), sinkronkan stoknya ke RTDB.
@@ -8339,7 +8377,35 @@ async loadMoreProducts() {
             await batch.commit();
             console.log("Commit Firestore Sukses!");
             console.log(`[IMPORT-CSV] ✅ ${writeCount} produk ditulis ke Firestore 'products'`);
-            this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore)`, 'success');
+
+            // ✅ Juga tulis ke RTDB /inventory agar fallback tetap bisa baca setelah reload
+            if (itemsForFirestore.length > 0 && this._fbDb && this._fbRef && this._fbSet) {
+              try {
+                for (const item of itemsForFirestore) {
+                  await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
+                    id: item.id,
+                    name: item.name,
+                    supplier: item.supplier || '',
+                    categoryId: item.categoryId || '',
+                    category: item.category,
+                    priceEcer: Number(item.priceEcer) || 0,
+                    pricePartai: Number(item.pricePartai) || 0,
+                    priceAgen: Number(item.priceAgen) || 0,
+                    price: Number(item.priceEcer) || 0,
+                    unit: item.unit || 'pcs',
+                    stock: Number(item.stock) || 0,
+                    minStock: Number(item.minStock) || 5,
+                    imageUrl: item.imageUrl || '',
+                    source: 'csv-import',
+                  });
+                }
+                console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk juga ditulis ke RTDB '/inventory'`);
+              } catch (e) {
+                console.warn('[IMPORT-CSV] Gagal tulis RTDB (non-fatal):', e);
+              }
+            }
+
+            this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore + RTDB)`, 'success');
             this.playSound('success');
           } catch (e) {
             console.error('[IMPORT-CSV] Gagal tulis Firestore products:', e);
@@ -8348,8 +8414,39 @@ async loadMoreProducts() {
             return;
           }
         } else {
-          this.showToast('Firestore belum siap — data hanya disimpan lokal', 'error');
-          this.playSound('error');
+          // ✅ RTDB FALLBACK: tulis ke RTDB /inventory saat Firestore tidak tersedia
+          if (itemsForFirestore.length > 0 && this._fbDb && this._fbRef && this._fbSet) {
+            try {
+              for (const item of itemsForFirestore) {
+                await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
+                  id: item.id,
+                  name: item.name,
+                  supplier: item.supplier || '',
+                  categoryId: item.categoryId || '',
+                  category: item.category,
+                  priceEcer: Number(item.priceEcer) || 0,
+                  pricePartai: Number(item.pricePartai) || 0,
+                  priceAgen: Number(item.priceAgen) || 0,
+                  price: Number(item.priceEcer) || 0,
+                  unit: item.unit || 'pcs',
+                  stock: Number(item.stock) || 0,
+                  minStock: Number(item.minStock) || 5,
+                  imageUrl: item.imageUrl || '',
+                  source: 'csv-import',
+                });
+              }
+              console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk ditulis ke RTDB '/inventory'`);
+              this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, disimpan ke RTDB)`, 'success');
+              this.playSound('success');
+            } catch (e) {
+              console.error('[IMPORT-CSV] Gagal tulis RTDB:', e);
+              this.showToast('Gagal menyimpan ke RTDB: ' + (e && e.message ? e.message : e), 'error');
+              this.playSound('error');
+            }
+          } else {
+            this.showToast('Firestore belum siap — data hanya disimpan lokal', 'error');
+            this.playSound('error');
+          }
         }
       } catch (err) {
         console.error('Import CSV Error:', err);
