@@ -2144,26 +2144,36 @@ async loadMoreProducts() {
   applyPriceLevelToCart(level) {
     this.cartPriceLevel = level;
     this.cart.forEach(item => {
-      const menu = this.menuList.find(m => m.id === item.id);
-      if (!menu) return;
-      if (level === 'ecer') {
-        item.price = menu.priceEcer;
-      } else if (level === 'partai') {
-        if (item.qty >= menu.minOrderPartai) {
-          item.price = menu.pricePartai;
-        } else {
-          item.price = menu.priceEcer;
-        }
-      } else if (level === 'agen') {
-        if (item.qty >= menu.minOrderAgen) {
-          item.price = menu.priceAgen;
-        } else if (item.qty >= menu.minOrderPartai) {
-          item.price = menu.pricePartai;
-        } else {
-          item.price = menu.priceEcer;
-        }
+      const product = this.menuList.find(m => String(m.id) === String(item.id));
+      if (!product) return;
+
+      const qty = Number(item.qty) || 1;
+      const minPartai = Number(product.minOrderPartai) || 0;
+      const minAgen = Number(product.minOrderAgen) || 0;
+
+      const hargaEcer = Number(product.priceEcer) || Number(product.price) || 0;
+      const hargaPartai = Number(product.pricePartai) || hargaEcer;
+      const hargaAgen = Number(product.priceAgen) || hargaPartai;
+
+      let finalPrice = hargaEcer;
+
+      if (level === 'agen' && qty >= minAgen && minAgen > 0) {
+        finalPrice = hargaAgen;
+      } else if (level === 'partai' && qty >= minPartai && minPartai > 0) {
+        finalPrice = hargaPartai;
+      } else if (level === 'agen' && qty >= minPartai && minPartai > 0) {
+        // Jika pilih Agen tapi qty belum nyampe minAgen, tapi nyampe minPartai, kasih harga Partai
+        finalPrice = hargaPartai;
       }
+
+      // Set harga satuan
+      item.price = finalPrice;
+      // Simpan basePrice (opsional, untuk struk jika butuh harga asli)
+      item.basePrice = hargaEcer;
     });
+
+    // Paksa render ulang Alpine.js agar reaktivitas terjamin
+    this.cart = [...this.cart];
   },
 
   /**
