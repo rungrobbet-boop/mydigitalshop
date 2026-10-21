@@ -8344,6 +8344,7 @@ async loadMoreProducts() {
           // DEBUG: Lihat nilai dari CSV
           console.log("CEK CSV ROW:", {
             nama: row.name,
+            supplierDariCSV: row.supplier || '(kosong)',
             imageUrlDariCSV: imageUrl,
             minPartaiDariCSV: row.minOrderPartai,
             minAgenDariCSV: row.minOrderAgen
