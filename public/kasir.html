@@ -821,7 +821,7 @@
                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <!-- Badge Kategori Mini -->
-                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="getCategoryName(menu.category)"></span>
+                      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold capitalize" x-text="getCategoryName(menu.categoryId || menu.category)"></span>
                       
                       <!-- Badge Angka Stok Mini di Pojok Kanan Atas Gambar Menu -->
                       <span 
@@ -841,7 +841,7 @@
                   <!-- Harga & Tombol Tambah / Edit Komponen -->
                   <div class="pt-3 mt-2 border-t border-stone-100 flex items-center justify-between gap-1">
                     <div class="flex flex-col">
-                      <span class="font-extrabold text-xs sm:text-sm text-brand-600 font-mono" x-text="formatRupiah(menu.price)"></span>
+                      <span class="font-extrabold text-xs sm:text-sm text-brand-600 font-mono" x-text="formatRupiah(menu.priceEcer || menu.price)"></span>
                       <button 
                         type="button" 
                         @click.stop="openProductRecipeModal(menu)"
@@ -959,15 +959,13 @@
             <!-- Tampilkan Partai -->
             <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
             <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <!-- Tampilkan MIN hanya jika lebih dari 0 -->
-            <span x-show="getProductMinOrder(item.id, 'partai') > 0" x-text="' (MIN ' + getProductMinOrder(item.id, 'partai') + ')'></span>
+            <span x-text="' (MIN ' + (getProductMinOrder(item.id, 'partai') || 0) + ')'></span>
             </span>
 
             <!-- Tampilkan Agen -->
             <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
             <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <!-- Tampilkan MIN hanya jika lebih dari 0 -->
-            <span x-show="getProductMinOrder(item.id, 'agen') > 0" x-text="' (MIN ' + getProductMinOrder(item.id, 'agen') + ')'></span>
+            <span x-text="' (MIN ' + (getProductMinOrder(item.id, 'agen') || 0) + ')'></span>
             </span>
         </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">

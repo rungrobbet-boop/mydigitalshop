@@ -1612,15 +1612,15 @@ try {
         const data = doc.data();
         if (data) {
           // Fallback field harga agar tidak Rp 0 jika priceEcer kosong
-          const priceEcerVal = Number(data.priceEcer || data.price || 0) || 0;
+          const rawPrice = Number(data.priceEcer) || Number(data.price) || Number(data.pricePartai) || 0;
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
             supplier: data.supplier || '',
             category: data.category || '',
             categoryId: data.categoryId || data.category || '',
-            price: Number(data.price) || 0,
-            priceEcer: Number(data.priceEcer) || Number(data.price) || 0,
+            price: rawPrice,
+            priceEcer: rawPrice,
             pricePartai: Number(data.pricePartai) || 0,
             priceAgen: Number(data.priceAgen) || 0,
             minOrderPartai: Number(data.minOrderPartai) || 0,
@@ -2241,15 +2241,27 @@ async loadMoreProducts() {
 
   /** Sinkronkan kategori menu hanya dari menuList (Firestore products) — tidak ada localStorage F&B */
   syncCategoriesWithMainStore() {
+    const catMapping = {
+      'cat-besi': 'Besi & Baja Ringan',
+      'cat-semen': 'Semen & Pasir',
+      'cat-cat': 'Cat Finishing',
+      'cat-keramik': 'Keramik & Lantai',
+      'cat-atap': 'Atap & Plafon',
+      'cat-plumbing': 'Plumbing & Sanitari'
+    };
+
     let catList = [{ id: 'semua', name: 'Semua' }];
+    
     this.menuList.forEach(m => {
-      if (m.categoryId && !catList.some(c => c.id === m.categoryId)) {
-        catList.push({
-          id: m.categoryId,
-          name: this.getCategoryName(m.categoryId)
+      const rawId = m.categoryId || m.category || '';
+      if (rawId && !catList.some(c => c.id === rawId)) {
+        catList.push({ 
+          id: rawId, 
+          name: catMapping[rawId] || rawId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
         });
       }
     });
+    
     this.categories = catList;
   },
 
