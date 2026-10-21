@@ -6193,9 +6193,9 @@ git push -u origin main</pre>
         menuForm: {
           id: '',
           name: '',
-          category: 'rice_bowl',
+          category: '',
           customCategory: '',
-          categoryLabel: 'Bento & Rice Bowl',
+          categoryLabel: '',
           price: 28000,
           originalPrice: null,
           badge: '',
@@ -8998,34 +8998,11 @@ git push -u origin main</pre>
             if (!this.menuCategories.some(c => c.id === 'all')) {
               this.menuCategories.unshift({ id: 'all', name: 'Semua Menu', icon: 'fa-border-all' });
             }
-
-            const standardCategories = [
-              { id: 'rice_bowl', name: 'Bento & Rice Bowl', icon: 'fa-bowl-rice' },
-              { id: 'chicken', name: 'Ayam & Bento', icon: 'fa-drumstick-bite' },
-              { id: 'mie', name: 'Aneka Mie', icon: 'fa-bowl-food' },
-              { id: 'dimsum', name: 'Dimsum & Snack', icon: 'fa-utensils' },
-              { id: 'cemilan', name: 'Cemilan / Side Dish', icon: 'fa-cookie-bite' },
-              { id: 'ala_carte', name: 'Ala Carte', icon: 'fa-egg' },
-              { id: 'minuman', name: 'Aneka Minuman', icon: 'fa-mug-hot' },
-              { id: 'viral', name: 'Viral & Dessert', icon: 'fa-fire' }
-            ];
-
-            const existsCat = (idOrName) => {
-              if (!idOrName) return true;
-              const target = String(idOrName).toLowerCase().replace(/[^a-z0-9]/g, '');
-              return this.menuCategories.some(c => {
-                const cId = String(c.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                const cNm = String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                return cId === target || cNm === target;
-              });
-            };
-
-            // 1. Tambahkan kategori standar jika belum ada
-            standardCategories.forEach(std => {
-              if (!existsCat(std.id) && !existsCat(std.name)) {
-                this.menuCategories.push(std);
-              }
-            });
+            // Kategori hanya dari data yang tersimpan, tidak ada hardcode F&B fallback
+          } catch (e) {
+            console.warn('syncCategoriesWithKasir gagal:', e);
+          }
+        },
 
             // 2. Baca kategori dari localStorage 'dapur_menu_categories'
             try {
@@ -9127,32 +9104,21 @@ git push -u origin main</pre>
           );
           if (found) return found.name;
 
-          const map = {
-            'rice_bowl': 'Bento & Rice Bowl',
-            'rice-bowl': 'Bento & Rice Bowl',
-            'chicken': 'Ayam & Bento',
-            'mie': 'Aneka Mie',
-            'mie-bakso': 'Aneka Mie & Bakso',
-            'dimsum': 'Dimsum & Snack',
-            'cemilan': 'Cemilan / Side Dish',
-            'ala_carte': 'Ala Carte',
-            'minuman': 'Aneka Minuman',
-            'viral': 'Viral & Dessert'
-          };
-          return map[catId] || catId.charAt(0).toUpperCase() + catId.slice(1).replace(/[-_]/g, ' ');
+          // Tidak ada hardcode fallback — kembalikan ID diformat saja
+          return String(catId).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         },
 
         openAddMenuModal() {
           this.syncCategoriesWithKasir();
           this.editingMenuItemId = null;
-          const defaultCatObj = this.menuCategories.find(c => c.id !== 'all' && c.id !== 'semua') || { id: 'rice_bowl', name: 'Bento & Rice Bowl' };
-          const defaultCat = defaultCatObj.id || 'rice_bowl';
+          const defaultCatObj = this.menuCategories.find(c => c.id !== 'all' && c.id !== 'semua') || { id: '', name: '' };
+          const defaultCat = defaultCatObj.id || '';
           this.menuForm = {
             id: 'm-' + Date.now(),
             name: '',
             category: defaultCat,
             customCategory: '',
-            categoryLabel: defaultCatObj.name || this.getCategoryLabel(defaultCat),
+            categoryLabel: defaultCatObj.name || '',
             price: 25000,
             originalPrice: null,
             badge: '',

@@ -2208,6 +2208,7 @@ async loadMoreProducts() {
 
   /** Toggle Qty Lock — saat ON, qty item di keranjang tidak bisa diubah manual */
   async toggleQtyLock() {
+    console.log("TOMBOL QTY LOCK DIKLIK. Status saat ini:", this.isQtyLocked);
     const pinOk = await this.requestSupervisorPin('QTY LOCK', 'Kunci Qty Keranjang');
     if (!pinOk) {
       this.showToast('Qty Lock dibatalkan — PIN tidak valid', 'error');
@@ -2276,16 +2277,12 @@ async loadMoreProducts() {
    */
   getCategoryName(categoryId) {
     if (!categoryId) return 'Tanpa Kategori';
-    const cat = (this.categories || []).find(c =>
-        String(c.id).toLowerCase() === String(categoryId).toLowerCase() ||
-        String(c.name).toLowerCase() === String(categoryId).toLowerCase()
-    );
-    if (cat) return cat.name;
-    // Fallback: Title Case dari ID (cat-besi -> Cat Besi)
-    return String(categoryId)
-      .split(/[-_]/)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ');
+    // Cari di menuList, jika ada categoryLabel pakai itu
+    const prod = this.menuList.find(m => m.categoryId === categoryId || m.category === categoryId);
+    if (prod && prod.categoryLabel) return prod.categoryLabel;
+
+    // Jika tidak ada, ubah format ID (misal 'cat-besi' -> 'Cat Besi')
+    return String(categoryId).split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   },
 
   /**

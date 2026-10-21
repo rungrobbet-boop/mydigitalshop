@@ -950,21 +950,24 @@
       <div class="min-w-0 flex-1">
         <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
         <!-- Info Harga & Min Order -->
-        <div class="text-[11px] font-semibold mt-1" x-data="{ minPartai: getProductMinOrder(item.id, 'partai'), minAgen: getProductMinOrder(item.id, 'agen') }">
-            <!-- Jika Ecer -->
-            <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
-            </span>
-            <!-- Jika Partai -->
-            <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span> 
-                <span x-show="minPartai > 0" x-text="' (MIN ' + minPartai + ')'"></span>
-            </span>
-            <!-- Jika Agen -->
-            <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit"></span>
-                <span x-show="minAgen > 0" x-text="' (MIN ' + minAgen + ')'"></span>
-            </span>
+        <div class="mt-1">
+            <template x-if="cartPriceLevel === 'ecer'">
+                <span class="text-[11px] font-semibold text-stone-500">
+                    <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+                </span>
+            </template>
+            <template x-if="cartPriceLevel === 'partai'">
+                <span class="text-[11px] font-semibold text-green-600">
+                    <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+                    <span x-text="' (MIN ' + getProductMinOrder(item.id, 'partai') + ')'"></span>
+                </span>
+            </template>
+            <template x-if="cartPriceLevel === 'agen'">
+                <span class="text-[11px] font-semibold text-red-600">
+                    <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+                    <span x-text="' (MIN ' + getProductMinOrder(item.id, 'agen') + ')'"></span>
+                </span>
+            </template>
         </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <template x-if="item.itemDiscountValue > 0">
