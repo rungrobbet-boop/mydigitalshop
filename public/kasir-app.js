@@ -5872,6 +5872,7 @@ async loadMoreProducts() {
 
         usedBatches.push({
           batchId: batch.batchId,
+          productId,
           qty: take,
           costPerUnit
         });
@@ -5914,6 +5915,56 @@ async loadMoreProducts() {
     }
 
     return { usedBatches: allUsedBatches, totalHpp };
+  },
+
+  /**
+   * FASE 7 FIFO: Reverse/void penjualan — kembalikan qty ke batch asal (RTDB stock_batches)
+   * Dipanggil saat transaksi di-void. Menerima usedBatches (dengan productId) dan orderId.
+   */
+  async reverseFifoSale(usedBatches, orderId) {
+    if (!usedBatches || !Array.isArray(usedBatches) || usedBatches.length === 0) {
+      console.log('[FIFO-REVERSE] Tidak ada usedBatches, tidak ada yang dikembalikan');
+      return true;
+    }
+    if (!this._fbDb || !this._fbRef || !this._fbSet || !this._fbGet) {
+      console.warn('[FIFO-REVERSE] RTDB belum siap');
+      return false;
+    }
+    let success = true;
+    for (const batch of usedBatches) {
+      const productId = String(batch.productId);
+      const batchId = String(batch.batchId);
+      const returnQty = Number(batch.qty) || 0;
+      if (returnQty <= 0) continue;
+
+      try {
+        // 1. Kembalikan qtyRemaining ke RTDB /stock_batches/{productId}/{batchId}/qtyRemaining
+        const batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}/${batchId}/qtyRemaining`);
+        const snap = await this._fbGet(batchRef);
+        const currentQty = Number(snap.val()) || 0;
+        await this._fbSet(batchRef, currentQty + returnQty);
+        console.log(`[FIFO-REVERSE] ${productId}/${batchId}: qtyRemaining ${currentQty} → ${currentQty + returnQty}`);
+
+        // 2. Catat ke stock_movements (tipe 'return')
+        const movementId = 'MOV-RET-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        const movRef = this._fbRef(this._fbDb, `stock_movements/${productId}/${movementId}`);
+        await this._fbSet(movRef, {
+          movementId,
+          batchId,
+          productId,
+          type: 'return',
+          qty: returnQty,
+          date: Date.now(),
+          refOrderId: orderId,
+          refType: 'void',
+          costPerUnit: Number(batch.costPerUnit || 0)
+        });
+      } catch (e) {
+        console.error(`[FIFO-REVERSE] Gagal kembalikan batch ${batchId}:`, e.message);
+        success = false;
+      }
+    }
+    return success;
   },
 
   /**
@@ -12137,31 +12188,40 @@ async loadMoreProducts() {
         const patchJson = await patchRes.json();
         if (!patchJson.success) throw new Error(patchJson.error || 'PATCH gagal');
 
-        // 2. Reverse inventory via /inventory/deduct (qty negatif)
-        const items = Array.isArray(tx.items) ? tx.items.map(it => {
-          if (Array.isArray(it)) {
-            return { id: it[0], qty: -Math.abs(Number(it[1]) || 1), price: Number(it[2]) || 0 };
+        // 2. Reverse FIFO — kembalikan stok ke batch asal (RTDB stock_batches)
+        if (tx.usedBatches && tx.usedBatches.length > 0) {
+          const reversed = await this.reverseFifoSale(tx.usedBatches, txId);
+          if (reversed) {
+            console.log(`[VOID] FIFO reverse berhasil untuk ${tx.usedBatches.length} batch`);
+          } else {
+            console.warn(`[VOID] FIFO reverse gagal sebagian untuk ${txId}`);
           }
-          return {
-            id: it.id || it.menuId,
-            qty: -Math.abs(Number(it.qty || it.quantity) || 1),
-            price: Number(it.price) || 0
-          };
-        }) : [];
+        } else {
+          console.log(`[VOID] ${txId} tidak punya usedBatches, lewati reverse FIFO`);
+        }
 
-        if (items.length > 0) {
-          try {
-            await fetch('/inventory/deduct', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                orderId: `VOID-${txId}`,
-                date: dateStr,
-                kasir: this.kasirInfo?.username || 'kasir',
-                items
-              })
-            });
-          } catch (e) { console.warn('[VOID] Inventory reverse note:', e); }
+        // Restore inventoryList & menuList agar UI badge stok langsung bertambah kembali
+        const txItems = Array.isArray(tx.items) ? tx.items : [];
+        for (const rawItem of txItems) {
+          let itemId, itemQty;
+          if (Array.isArray(rawItem)) {
+            itemId = rawItem[0];
+            itemQty = Number(rawItem[1]) || 1;
+          } else {
+            itemId = rawItem.id || rawItem.menuId;
+            itemQty = Number(rawItem.qty || rawItem.quantity || 1);
+          }
+          if (!itemId) continue;
+          const invIt = this.inventoryList.find(i => String(i.id) === String(itemId));
+          if (invIt) {
+            invIt.stock = Number(invIt.stock || 0) + itemQty;
+            invIt.stok = invIt.stock;
+          }
+          const menuIt = this.menuList.find(m => String(m.id) === String(itemId));
+          if (menuIt) {
+            menuIt.stock = Number(menuIt.stock || 0) + itemQty;
+            menuIt.stok = menuIt.stock;
+          }
         }
 
         // 3. Auto-jurnal reversal (counter-entry)
