@@ -435,6 +435,7 @@ window.kasirApp = () => ({
     itemName: ''
   },
   selectedStockItem: { id: '', name: '', category: 'Bahan Baku', stock: 0, minStock: 0, unit: 'unit', purchasePrice: 0, isCountable: true, sku: '', skuSource: 'internal', barcodeFormat: 'CODE128', barcode: '', supplierId: '', supplierName: '', isReadyToSell: false, linkedMenuId: null },
+  isPurchasePriceUnlocked: false,
   newStockValue: 0,
   stockChangeType: 'adjustment', // 'adjustment' | 'purchase' | 'waste' | 'opname'
   stockChangePaymentMethod: 'cash', // 'cash' | 'transfer' | 'payable'
@@ -1623,6 +1624,7 @@ try {
             priceEcer: rawPrice,
             pricePartai: Number(data.pricePartai) || 0,
             priceAgen: Number(data.priceAgen) || 0,
+            purchasePrice: Number(data.purchasePrice || data.hargaBeli || 0) || 0,
             minOrderPartai: Number(data.minOrderPartai) || 0,
             minOrderAgen: Number(data.minOrderAgen) || 0,
             unit: data.unit || 'pcs',
@@ -6152,6 +6154,10 @@ async loadMoreProducts() {
   },
 
     async submitPembelianBahan() {
+    // 🔒 PIN Gate — verifikasi supervisor sebelum input pembelian
+    const pinOk = await this.requestPurchasePin();
+    if (!pinOk) return;
+
     // ✅ FIX BUG-4: Block kalau shift sudah closed
     if (this.shiftStatus === 'closed' || this._shiftClosedHandled) {
       this.showToast('⚠️ Shift sudah ditutup. Tidak bisa input pembelian.', 'error');
@@ -9276,6 +9282,29 @@ async loadMoreProducts() {
       this.logAudit(ctx.actionLabel || 'UNKNOWN', ctx.targetLabel || '-', 'cancelled');
       if (typeof ctx.resolve === 'function') ctx.resolve(false);
     }
+  },
+
+  /** 🔒 Unlock input Harga Beli (purchasePrice) di form edit stok setelah verifikasi PIN supervisor */
+  async requestEditPurchasePrice() {
+    const pinOk = await this.requestSupervisorPin('UBAH HARGA BELI', 'Input Modal Produk');
+    if (pinOk) {
+      this.isPurchasePriceUnlocked = true;
+      this.showToast('🔓 Harga Beli sudah dapat diubah. Simpan untuk menyimpan perubahan.', 'success');
+      this.playSound('success');
+    } else {
+      this.showToast('🔒 Harga Beli masih terkunci.', 'notify');
+      this.playSound('notify');
+    }
+  },
+
+  /** 🔒 PIN gate untuk submitPembelianBahan */
+  async requestPurchasePin() {
+    const pinOk = await this.requestSupervisorPin('INPUT PEMBELIAN', 'Catat Pembelian Bahan');
+    if (!pinOk) {
+      this.showToast('Pembelian dibatalkan', 'notify');
+      this.playSound('notify');
+    }
+    return pinOk;
   },
 
   /**

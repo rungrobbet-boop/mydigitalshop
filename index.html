@@ -4360,6 +4360,62 @@
             </div>
           </div>
 
+          <!-- TEMPLATE HARGA BELI — DOWNLOAD & UPLOAD MASSAL -->
+          <div class="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+            <div class="flex items-center justify-between">
+              <h5 class="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice-dollar text-amber-600"></i>
+                <span>Template Harga Beli (Modal)</span>
+              </h5>
+              <span class="text-[10px] text-stone-400">Sinkronkan harga beli antara Admin dan Kasir</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Download Template -->
+              <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+                <h6 class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-download text-amber-600"></i>
+                  <span>Download Template</span>
+                </h6>
+                <p class="text-[10px] text-stone-600">Ekspor semua produk dari Firestore ke CSV dengan kolom purchasePrice yang sudah terisi.</p>
+                <button
+                  type="button"
+                  @click="downloadTemplateHargaBeli()"
+                  class="w-full min-h-[40px] bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm shadow-amber-600/20 active:scale-95">
+                  <i class="fa-solid fa-download"></i>
+                  <span>Unduh template_harga_beli.csv</span>
+                </button>
+              </div>
+
+              <!-- Upload Template -->
+              <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 space-y-3">
+                <h6 class="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-upload text-emerald-600"></i>
+                  <span>Upload Harga Beli Massal</span>
+                </h6>
+                <p class="text-[10px] text-stone-600">Upload CSV yang sudah diisi purchasePrice. Akan update Firestore dan RTDB /inventory.</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  @change="uploadHargaBeliMassal($event.target)"
+                  class="w-full min-h-[40px] px-3 rounded-xl border-2 border-dashed border-emerald-300 text-emerald-700 font-bold text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div class="p-3 bg-stone-50 rounded-xl border border-stone-200">
+              <p class="text-[10px] text-stone-500 font-medium">
+                <i class="fa-solid fa-info-circle mr-1"></i>
+                <span>Cara pakai:</span>
+                <br class="hidden sm:block"/>
+                1. Klik <b>Download Template</b> untuk menambal semua produk dari Firestore.<br/>
+                2. Buka di Excel, isi kolom <b>purchasePrice</b> (harga beli per unit).<br/>
+                3. <b>DILARANG mengubah kolom ID.</b> Simpan file, lalu <b>Upload Harga Beli Massal</b>.<br/>
+                4. Harga beli akan otomatis tersinkron ke Kasir melalui RTDB /inventory.
+              </p>
+            </div>
+          </div>
+
           <!-- Penjelasan Sinkronisasi Multi-Device & Hosting Cloudflare Pages -->
           <div class="p-5 rounded-2xl border border-stone-200 bg-stone-50 space-y-3">
             <h5 class="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-2">
@@ -9579,6 +9635,172 @@ git push -u origin main</pre>
             this.showToast('Gagal mengimpor: ' + (err.message || err));
           } finally {
             this.isImporting = false;
+          }
+        },
+
+        /** 📥 Download Template Harga Beli — ekspor semua produk dari Firestore ke CSV */
+        async downloadTemplateHargaBeli() {
+          try {
+            this.showToast('Mengambil data produk dari Firestore...', 'notify');
+            const fetchFn = (window.FirestoreService && window.FirestoreService.getProducts)
+              || (window.FirebaseBridge && window.FirebaseBridge.getProducts)
+              || window.getFirestoreProducts;
+
+            if (typeof fetchFn !== 'function') {
+              this.showToast('Fungsi getProducts tidak tersedia.', 'error');
+              return;
+            }
+
+            // Ambil semua data produk (pakai limit besar untuk capture semua)
+            const result = await fetchFn({ limit: 500, orderByField: 'name', orderDirection: 'asc' });
+            const products = result && Array.isArray(result.products) ? result.products : [];
+
+            // Buat CSV
+            const headers = ['id', 'name', 'supplier', 'category', 'purchasePrice'];
+            const rows = products.map(p => {
+              const purchasePrice = p.purchasePrice || p.hargaBeli || '';
+              return [
+                p.id || '',
+                p.name || '',
+                p.supplier || '',
+                p.category || '',
+                purchasePrice
+              ].map(v => {
+                const s = String(v || '');
+                // Escape kolom yang mengandung kommas, kutip, atau baris baru
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                  return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+              }).join(',');
+            });
+
+            const csv = [headers.join(','), ...rows].join('\n');
+
+            // Trigger download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'template_harga_beli.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            this.showToast(`Template Harga Beli terunduh (${products.length} produk). Isi kolom purchasePrice di Excel, lalu Upload Harga Beli Massal.`, 'success');
+          } catch (err) {
+            console.error('[DOWNLOAD TEMPLATE] Error:', err);
+            this.showToast('Gagal download template: ' + (err.message || err), 'error');
+          }
+        },
+
+        /** 📤 Upload Harga Beli Massal — parse CSV, update Firestore + RTDB */
+        async uploadHargaBeliMassal(fileInput) {
+          const file = fileInput && fileInput.files && fileInput.files[0];
+          if (!file) {
+            this.showToast('Pilih file CSV terlebih dahulu.', 'notify');
+            return;
+          }
+
+          try {
+            this.showToast('Memproses file CSV...', 'notify');
+            const text = await file.text();
+            const lines = text.split('\n').filter(l => l.trim() !== '');
+            if (lines.length < 2) {
+              this.showToast('File CSV kosong atau hanya berisi header.', 'error');
+              return;
+            }
+
+            // Parse header
+            const headerLine = lines[0];
+            const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const idIdx = headers.indexOf('id');
+            const priceIdx = headers.indexOf('purchasePrice');
+
+            if (idIdx < 0 || priceIdx < 0) {
+              this.showToast('CSV harus memiliki kolom: id dan purchasePrice', 'error');
+              return;
+            }
+
+            // Parse baris data
+            const updates = [];
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(',');
+              const id = cols[idIdx] ? cols[idIdx].trim().replace(/^"|"$/g, '') : '';
+              const priceStr = cols[priceIdx] ? cols[priceIdx].trim().replace(/^"|"$/g, '') : '';
+              if (!id) continue;
+              const price = Number(priceStr);
+              if (isNaN(price) || price < 0) continue;
+              updates.push({ id, purchasePrice: price });
+            }
+
+            if (updates.length === 0) {
+              this.showToast('Tidak ada data valid untuk diupload.', 'error');
+              return;
+            }
+
+            this.showToast(`Memperbarui ${updates.length} produk ke Firestore & RTDB...`, 'notify');
+
+            // Guard Firebase
+            const fs = window.FirestoreService || window.firebaseService;
+            if (!fs || typeof fs.updateProduct !== 'function') {
+              this.showToast('FirestoreService belum siap. Silakan refresh halaman.', 'error');
+              return;
+            }
+
+            // 1. Update Firestore satu per satu via updateProduct (merge)
+            let successCount = 0;
+            let failCount = 0;
+            for (const u of updates) {
+              try {
+                await fs.updateProduct(u.id, { purchasePrice: u.purchasePrice, updatedAt: new Date().toISOString() });
+                successCount++;
+              } catch (e) {
+                failCount++;
+                console.error('[UPDATE FIRESTORE] Gagal untuk', u.id, e);
+              }
+            }
+
+            // 2. Sync ke RTDB /inventory/{id} via FirebaseBridge (if db available)
+            let rtdbSuccess = 0;
+            let rtdbFail = 0;
+            const bridge = window.FirebaseBridge;
+            if (bridge && !bridge.isDemo()) {
+              try {
+                // RTDB access via FirebaseBridge internals — use ref + update from firebase/database
+                // Since db is module-scoped in main.js, we try the global firebase database instance
+                const { getDatabase, ref, update } = await window.__firebaseDbModules || {};
+                if (getDatabase && ref && update) {
+                  const database = getDatabase();
+                  if (database) {
+                    for (const u of updates) {
+                      try {
+                        await update(ref(database, 'inventory/' + u.id), { purchasePrice: u.purchasePrice, updatedAt: new Date().toISOString() });
+                        rtdbSuccess++;
+                      } catch (e) {
+                        rtdbFail++;
+                        console.error('[UPDATE RTDB] Gagal untuk', u.id, e);
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('[RTDB] Sync ke RTDB dilewati:', e);
+              }
+            } else {
+              this.showToast('RTDB dalam mode demo — hanya Firestore yang diupdate.', 'notify');
+            }
+
+            const msg = `Selesai! Firestore: ${successCount} berhasil, ${failCount} gagal${rtdbSuccess > 0 ? '. RTDB: ' + rtdbSuccess + ' berhasil' : ''}`;
+            this.showToast(msg, successCount > 0 ? 'success' : 'error');
+
+            // Refresh import state
+            fileInput.value = '';
+
+          } catch (err) {
+            console.error('[UPLOAD HARGA BELI] Error:', err);
+            this.showToast('Gagal upload: ' + (err.message || err), 'error');
           }
         },
 
