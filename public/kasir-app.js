@@ -1612,29 +1612,19 @@ try {
         const data = doc.data();
         if (data) {
           // Fallback field harga agar tidak Rp 0 jika priceEcer kosong
-          const priceEcerVal = Number(
-            data.priceEcer !== undefined && data.priceEcer !== null
-              ? data.priceEcer
-              : data.hargaEcer !== undefined && data.hargaEcer !== null
-                ? data.hargaEcer
-                : data.harga !== undefined && data.harga !== null
-                  ? data.harga
-                  : data.price
-          ) || 0;
-          const pricePartaiVal = Number(data.pricePartai || 0) || 0;
-          const priceAgenVal = Number(data.priceAgen || 0) || 0;
+          const priceEcerVal = Number(data.priceEcer || data.price || 0) || 0;
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
             supplier: data.supplier || '',
             category: data.category || '',
             categoryId: data.categoryId || data.category || '',
-            price: priceEcerVal,
-            priceEcer: priceEcerVal,
-            pricePartai: pricePartaiVal,
-            priceAgen: priceAgenVal,
-            minOrderPartai: Number(data.minOrderPartai || 0) || 0,
-            minOrderAgen: Number(data.minOrderAgen || 0) || 0,
+            price: Number(data.price) || 0,
+            priceEcer: Number(data.priceEcer) || Number(data.price) || 0,
+            pricePartai: Number(data.pricePartai) || 0,
+            priceAgen: Number(data.priceAgen) || 0,
+            minOrderPartai: Number(data.minOrderPartai) || 0,
+            minOrderAgen: Number(data.minOrderAgen) || 0,
             unit: data.unit || 'pcs',
             stock: Number(data.stock) || 0,
             stok: Number(data.stok) || Number(data.stock) || 0,
@@ -2242,33 +2232,16 @@ async loadMoreProducts() {
 
   /** Sinkronkan kategori menu hanya dari menuList (Firestore products) — tidak ada localStorage F&B */
   syncCategoriesWithMainStore() {
-    try {
-      let catList = [
-        { id: 'semua', name: 'Semua' }
-      ];
-
-      // Kategori hanya dari menuList yang sudah di-load dari Firestore products
-      if (Array.isArray(this.menuList)) {
-        this.menuList.forEach(m => {
-          if (!m) return;
-          const cId = m.categoryId || m.category || '';
-          const cName = m.categoryLabel || cId || '';
-          if (!cId || cId.toLowerCase() === 'semua' || cId.toLowerCase() === 'all') return;
-          if (cName.toLowerCase() === 'semua' || cName.toLowerCase() === 'all') return;
-          const exists = catList.some(item =>
-            item.id.toLowerCase() === cId.toLowerCase() ||
-            item.name.toLowerCase() === cName.toLowerCase()
-          );
-          if (!exists) {
-            catList.push({ id: cId, name: cName });
-          }
+    let catList = [{ id: 'semua', name: 'Semua' }];
+    this.menuList.forEach(m => {
+      if (m.categoryId && !catList.some(c => c.id === m.categoryId)) {
+        catList.push({
+          id: m.categoryId,
+          name: this.getCategoryName(m.categoryId)
         });
       }
-
-      this.categories = catList;
-    } catch (err) {
-      console.warn('Gagal sinkronkan kategori:', err);
-    }
+    });
+    this.categories = catList;
   },
 
   /**
@@ -2784,6 +2757,25 @@ async loadMoreProducts() {
    * Buka Modal Pilihan Metode Pembayaran
    */
   openPaymentModal() {
+    if (this.isQtyLocked && (this.cartPriceLevel === 'partai' || this.cartPriceLevel === 'agen')) {
+      let isInvalid = false;
+      for (const item of this.cart) {
+        const product = this.menuList.find(m => String(m.id) === String(item.id));
+        if (!product) continue;
+
+        const minQty = this.cartPriceLevel === 'partai' ? Number(product.minOrderPartai) : Number(product.minOrderAgen);
+
+        console.log(`[QTY-LOCK] ${product.name} | Qty: ${item.qty} | Min: ${minQty}`);
+
+        if (minQty > 0 && Number(item.qty) < minQty) {
+          isInvalid = true;
+          this.playSound('error');
+          this.showToast(`🚫 DITOLAK: Minimal ${this.cartPriceLevel} untuk "${product.name}" adalah ${minQty} ${product.unit}.`, 'error');
+          return; // Hentikan eksekusi
+        }
+      }
+    }
+
     if (this.cart.length === 0) {
       this.showToast('Keranjang masih kosong!', 'error');
       this.playSound('error');
