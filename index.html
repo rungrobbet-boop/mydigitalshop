@@ -5930,32 +5930,28 @@ git push -u origin main</pre>
 
         const trimmed = fields.map(f => f.trim());
 
-        // Validasi jumlah kolom - harus tepat 11 sesuai skema
-        // name, supplier, categoryId, priceEcer, pricePartai, priceAgen,
-        // minOrderPartai, minOrderAgen, unit, stock, imageUrl
-        if (trimmed.length !== 11) {
-          const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 11), dilewati';
-          errors.push(msg);
-          console.log('[parseCSV] ' + msg, trimmed);
-          continue;
-        }
-
+        // Validasi minimal — hanya butuh name dan category (categoryId atau category)
         const row = {};
         header.forEach((h, idx) => {
           row[h] = trimmed[idx] || '';
         });
 
-        if (!row.name || !row.categoryId) {
-          const msg = "Baris " + (r + 1) + ": 'name' dan 'categoryId' wajib diisi, dilewati";
+        if (!row.name || (!row.categoryId && !row.category)) {
+          const msg = "Baris " + (r + 1) + ": 'name' dan 'category' (atau 'categoryId') wajib diisi, dilewati";
           errors.push(msg);
           console.log('[parseCSV] ' + msg, row);
           continue;
         }
 
+        // Normalisasi categoryId dari categoryId atau category
+        const categoryId = row.categoryId || row.category || '';
+
         parsed.push({
           name: String(row.name || ''),
           supplier: String(row.supplier || ''),
-          categoryId: String(row.categoryId || ''),
+          category: String(categoryId),
+          categoryId: String(categoryId),
+          categoryLabel: String(row.categoryLabel || categoryId),
           priceEcer: Number(row.priceEcer) || 0,
           pricePartai: Number(row.pricePartai) || 0,
           priceAgen: Number(row.priceAgen) || 0,
@@ -5963,7 +5959,9 @@ git push -u origin main</pre>
           minOrderAgen: Number(row.minOrderAgen) || 0,
           unit: String(row.unit || 'pcs'),
           stock: Number(row.stock) || 0,
-          imageUrl: String(row.imageUrl || ''),
+          // imageUrl untuk tampilan landing page, image untuk form edit admin — keduanya diisi
+          imageUrl: String(row.imageUrl || row.image || ''),
+          image: String(row.image || row.imageUrl || ''),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -7208,6 +7206,10 @@ git push -u origin main</pre>
               } else {
                 this.menuItems = result.products;
               }
+              this.menuItems.forEach(p => {
+                if (p.imageUrl && !p.image) p.image = p.imageUrl;
+                if (p.image && !p.imageUrl) p.imageUrl = p.image;
+              });
               this.firestoreLastDoc = result.lastDoc;
               this.firestoreHasMore = Boolean(result.hasMore);
               console.log('[Firestore] Produk termuat:', this.menuItems.length, 'hasMore:', this.firestoreHasMore);
@@ -7218,6 +7220,10 @@ git push -u origin main</pre>
               if (seedList.length > 0) {
                 const filtered = catFilter ? seedList.filter(p => p.categoryId === catFilter) : seedList;
                 this.menuItems = filtered.slice(0, 8);
+                this.menuItems.forEach(p => {
+                  if (p.imageUrl && !p.image) p.image = p.imageUrl;
+                  if (p.image && !p.imageUrl) p.imageUrl = p.image;
+                });
                 this.firestoreHasMore = filtered.length > 8;
                 console.log('[Firestore] Seed lokal diaktifkan:', this.menuItems.length, 'items');
               }
@@ -7227,6 +7233,10 @@ git push -u origin main</pre>
                 || (window.FirebaseBridge && window.FirebaseBridge.PRODUCTS_SEED) || [];
               const filtered = catFilter ? seedList.filter(p => p.categoryId === catFilter) : seedList;
               this.menuItems = filtered;
+              this.menuItems.forEach(p => {
+                if (p.imageUrl && !p.image) p.image = p.imageUrl;
+                if (p.image && !p.imageUrl) p.imageUrl = p.image;
+              });
               this.firestoreHasMore = false;
             }
           } catch (err) {
