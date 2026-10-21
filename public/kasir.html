@@ -959,13 +959,13 @@
             <!-- Tampilkan Partai -->
             <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
             <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <span x-text="' (MIN ' + (getProductMinOrder(item.id, 'partai') || 0) + ')'></span>
+            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'partai')"></span>
             </span>
 
             <!-- Tampilkan Agen -->
             <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
             <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <span x-text="' (MIN ' + (getProductMinOrder(item.id, 'agen') || 0) + ')'></span>
+            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'agen')"></span>
             </span>
         </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">

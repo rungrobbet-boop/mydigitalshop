@@ -1636,6 +1636,8 @@ try {
             isReadyToSell: Boolean(data.isReadyToSell) || false,
             linkedMenuId: data.linkedMenuId || null,
           });
+          // DEBUG: Lihat nilai yang dibaca dari Firestore
+          console.log(`[FB-FS] Produk: ${data.name} | Min Partai: ${data.minOrderPartai} | Min Agen: ${data.minOrderAgen}`);
         }
       });
       // Simpan dokumen terakhir sebagai cursor untuk halaman berikutnya
@@ -8354,6 +8356,13 @@ async loadMoreProducts() {
           const imageUrl = row.imageUrl || '';
           const minStock = 5;
           const itemId = `inv_${slugify(itemName)}_${idx}`;
+
+          // DEBUG: Lihat nilai dari CSV
+          console.log("CEK CSV ROW:", {
+            nama: row.name,
+            minPartaiDariCSV: row.minOrderPartai,
+            minAgenDariCSV: row.minOrderAgen
+          });
 
           // Cari item yang ada (cocokkan via nama)
           let existing = this.inventoryList.find(inv => (inv.name && inv.name.toLowerCase() === itemName.toLowerCase()));
