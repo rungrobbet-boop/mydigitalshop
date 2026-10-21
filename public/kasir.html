@@ -770,9 +770,9 @@
                 <label class="flex items-center gap-2 cursor-pointer bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 ml-2">
                   <input type="checkbox" 
                          :checked="isQtyLocked" 
-                         @change="toggleQtyLock()" 
+                         @click.prevent="toggleQtyLock()" 
                          class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 border-stone-300">
-                  <span class="text-xs font-bold text-stone-700">Qty Lock</span>
+                    <span class="text-xs font-bold text-stone-700">Qty<br>Lock</span>
                 </label>
               </div>
             </div>
@@ -2138,7 +2138,7 @@
                   <div class="pt-3 grid grid-cols-2 gap-2 text-xs">
                     <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-100">
                       <span class="text-stone-400 block text-[10px]">Stok Tersedia</span>
-                      <span class="font-black text-sm font-mono text-stone-900" x-text="item.stock + ' ' + item.unit"></span>
+                      <span class="font-black text-sm font-mono text-stone-900" x-text="Math.max(0, item.stock || 0) + ' ' + item.unit"></span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-100">
                       <span class="text-stone-400 block text-[10px]">Harga Beli / Modal</span>
@@ -2294,7 +2294,7 @@
                     class="w-full min-h-[42px] px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="">-- Pilih Bahan Baku --</option>
                     <template x-for="item in inventoryList" :key="item.id">
-                      <option :value="item.id" x-text="item.name + ' (Stok saat ini: ' + (item.stock || item.stok || 0) + ' ' + (item.unit || 'unit') + ')'"></option>
+                      <option :value="item.id" x-text="item.name + ' (Stok saat ini: ' + Math.max(0, item.stock || item.stok || 0) + ' ' + (item.unit || 'unit') + ')'"></option>
                     </template>
                   </select>
                 </div>
