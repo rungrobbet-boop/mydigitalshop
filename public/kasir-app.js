@@ -846,7 +846,7 @@ try {
 
     // 5. Sinkronkan Kategori dengan Toko Utama & Muat Menu dari Firebase
     this.syncCategoriesWithMainStore();
-    this.listenMenuItems();
+    await this.listenMenuItems();
     this.loadPrinterConfig();
     this.loadAccountingSummary(true);
     await this.loadCOAListFromBackend();
@@ -854,7 +854,7 @@ try {
     await this.loadJournalListForKasir();
 
     // 6. Muat Inventory Realtime, Resep Bahan Baku & Riwayat Shift (BAGIAN 3)
-    this.loadInventory();
+    await this.loadInventory();
     this.loadSuppliers();
     this.loadMenuRecipes();
     this.loadInventoryLogs();
@@ -5632,8 +5632,9 @@ async loadMoreProducts() {
               minStock: Number(p.minStock) || 5,
               source: 'firestore-products',
               isCountable: true,
-              isReadyToSell: false,
-              linkedMenuId: null
+              isReadyToSell: Boolean(p.isReadyToSell) || false,
+              linkedMenuId: p.linkedMenuId || null,
+              image: p.image || '',
             }));
             console.log(`[FB-FS] Inventory dimuat dari Firestore 'products': ${this.inventoryList.length} item`);
             // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
@@ -5691,7 +5692,10 @@ async loadMoreProducts() {
                 minOrderPartai: Number(d.minOrderPartai || 0) || 0,
                 minOrderAgen: Number(d.minOrderAgen || 0) || 0,
                 isCountable: true,
-                source: 'firestore-products'
+                source: 'firestore-products',
+                isReadyToSell: Boolean(d.isReadyToSell) || false,
+                linkedMenuId: d.linkedMenuId || null,
+                image: d.image || '',
               });
             });
             this.inventoryList = invFromProducts;
@@ -11551,6 +11555,16 @@ async loadMoreProducts() {
         } catch(e){}
       }
 
+      // ✅ SYNC ke Firestore products: simpan isReadyToSell & linkedMenuId
+      if (FB_FS) {
+        try {
+          await FB_FS.collection('products').doc(inv.id).update({
+            isReadyToSell: true,
+            linkedMenuId: newMenuId
+          });
+        } catch(e){}
+      }
+
       this.generateMenuModal = false;
       this.playSound('success');
       this.showToast(`Menu "${newMenuItem.name}" berhasil dipublish ke POS!`, 'success');
@@ -11640,6 +11654,17 @@ async loadMoreProducts() {
             await this._fbSet(this._fbRef(this._fbDb, `menu_items/${menuId}`), newMenuItem);
             await this._fbSet(this._fbRef(this._fbDb, `inventory/${inv.id}`), inv);
             await this._fbSet(this._fbRef(this._fbDb, `menu_recipes/${menuId}`), recipe);
+          } catch (e) { /* non-fatal */ }
+        }
+
+        // ✅ SYNC ke Firestore products: simpan isReadyToSell & linkedMenuId
+        // agar loadInventory() bisa membaca setelah hard refresh
+        if (FB_FS) {
+          try {
+            await FB_FS.collection('products').doc(inv.id).update({
+              isReadyToSell: true,
+              linkedMenuId: menuId
+            });
           } catch (e) { /* non-fatal */ }
         }
 
