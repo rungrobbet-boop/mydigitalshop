@@ -784,7 +784,7 @@
                 <span x-show="item.sku" class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase bg-slate-900/80 text-white rounded backdrop-blur-sm" x-text="item.sku"></span>
               </div>
               <div class="absolute bottom-2 left-2">
-                <span class="px-2 py-0.5 text-[10px] font-bold bg-slate-900/80 text-white rounded backdrop-blur-sm" x-text="item.categoryName || item.categoryLabel || this.formatCategoryName(item.category)"></span>
+                <span class="px-2 py-0.5 text-[10px] font-bold bg-slate-900/80 text-white rounded backdrop-blur-sm" x-text="item.categoryName || item.categoryLabel || this.getCategoryLabel(item.category)"></span>
               </div>
 
               <!-- Stock Indicator -->
