@@ -138,7 +138,7 @@ function parseCSV(text) {
       minOrderAgen: Number(row.minOrderAgen) || 0,
       unit: String(row.unit || 'pcs'),
       stock: Number(row.stock) || 0,
-      imageUrl: String(row.imageUrl || ''),
+      imageUrl: String(row.imageUrl || '').trim(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -1637,7 +1637,7 @@ try {
             linkedMenuId: data.linkedMenuId || null,
           });
           // DEBUG: Lihat nilai yang dibaca dari Firestore
-          console.log(`[FB-FS] Produk: ${data.name} | Min Partai: ${data.minOrderPartai} | Min Agen: ${data.minOrderAgen}`);
+          console.log(`[FB-FS] Produk: ${data.name} | Gambar: ${data.imageUrl} | Min Partai: ${data.minOrderPartai} | Min Agen: ${data.minOrderAgen}`);
         }
       });
       // Simpan dokumen terakhir sebagai cursor untuk halaman berikutnya
@@ -8494,6 +8494,7 @@ async loadMoreProducts() {
                 stock: Number(item.stock) || 0,
                 minStock: Number(item.minStock) || 5,
                 imageUrl: item.imageUrl || '',
+                image: item.imageUrl || '',
                 source: 'csv-import',
               }, { merge: true });
               writeCount++;
@@ -8524,6 +8525,7 @@ async loadMoreProducts() {
                     stock: Number(item.stock) || 0,
                     minStock: Number(item.minStock) || 5,
                     imageUrl: item.imageUrl || '',
+                    image: item.imageUrl || '',
                     source: 'csv-import',
                   });
                 }
@@ -8560,8 +8562,9 @@ async loadMoreProducts() {
                   stock: Number(item.stock) || 0,
                   minStock: Number(item.minStock) || 5,
                   imageUrl: item.imageUrl || '',
+                  image: item.imageUrl || '',
                   source: 'csv-import',
-                });
+                  });
               }
               console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk ditulis ke RTDB '/inventory'`);
               this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, disimpan ke RTDB)`, 'success');
