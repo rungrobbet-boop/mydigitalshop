@@ -949,7 +949,7 @@
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
         <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
-        // Info Harga & Min Order
+        <!-- Info Harga & Min Order -->
         <div class="text-[11px] font-semibold mt-1">
             <!-- Tampilkan Ecer -->
             <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
@@ -958,14 +958,16 @@
 
             <!-- Tampilkan Partai -->
             <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-                <span x-text="' (MIN ' + getProductMinOrder(item.id, 'partai') + ')'"></span>
+            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+            <!-- Tampilkan MIN hanya jika lebih dari 0 -->
+            <span x-show="getProductMinOrder(item.id, 'partai') > 0" x-text="' (MIN ' + getProductMinOrder(item.id, 'partai') + ')'></span>
             </span>
 
             <!-- Tampilkan Agen -->
             <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-                <span x-text="' (MIN ' + getProductMinOrder(item.id, 'agen') + ')'"></span>
+            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+            <!-- Tampilkan MIN hanya jika lebih dari 0 -->
+            <span x-show="getProductMinOrder(item.id, 'agen') > 0" x-text="' (MIN ' + getProductMinOrder(item.id, 'agen') + ')'></span>
             </span>
         </div>
         <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
