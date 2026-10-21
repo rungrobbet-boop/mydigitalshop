@@ -1625,7 +1625,9 @@ try {
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
+            supplier: data.supplier || '',
             category: data.category || '',
+            categoryId: data.categoryId || data.category || '',
             price: priceEcerVal,
             priceEcer: priceEcerVal,
             pricePartai: pricePartaiVal,
@@ -2159,7 +2161,7 @@ async loadMoreProducts() {
 
       if (level === 'agen' && qty >= minAgen && minAgen > 0) {
         finalPrice = hargaAgen;
-      } else if (level === 'partai' && qty >= minPartai && minPartai > 0) {
+      } else if (level === 'partai' && (minPartai === 0 || qty >= minPartai)) {
         finalPrice = hargaPartai;
       } else if (level === 'agen' && qty >= minPartai && minPartai > 0) {
         // Jika pilih Agen tapi qty belum nyampe minAgen, tapi nyampe minPartai, kasih harga Partai
@@ -5650,14 +5652,17 @@ async loadMoreProducts() {
             this.inventoryList = products.map(p => ({
               id: p.id,
               name: p.name,
+              supplier: p.supplier || '',
               sku: p.sku || '',
               category: p.category || 'Bahan Bangunan',
-              categoryId: p.category || '',
+              categoryId: p.categoryId || p.category || '',
               priceEcer: Number(p.priceEcer) || 0,
               price: Number(p.priceEcer) || 0,
               purchasePrice: Number(p.price) || 0,
               pricePartai: Number(p.pricePartai) || 0,
               priceAgen: Number(p.priceAgen) || 0,
+              minOrderPartai: Number(p.minOrderPartai) || 0,
+              minOrderAgen: Number(p.minOrderAgen) || 0,
               unit: p.unit || 'pcs',
               stock: Math.max(0, Number(p.stock) || 0),
               stok: Math.max(0, Number(p.stock) || 0),
@@ -6828,8 +6833,8 @@ async loadMoreProducts() {
       priceEcer: Number(menu.priceEcer || menu.price) || 0,
       pricePartai: Number(menu.pricePartai) || 0,
       priceAgen: Number(menu.priceAgen) || 0,
-      minOrderPartai: Number(menu.minOrderPartai) || 1,
-      minOrderAgen: Number(menu.minOrderAgen) || 1,
+      minOrderPartai: Number(menu.minOrderPartai ?? 0),
+      minOrderAgen: Number(menu.minOrderAgen ?? 0),
       unit: menu.unit || 'pcs',
       stock: Number(menu.stock || menu.stok) || 0,
       imageUrl: menu.imageUrl || menu.image || '',
