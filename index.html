@@ -9735,11 +9735,27 @@ git push -u origin main</pre>
                           const price = Number(priceStr);
                           if (isNaN(price) || price < 0) continue;
 
+                          // Ambil supplier dari berbagai nama kolom yang mungkin
+                          let rawSupplier = '';
+                          if (supplierIdx >= 0) rawSupplier = cols[supplierIdx] || '';
+                          if (!rawSupplier && headers.includes('supplierName')) {
+                            rawSupplier = cols[headers.indexOf('supplierName')] || '';
+                          }
+                          if (!rawSupplier && headers.includes('namaSupplier')) {
+                            rawSupplier = cols[headers.indexOf('namaSupplier')] || '';
+                          }
+                          // '-' dari template lama tidak dianggap sebagai supplier valid
+                          const supplier = rawSupplier === '-' ? '' : rawSupplier;
+
+                          let rawCategory = '';
+                          if (categoryIdx >= 0) rawCategory = cols[categoryIdx] || '';
+                          const category = rawCategory === '-' ? '' : rawCategory;
+
                           updates.push({
                             id,
                             purchasePrice: price,
-                            supplier: cols[supplierIdx] || '',
-                            category: cols[categoryIdx] || '',
+                            supplier,
+                            category,
                             name: cols[nameIdx] || ''
                           });
                         }
@@ -9763,6 +9779,7 @@ git push -u origin main</pre>
                         let failCount = 0;
                         for (const u of updates) {
                           try {
+                            console.log('[UPDATE FIRESTORE] payload untuk', u.id, JSON.stringify({ purchasePrice: u.purchasePrice, supplier: u.supplier, category: u.category, categoryId: u.category }));
                             const payload = {
                               purchasePrice: u.purchasePrice,
                               supplier: u.supplier || '',
