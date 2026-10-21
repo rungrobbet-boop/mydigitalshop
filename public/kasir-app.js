@@ -12238,59 +12238,72 @@ async loadMoreProducts() {
         await this._fbSet(txRef, updatedData);
         console.log('[VOID] ✅ Transaksi berhasil di-update di RTDB');
 
-        // 2b. Reverse FIFO — kembalikan stok ke batch asal (RTDB stock_batches)
-        if (tx.usedBatches && tx.usedBatches.length > 0) {
-          const reversed = await this.reverseFifoSale(tx.usedBatches, txId);
-          if (reversed) {
-            console.log(`[VOID] FIFO reverse berhasil untuk ${tx.usedBatches.length} batch`);
-          } else {
-            console.warn(`[VOID] FIFO reverse gagal sebagian untuk ${txId}`);
-          }
-        } else {
-          console.log(`[VOID] ${txId} tidak punya usedBatches, lewati reverse FIFO`);
-        }
-
-        // Restore inventoryList & menuList agar UI badge stok langsung bertambah kembali
-        const txItems = Array.isArray(tx.items) ? tx.items : [];
+        // 4. Kembalikan stok ke RTDB /inventory dan Firestore products (JANGAN manipulasi state lokal)
+        const txItems = Array.isArray(existingData.items) ? existingData.items : [];
         for (const rawItem of txItems) {
-          let itemId, itemQty;
-          if (Array.isArray(rawItem)) {
-            itemId = rawItem[0];
-            itemQty = Number(rawItem[1]) || 1;
-          } else {
-            itemId = rawItem.id || rawItem.menuId;
-            itemQty = Number(rawItem.qty || rawItem.quantity || 1);
-          }
+          const itemId = Array.isArray(rawItem) ? rawItem[0] : (rawItem.id || rawItem.menuId);
+          const qty = Array.isArray(rawItem) ? Number(rawItem[1]) : Number(rawItem.qty || rawItem.quantity || 1);
           if (!itemId) continue;
-          const invIt = this.inventoryList.find(i => String(i.id) === String(itemId));
-          if (invIt) {
-            invIt.stock = Number(invIt.stock || 0) + itemQty;
-            invIt.stok = invIt.stock;
+
+          // A. Kembalikan ke RTDB /inventory/{id}
+          if (this._fbDb && this._fbRef && this._fbSet) {
+            try {
+              const invRef = this._fbRef(this._fbDb, `inventory/${itemId}`);
+              const invSnap = await this._fbGet(invRef);
+              const current = invSnap.val() || {};
+              const currentStock = Number(current.stock !== undefined ? current.stock : current.stok) || 0;
+              await this._fbSet(invRef, {
+                ...current,
+                stock: currentStock + qty,
+                stok: currentStock + qty,
+                updatedAt: Date.now()
+              });
+              console.log(`[VOID] Stok RTDB ${itemId} dikembalikan +${qty}`);
+            } catch (invErr) {
+              console.warn(`[VOID] Gagal update RTDB inventory/${itemId}:`, invErr);
+            }
           }
-          const menuIt = this.menuList.find(m => String(m.id) === String(itemId));
-          if (menuIt) {
-            menuIt.stock = Number(menuIt.stock || 0) + itemQty;
-            menuIt.stok = menuIt.stock;
+
+          // B. Kembalikan ke Firestore products/{id}
+          if (typeof FB_FS !== 'undefined' && FB_FS) {
+            try {
+              const productRef = FB_FS.collection('products').doc(itemId);
+              await productRef.update({
+                stock: firebase.firestore.FieldValue.increment(qty),
+                stok: firebase.firestore.FieldValue.increment(qty)
+              });
+              console.log(`[VOID] Stok Firestore ${itemId} dikembalikan +${qty}`);
+            } catch (fsErr) {
+              console.warn(`[VOID] Gagal update Firestore products/${itemId}:`, fsErr);
+            }
           }
         }
 
-        // 3. Update state lokal
+        // 5. Jalankan reverseFifoSale (bungkus try-catch agar tidak menghentikan proses)
+        if (existingData.usedBatches && existingData.usedBatches.length > 0) {
+          try {
+            await this.reverseFifoSale(existingData.usedBatches, txId);
+            console.log(`[VOID] FIFO reverse berhasil untuk ${existingData.usedBatches.length} batch`);
+          } catch (fifoErr) {
+            console.warn('[VOID] Reverse FIFO gagal, tapi stok utama aman:', fifoErr);
+          }
+        }
+
+        // 6. Update state lokal
         tx.voided = true;
         tx.voidedAt = Date.now();
         tx.voidReason = reason.trim();
+        this.txHistoryList = [...this.txHistoryList];
 
-        // 4. Muat ulang inventory agar stok UI langsung benar setelah reverse FIFO
-        try {
-          if (typeof this.loadInventory === 'function') {
-            await this.loadInventory();
-          }
-        } catch (e) {
-          console.warn('[VOID] Gagal memuat ulang inventory:', e);
-        }
+        this.showToast(`✅ Transaksi ${txId} di-void. Stok & jurnal dipulihkan.`, 'success');
+        this.playSound('success');
 
-        // 3. Auto-jurnal reversal (counter-entry)
-        const total = Number(tx.tot || tx.total || 0);
-        const pm = String(tx.pm || tx.paymentMethod || 'cash').toLowerCase();
+        // 7. Tarik ulang data inventory (bukan manipulasi lokal)
+        try { await this.loadInventory(); } catch (e) {}
+
+        // 8. Auto-jurnal reversal (counter-entry)
+        const total = Number(existingData.tot || existingData.total || 0);
+        const pm = String(existingData.pm || existingData.paymentMethod || 'cash').toLowerCase();
         const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
         const kasAcc = isBank ? '1002' : '1001';
         const bulan = dateStr.slice(0, 7);
@@ -12315,18 +12328,6 @@ async loadMoreProducts() {
             });
           } catch (e) { console.warn('[VOID] Journal reversal note:', e); }
         }
-
-        // 4. Update state lokal
-        tx.voided = true;
-        tx.voidedAt = Date.now();
-        tx.voidReason = reason.trim();
-        this.txHistoryList = [...this.txHistoryList];
-
-        this.showToast(`✅ Transaksi ${txId} di-void. Stok & jurnal dipulihkan.`, 'success');
-        this.playSound('success');
-
-        // 5. Refresh inventory list
-        try { await this.loadInventory(); } catch (e) {}
       } catch (err) {
         console.error('[VOID] Error:', err);
         this.showToast(`Gagal void: ${err.message}`, 'error');
