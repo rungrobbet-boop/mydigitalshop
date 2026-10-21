@@ -131,8 +131,8 @@
           return { success: 0, failed: docs.length, total: docs.length, errors: ['Firestore belum terhubung'] };
         }
         const result = { success: 0, failed: 0, total: docs.length, errors: [] };
-        const numericFields = ['priceEcer', 'pricePartai', 'priceAgen', 'minOrderPartai', 'minOrderAgen', 'stock'];
-        const stringFields = ['name', 'categoryId', 'unit', 'image', 'imageUrl', 'id'];
+        const numericFields = ['priceEcer', 'pricePartai', 'priceAgen', 'minOrderPartai', 'minOrderAgen', 'stock', 'purchasePrice'];
+        const stringFields = ['name', 'categoryId', 'category', 'categoryLabel', 'categoryName', 'unit', 'image', 'imageUrl', 'id', 'supplier'];
         // Batasi batch agar tidak melebihi 500 operasi per commit (batas Firestore)
         const effectiveMax = Math.min(maxPerBatch, 500);
         for (let i = 0; i < docs.length; i += effectiveMax) {
@@ -162,6 +162,9 @@
                   cleanData[k] = typeof v === 'number' ? 0 : '';
                 }
               }
+              // Sinkronisasi image & imageUrl: jika salah satu kosong, isi dari yang lain
+              if (cleanData.imageUrl && !cleanData.image) cleanData.image = cleanData.imageUrl;
+              if (cleanData.image && !cleanData.imageUrl) cleanData.imageUrl = cleanData.image;
               // Gunakan docData.id jika tersedia dan non-kosong (untuk overwrite/re-import),
               // pakai doc(collectionRef, docId) yang benar untuk Firestore v9 modular SDK.
               // Hindari doc(db, collectionName) tanpa doc ID (1 segment = error "even number of segments").

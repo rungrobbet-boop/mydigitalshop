@@ -9525,11 +9525,18 @@ git push -u origin main</pre>
             // Buat otomatis kategori yang belum ada sebelum menyimpan produk ke Firestore
             await this.ensureCategoriesFromCsv(this.csvImportParsed);
 
-            const toImport = this.csvImportParsed.slice(0, 500).map((item) => ({
-              ...item,
-              // ID unik berdasarkan slug nama produk → re-import menimpa, tidak duplikat
-              id: item.id || slugify(item.name) || ('prod_' + Date.now()),
-            }));
+            const toImport = this.csvImportParsed.slice(0, 500).map((item) => {
+              // Lookup categoryName dari menuCategories berdasarkan categoryId
+              const cat = (this.menuCategories || []).find(c =>
+                c.id === item.categoryId || c.name === item.categoryId || c.id === item.category || c.name === item.category
+              );
+              return {
+                ...item,
+                categoryName: cat ? cat.name : (item.categoryLabel || item.categoryId || ''),
+                // ID unik berdasarkan slug nama produk → re-import menimpa, tidak duplikat
+                id: item.id || slugify(item.name) || ('prod_' + Date.now()),
+              };
+            });
             const remainder = this.csvImportParsed.length - toImport.length;
             if (remainder > 0) {
               this.showToast('Melebihi batas 500 produk per eksekusi. ' + remainder + ' produk akan diimpor pada eksekusi berikutnya.');
@@ -9551,6 +9558,53 @@ git push -u origin main</pre>
             }
             if (result.success > 0) {
               this.csvImportParsed = this.csvImportParsed.slice(result.success);
+            }
+
+            // 2. Sync ke RTDB /inventory/{id} agar produk muncul di Kasir
+            let rtdbSuccess = 0;
+            let rtdbFail = 0;
+            const bridge = window.FirebaseBridge;
+            if (bridge && !bridge.isDemo()) {
+              try {
+                const { getDatabase, ref, set } = await window.__firebaseDbModules || {};
+                if (getDatabase && ref && set) {
+                  const database = getDatabase();
+                  if (database) {
+                    for (const item of toImport) {
+                      try {
+                        await set(ref(database, 'inventory/' + item.id), {
+                          id: item.id,
+                          name: item.name || '',
+                          category: item.category || item.categoryId || '',
+                          categoryId: item.categoryId || item.category || '',
+                          categoryName: item.categoryName || item.categoryLabel || item.categoryId || '',
+                          supplier: item.supplier || '',
+                          purchasePrice: item.purchasePrice || 0,
+                          priceEcer: item.priceEcer || 0,
+                          pricePartai: item.pricePartai || 0,
+                          priceAgen: item.priceAgen || 0,
+                          minOrderPartai: item.minOrderPartai || 0,
+                          minOrderAgen: item.minOrderAgen || 0,
+                          unit: item.unit || 'pcs',
+                          stock: item.stock || 0,
+                          stok: item.stock || 0,
+                          image: item.image || item.imageUrl || '',
+                          imageUrl: item.imageUrl || item.image || '',
+                          isReadyToSell: item.isReadyToSell !== false,
+                          linkedMenuId: item.linkedMenuId || ('m_inv_' + item.id),
+                          updatedAt: item.updatedAt || new Date().toISOString()
+                        });
+                        rtdbSuccess++;
+                      } catch (e) {
+                        rtdbFail++;
+                        console.error('[IMPORT RTDB] Gagal untuk', item.id, e);
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('[RTDB] Sync import ke RTDB dilewati:', e);
+              }
             }
 
             // Segarkan katalog dan filter kategori di landing page otomatis tanpa perlu refresh
