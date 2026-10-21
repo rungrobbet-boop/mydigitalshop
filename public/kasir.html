@@ -815,7 +815,8 @@
                     <!-- Foto Produk Aspect-Square -->
                     <div class="aspect-square rounded-xl overflow-hidden bg-stone-100 relative">
                       <img
-                        x-bind:src="menu.imageUrl && menu.imageUrl !== '' ? menu.imageUrl : 'https://placehold.co/400x400?text=No+Image'"
+                        x-init="console.log('CEK UI GAMBAR:', menu.name, menu.imageUrl)"
+                        x-bind:src="(menu.imageUrl && menu.imageUrl.trim() !== '') ? menu.imageUrl : 'https://placehold.co/400x400?text=No+Image'"
                         @error="$event.target.src='https://placehold.co/400x400?text=No+Image'"
                         :alt="menu.name"
                         loading="lazy"

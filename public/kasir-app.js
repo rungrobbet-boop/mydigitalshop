@@ -8545,6 +8545,10 @@ async loadMoreProducts() {
 
             this.showToast(`Import Berhasil! (${updatedCount} diperbarui, ${addedCount} baru, ${writeCount} ditulis ke Firestore + RTDB)`, 'success');
             this.playSound('success');
+
+            // ✅ Refresh state setelah import agar UI langsung terupdate
+            await this.listenMenuItems();
+
           } catch (e) {
             console.error('[IMPORT-CSV] Gagal tulis Firestore products:', e);
             this.showToast('Gagal menyimpan ke Firestore: ' + (e && e.message ? e.message : e), 'error');
