@@ -30,7 +30,7 @@ export async function onRequest(context) {
   }
 
   const dbUrl = env.FIREBASE_DATABASE_URL
-    || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+    || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
 
   // Path segments: contoh params.path = ["inv1", "log_1790369"]
   const pathSegments = Array.isArray(params.path) ? params.path : [];

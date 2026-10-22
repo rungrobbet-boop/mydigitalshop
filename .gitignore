@@ -22,3 +22,19 @@ bun.lockb
 
 # Firebase config generated from env vars saat build (JANGAN di-commit)
 public/firebase-config.js
+
+# Scratch & Log files (jangan di-commit)
+*.txt
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg
+
+# Keep actual product images in public/assets
+!public/assets/**/*.png
+!public/assets/**/*.jpg
+!public/assets/**/*.jpeg
+!public/assets/**/*.webp
+!public/assets/**/*.svg

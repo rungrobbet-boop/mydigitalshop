@@ -24,7 +24,7 @@ export async function onRequest(context) {
     });
   }
 
-  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
   const apiKey = env.FIREBASE_API_KEY || "";
   const authParam = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : "";
 

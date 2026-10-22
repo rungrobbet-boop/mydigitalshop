@@ -2012,7 +2012,7 @@ async loadMoreProducts() {
   async _fetchShift(shiftId) {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
       const res = await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts/${encodeURIComponent(shiftId)}.json`);
       if (!res.ok) return null;
       return await res.json();
@@ -2023,7 +2023,7 @@ async loadMoreProducts() {
   async _fetchAllShifts() {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
       const res = await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts.json`);
       if (!res.ok) return {};
       return await res.json() || {};
@@ -2034,7 +2034,7 @@ async loadMoreProducts() {
   async _patchShift(shiftId, payload) {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
       await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts/${encodeURIComponent(shiftId)}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -4653,7 +4653,7 @@ async loadMoreProducts() {
     try {
       // Ambil data langsung dari Firebase
       const dbUrl = (this._fbConfig && this._fbConfig.databaseURL) 
-        || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
       const res = await fetch(`${dbUrl.replace(/\/$/, '')}/orders.json`);
       if (res.ok) {
         const data = await res.json();
@@ -6942,7 +6942,7 @@ async loadMoreProducts() {
     if (!recipesData) {
       try {
         const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-          || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+          || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
         const res = await fetch(`${fbUrl.replace(/\/$/, '')}/recipes.json`);
         if (res.ok) {
           recipesData = await res.json();
@@ -9519,7 +9519,7 @@ async loadMoreProducts() {
       //    Jadi fetch .json TANPA bulan, dapat semua akun
       // ============================================================
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
       const saldoMap = {};
 
       try {
@@ -11012,7 +11012,7 @@ async loadMoreProducts() {
       const paidSupplierIds = new Set();
       try {
         const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-          || 'https://digitalculinary-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+          || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
         const stlRes = await fetch(`${fbUrl.replace(/\/$/, '')}/settlements.json`);
         if (stlRes.ok) {
           const stls = await stlRes.json() || {};
