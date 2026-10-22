@@ -4275,8 +4275,8 @@
             </div>
           </div>
 
-          <!-- Formulir Kredensial Firebase Manual -->
-          <div class="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+          <!-- Formulir Kredensial Firebase Manual (disembunyikan dari publik — hanya Super Admin via PIN) -->
+          <div class="p-5 rounded-2xl border border-stone-200 bg-white space-y-4" x-show="superAdminMode">
             <div class="flex items-center justify-between">
               <h5 class="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-key text-brand-600"></i>
@@ -6224,6 +6224,9 @@ git push -u origin main</pre>
           message: '',
           success: null
         },
+
+        // 🔒 Super Admin Mode (unci form kredensial Firebase manual; default OFF untuk publik)
+        superAdminMode: false,
 
         // Form Tambah / Edit Menu
         isMenuFormOpen: false,

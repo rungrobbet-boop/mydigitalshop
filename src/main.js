@@ -35,7 +35,9 @@
     // 3. firebase-config.js (hasil generate build)
     // 4. Demo Mode (hanya jika semua kosong)
     function resolveFirebaseConfig() {
-      // 1. Environment Variables (Vite)
+      // Landing Page (publik) HANYA membaca Environment Variables (Vite import.meta.env).
+      // TIDAK ada localStorage, TIDAK ada firebase-config.js fallback, TIDAK ada Demo Mode.
+      // Kredensial harus di-set di Cloudflare Pages Environment Variables (VITE_FIREBASE_*).
       const envApiKey = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) || "";
       const envDatabaseURL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_DATABASE_URL) || "";
       const envProjectId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_PROJECT_ID) || "";
@@ -44,45 +46,33 @@
       const envMessagingSenderId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) || "";
       const envAppId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_APP_ID) || "";
 
-      if (envApiKey && !envApiKey.includes("YOUR_FIREBASE") && envDatabaseURL) {
-        return {
-          apiKey: envApiKey,
-          authDomain: envAuthDomain || (envProjectId ? `${envProjectId}.firebaseapp.com` : ""),
-          databaseURL: envDatabaseURL,
-          projectId: envProjectId,
-          storageBucket: envStorageBucket || (envProjectId ? `${envProjectId}.appspot.com` : ""),
-          messagingSenderId: envMessagingSenderId,
-          appId: envAppId,
-        };
+      if (!envApiKey || envApiKey.includes("YOUR_FIREBASE") || !envDatabaseURL) {
+        console.error("[LANDING] VITE_FIREBASE_API_KEY / VITE_FIREBASE_DATABASE_URL belum di-set di Environment Variables. Landing Page publik TIDAK akan menyambung ke Firebase dan TIDAK akan menggunakan localStorage / Demo Mode.");
+        return { apiKey: "", databaseURL: "" };
       }
 
-      // 2. LocalStorage (custom config yang diinput admin di panel)
-      try {
-        const storedCustom = localStorage.getItem("dapur_firebase_custom_config");
-        if (storedCustom) {
-          const parsed = JSON.parse(storedCustom);
-          if (parsed && parsed.apiKey && !parsed.apiKey.includes("YOUR_FIREBASE") && parsed.databaseURL) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.warn("Error reading stored custom firebase config:", e);
-      }
-
-      // 3. firebase-config.js (auto-generated dari build)
-      const cfg = { ...firebaseConfig };
-      if (cfg.databaseURL && cfg.apiKey && !cfg.apiKey.includes("YOUR_FIREBASE")) {
-        return cfg;
-      }
-
-      // 4. Demo Mode — semua kosong
-      return { apiKey: "", databaseURL: "" };
+      return {
+        apiKey: envApiKey,
+        authDomain: envAuthDomain || (envProjectId ? `${envProjectId}.firebaseapp.com` : ""),
+        databaseURL: envDatabaseURL,
+        projectId: envProjectId,
+        storageBucket: envStorageBucket || (envProjectId ? `${envProjectId}.appspot.com` : ""),
+        messagingSenderId: envMessagingSenderId,
+        appId: envAppId,
+      };
     }
 
     let activeFirebaseConfig = resolveFirebaseConfig();
 
     function initFirebaseModule(cfg) {
       try {
+        if (!cfg || !cfg.apiKey || cfg.apiKey.includes("YOUR_FIREBASE")) {
+          console.error("[LANDING] Kredensial Firebase tidak valid — Env VITE_FIREBASE_* belum lengkap. Firebase tetap tidak terhubung (tidak ada localStorage / Demo Mode).");
+          firestoreDb = null;
+          db = null;
+          auth = null;
+          return false;
+        }
         if (cfg && cfg.apiKey && !cfg.apiKey.includes("YOUR_FIREBASE")) {
           // Pastikan projectId valid sebelum inisialisasi Firestore
           if (!cfg.projectId) {
@@ -125,7 +115,7 @@
       }),
       applyNewConfig: (newCfg) => {
         activeFirebaseConfig = { ...newCfg };
-        localStorage.setItem("dapur_firebase_custom_config", JSON.stringify(newCfg));
+        // Landing Page publik: tidak menyimpan kredensial ke localStorage
         return initFirebaseModule(activeFirebaseConfig);
       },
       testConnection: async () => {
@@ -275,27 +265,20 @@
       },
       // Realtime Database persistence untuk Konfigurasi Website (Admin CMS)
             saveSiteConfig: async (config) => {
-        // Jika Firebase sudah connected, simpan hanya ke RTDB /site_config (single source of truth)
-        // Jangan simpan ke localStorage karena hanya berlaku untuk 1 device.
-        if (db) {
-          try {
-            const cleanConfig = JSON.parse(JSON.stringify(config));
-            const configRef = ref(db, 'site_config');
-            await set(configRef, cleanConfig);
-            console.log("[ADMIN] site_config disimpan ke Firebase RTDB");
-          } catch (err) {
-            console.warn("Firebase saveSiteConfig error:", err);
-            // Fallback ke localStorage hanya jika Firebase gagal
-            try { localStorage.setItem("dapur_site_config", JSON.stringify(config)); } catch (e) {}
-          }
-        } else {
-          // Firebase belum connected — simpan ke localStorage sebagai fallback sementara
-          try {
-            localStorage.setItem("dapur_site_config", JSON.stringify(config));
-            console.warn("[ADMIN] Firebase belum terkoneksi, site_config disimpan ke localStorage (fallback)");
-          } catch (e) {
-            console.warn("localStorage saveSiteConfig error:", e);
-          }
+        // Landing Page publik: simpan site_config HANYA ke RTDB /site_config (single source of truth)
+        // Tidak ada localStorage, tidak ada Demo Mode.
+        if (!db) {
+          console.error("[LANDING] Firebase belum terhubung (kredensial Env Vars belum lengkap). site_config TIDAK dapat disimpan.");
+          return;
+        }
+        try {
+          const cleanConfig = JSON.parse(JSON.stringify(config));
+          const configRef = ref(db, 'site_config');
+          await set(configRef, cleanConfig);
+          console.log("[ADMIN] site_config disimpan ke Firebase RTDB");
+        } catch (err) {
+          console.warn("Firebase saveSiteConfig error:", err);
+          throw err;
         }
       },
       listenSiteConfig: (callback) => {
