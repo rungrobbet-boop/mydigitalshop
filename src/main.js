@@ -28,20 +28,58 @@
 
     // Inisialisasi Firebase & Dynamic Custom Configuration
     let app, db, firestoreDb, auth;
-    let activeFirebaseConfig = { ...firebaseConfig };
 
-    // Selalu prioritaskan setelan manual di browser local storage jika ada
-    try {
-      const storedCustom = localStorage.getItem("dapur_firebase_custom_config");
-      if (storedCustom) {
-        const parsed = JSON.parse(storedCustom);
-        if (parsed && parsed.apiKey && !parsed.apiKey.includes("YOUR_FIREBASE")) {
-          activeFirebaseConfig = parsed;
-        }
+    // Resolve konfigurasi Firebase dengan prioritas:
+    // 1. Environment Variables (Vite import.meta.env) — prioritas tertinggi
+    // 2. LocalStorage (input manual admin via panel)
+    // 3. firebase-config.js (hasil generate build)
+    // 4. Demo Mode (hanya jika semua kosong)
+    function resolveFirebaseConfig() {
+      // 1. Environment Variables (Vite)
+      const envApiKey = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) || "";
+      const envDatabaseURL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_DATABASE_URL) || "";
+      const envProjectId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_PROJECT_ID) || "";
+      const envAuthDomain = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) || "";
+      const envStorageBucket = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_STORAGE_BUCKET) || "";
+      const envMessagingSenderId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) || "";
+      const envAppId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_APP_ID) || "";
+
+      if (envApiKey && !envApiKey.includes("YOUR_FIREBASE") && envDatabaseURL) {
+        return {
+          apiKey: envApiKey,
+          authDomain: envAuthDomain || (envProjectId ? `${envProjectId}.firebaseapp.com` : ""),
+          databaseURL: envDatabaseURL,
+          projectId: envProjectId,
+          storageBucket: envStorageBucket || (envProjectId ? `${envProjectId}.appspot.com` : ""),
+          messagingSenderId: envMessagingSenderId,
+          appId: envAppId,
+        };
       }
-    } catch (e) {
-      console.warn("Error reading stored custom firebase config:", e);
+
+      // 2. LocalStorage (custom config yang diinput admin di panel)
+      try {
+        const storedCustom = localStorage.getItem("dapur_firebase_custom_config");
+        if (storedCustom) {
+          const parsed = JSON.parse(storedCustom);
+          if (parsed && parsed.apiKey && !parsed.apiKey.includes("YOUR_FIREBASE") && parsed.databaseURL) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn("Error reading stored custom firebase config:", e);
+      }
+
+      // 3. firebase-config.js (auto-generated dari build)
+      const cfg = { ...firebaseConfig };
+      if (cfg.databaseURL && cfg.apiKey && !cfg.apiKey.includes("YOUR_FIREBASE")) {
+        return cfg;
+      }
+
+      // 4. Demo Mode — semua kosong
+      return { apiKey: "", databaseURL: "" };
     }
+
+    let activeFirebaseConfig = resolveFirebaseConfig();
 
     function initFirebaseModule(cfg) {
       try {
@@ -55,12 +93,11 @@
           const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(cfg);
           app = firebaseApp;
           firestoreDb = initializeFirestore(app, { experimentalForceLongPolling: true });
-          // RTDB hanya dihubungkan jika databaseURL tersedia (project ini menggunakan Firestore untuk realtime data);
-          // memanggil getDatabase(app) tanpa databaseURL memicu FATAL ERROR "Can't determine Firebase Database URL".
+          // RTDB dihubungkan saat databaseURL tersedia
           if (cfg.databaseURL) {
             try { db = getDatabase(app); } catch (_) {}
           }
-          console.log("[FIREBASE] Cloud Firestore connected:", cfg.projectId);
+          console.log("[FIREBASE] Cloud connected:", cfg.projectId, "| databaseURL:", cfg.databaseURL);
           return true;
         }
       } catch (e) {
@@ -238,19 +275,26 @@
       },
       // Realtime Database persistence untuk Konfigurasi Website (Admin CMS)
             saveSiteConfig: async (config) => {
-        // Simpan ke localStorage DULU (agar tidak hilang walau Firebase error)
-        try {
-          localStorage.setItem("dapur_site_config", JSON.stringify(config));
-        } catch (e) {
-          console.warn("localStorage saveSiteConfig error:", e);
-        }
+        // Jika Firebase sudah connected, simpan hanya ke RTDB /site_config (single source of truth)
+        // Jangan simpan ke localStorage karena hanya berlaku untuk 1 device.
         if (db) {
           try {
             const cleanConfig = JSON.parse(JSON.stringify(config));
             const configRef = ref(db, 'site_config');
             await set(configRef, cleanConfig);
+            console.log("[ADMIN] site_config disimpan ke Firebase RTDB");
           } catch (err) {
-            console.warn("Firebase saveSiteConfig error (localStorage tetap tersimpan):", err);
+            console.warn("Firebase saveSiteConfig error:", err);
+            // Fallback ke localStorage hanya jika Firebase gagal
+            try { localStorage.setItem("dapur_site_config", JSON.stringify(config)); } catch (e) {}
+          }
+        } else {
+          // Firebase belum connected — simpan ke localStorage sebagai fallback sementara
+          try {
+            localStorage.setItem("dapur_site_config", JSON.stringify(config));
+            console.warn("[ADMIN] Firebase belum terkoneksi, site_config disimpan ke localStorage (fallback)");
+          } catch (e) {
+            console.warn("localStorage saveSiteConfig error:", e);
           }
         }
       },
