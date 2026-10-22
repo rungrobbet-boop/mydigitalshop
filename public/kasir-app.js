@@ -664,7 +664,8 @@ window.kasirApp = () => ({
   siteInfo: {
     brandName: 'MyDigitalShop Material',
     address: 'Jl. Kuliner Viral No. 88, Jakarta Selatan',
-    phone: '0812-3456-7890'
+    phone: '0812-3456-7890',
+    logoUrl: ''
   },
 
  // State Payment Config dari Admin Panel (/site_config/paymentConfig)
@@ -824,17 +825,19 @@ try {
     this._fbOnValue(configRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
-        this.customKasirTitle = 'MyDigitalShop POS';
-        this.customKasirSubtitle = '';
-        this.splashKasirTitle = 'MyDigitalShop POS';
-        this.splashKasirSubtitle = '';
+        this.customKasirTitle = val.kasirTitle || 'MyDigitalShop POS';
+        this.customKasirSubtitle = val.kasirSubtitle || '';
+        this.splashKasirTitle = val.kasirTitle || 'MyDigitalShop POS';
+        this.splashKasirSubtitle = val.kasirSubtitle || '';
         console.log('[KASIR] Custom title loaded:', val.kasirTitle);
 
-               // 🏢 Sync info bisnis (brand, alamat, telepon)
+               // 🏢 Sync info bisnis (brand, alamat, telepon, logo)
         if (val.brandName) this.siteInfo.brandName = val.brandName;
         if (val.address) this.siteInfo.address = val.address;
         if (val.phone) this.siteInfo.phone = val.phone;
-        console.log('[KASIR] Site info loaded:', this.siteInfo.brandName);
+        if (val.logoUrl) this.siteInfo.logoUrl = val.logoUrl;
+        if (val.logoImage && !this.siteInfo.logoUrl) this.siteInfo.logoUrl = val.logoImage;
+        console.log('[KASIR] Site info loaded:', this.siteInfo.brandName, '| logo:', this.siteInfo.logoUrl);
  
        // ✅ Sync payment config (bank, QRIS, ewallet)
         if (val.paymentConfig) {

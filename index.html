@@ -269,6 +269,36 @@
         window.__renderSplash();
       }
     }, 3000);
+
+    // ✅ Realtime listener untuk site_config dari Firebase (multi-device sync splash)
+    // src/main.js dimuat setelah head ini, jadi tunggu FirebaseBridge siap.
+    (function waitForFirebaseBridge() {
+      if (window.FirebaseBridge && window.FirebaseBridge.listenSiteConfig) {
+        window.FirebaseBridge.listenSiteConfig((liveConfig) => {
+          if (!liveConfig) return;
+          const cfg = window.__splashConfig || {};
+          if (liveConfig.brandName) {
+            cfg.brandName = String(liveConfig.brandName).trim();
+            const title = document.getElementById('splashTitleStatic');
+            if (title) title.textContent = cfg.brandName.toUpperCase();
+          }
+          if (liveConfig.logoImage && String(liveConfig.logoImage).trim().length > 10) {
+            cfg.logoImage = String(liveConfig.logoImage).trim();
+            cfg.logoBgColor = String(liveConfig.logoBgColor || '#ea580c').trim();
+            window.__splashImageState = 'loading';
+            const pImg = new Image();
+            pImg.onload = () => { window.__splashImageState = 'loaded'; window.__renderSplash(); };
+            pImg.onerror = () => { window.__splashImageState = 'failed'; cfg.logoImage = ''; window.__renderSplash(); };
+            pImg.src = cfg.logoImage;
+          }
+          window.__splashConfig = cfg;
+          if (typeof window.__renderSplash === 'function') window.__renderSplash();
+        });
+        console.log('[SPLASH] Firebase site_config realtime listener attached');
+      } else {
+        setTimeout(waitForFirebaseBridge, 500);
+      }
+    })();
   </script>
 </head>
 
