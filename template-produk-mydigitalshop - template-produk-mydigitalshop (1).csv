@@ -1,0 +1,4 @@
+name,supplier,categoryId,priceEcer,pricePartai,priceAgen,minOrderPartai,minOrderAgen,unit,stock,imageUrl
+Cat Keramik 40x40,CV. Mitra Jaya,cat-multi,75000,70000,65000,10,50,pcs,10,
+Semen Merah Putih 40kg,PT. Nusantara,semen-lokal,55000,52000,49000,20,50,sak,50,
+Besi Ulir 13mm,UD. Logam Jaya,cat-besi,95000,90000,85000,10,50,batang,2000,https://res.cloudinary.com/xbysmfqx/image/upload/v1787708434/samples/balloons.jpg

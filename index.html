@@ -167,7 +167,7 @@
             const cfg = JSON.parse(raw);
             if (cfg && typeof cfg === 'object') {
               return {
-                brandName: String(cfg.brandName || 'DIGITAL CULINARY').trim(),
+                brandName: String(cfg.brandName || 'MyDigitalShop').trim(),
                 logoBgColor: String(cfg.logoBgColor || '#ea580c').trim(),
                 logoImage: (cfg.logoImage && String(cfg.logoImage).trim().length > 10)
                   ? String(cfg.logoImage).trim() : ''
@@ -176,7 +176,7 @@
           }
         } catch(e) { /* retry */ }
       }
-      return { brandName: 'DIGITAL CULINARY', logoBgColor: '#ea580c', logoImage: '' };
+      return { brandName: 'MyDigitalShop', logoBgColor: '#ea580c', logoImage: '' };
     })();
 
     // Preload image paralel dengan body parse
@@ -316,7 +316,7 @@
     </div>
     <h1 id="splashTitleStatic"
         style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:900; color:#fff; font-size:1.75rem; letter-spacing:-0.025em; text-transform:uppercase; text-align:center; padding:0 24px; margin:0;">
-      DIGITAL CULINARY
+      MyDigitalShop
     </h1>
   </div>
   <script>
@@ -2439,7 +2439,7 @@
           </div>
           <h2 class="text-2xl font-extrabold text-stone-900 tracking-tight">Pilih Akses</h2>
           <p class="text-xs text-stone-500 mt-1 max-w-xs mx-auto">
-            Silakan pilih pintu masuk portal sesuai peran operasional Anda di <span class="font-bold text-stone-700">Dapur Kuliner Viral</span>.
+            Silakan pilih pintu masuk portal sesuai peran operasional Anda di <span class="font-bold text-stone-700">MyDigitalShop</span>.
           </p>
         </div>
 
@@ -2642,7 +2642,7 @@
 
         <div class="pt-2 text-center">
           <p class="text-[11px] text-stone-400">
-            Lupa PIN kasir? Hubungi Admin Dapur Kuliner untuk reset kode shift.
+            Lupa PIN kasir? Hubungi Admin MyDigitalShop untuk reset kode shift.
           </p>
         </div>
       </div>
@@ -4428,7 +4428,7 @@
               <i class="fa-brands fa-cloudflare text-orange-500 text-base"></i>
               <span>Panduan Lengkap Deployment ke Cloudflare Pages</span>
             </h4>
-            <p class="text-xs text-stone-600 mt-0.5">Langkah demi langkah menyebarkan website Dapur Kuliner Viral ke Cloudflare Pages dengan CDN gratis global, SSL otomatis, dan serverless functions.</p>
+            <p class="text-xs text-stone-600 mt-0.5">Langkah demi langkah menyebarkan website MyDigitalShop ke Cloudflare Pages dengan CDN gratis global, SSL otomatis, dan serverless functions.</p>
           </div>
 
           <!-- Langkah 1: Push ke GitHub -->
@@ -4449,7 +4449,7 @@
             <p class="text-xs text-stone-500">Jalankan perintah ini di terminal proyek Anda untuk menyimpan kode ke akun GitHub:</p>
             <pre class="bg-stone-900 text-stone-100 p-3.5 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed">git init
 git add .
-git commit -m "feat: deploy dapur kuliner viral"
+git commit -m "feat: deploy MyDigitalShop"
 git branch -M main
 git remote add origin https://github.com/USERNAME/NAMA-REPO-ANDA.git
 git push -u origin main</pre>
@@ -4640,7 +4640,7 @@ git push -u origin main</pre>
                 <input 
                   type="text" 
                   x-model="siteConfig.kasirSubtitle" 
-                  placeholder="Dapur Kuliner Viral" 
+                  placeholder="MyDigitalShop" 
                   class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white font-bold" 
                 />
                 <p class="text-[10px] text-stone-500 mt-1">Tampil di bawah judul utama</p>
@@ -4657,7 +4657,7 @@ git push -u origin main</pre>
                   <span class="font-extrabold text-base tracking-tight text-stone-900" x-text="siteConfig.kasirTitle || 'Kasir Pintar'"></span>
                   <span class="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">POS</span>
                 </div>
-                <p class="text-[11px] text-stone-500" x-text="siteConfig.kasirSubtitle || 'Dapur Kuliner Viral'"></p>
+                <p class="text-[11px] text-stone-500" x-text="siteConfig.kasirSubtitle || 'MyDigitalShop'"></p>
               </div>
             </div>
 
@@ -8122,7 +8122,7 @@ git push -u origin main</pre>
 
         // Salin Perintah Git Deploy Cloudflare Pages
         copyGitDeployCommands() {
-          const cmds = 'git init\ngit add .\ngit commit -m "feat: deploy dapur kuliner viral"\ngit branch -M main\ngit remote add origin https://github.com/USERNAME/REPO.git\ngit push -u origin main';
+          const cmds = 'git init\ngit add .\ngit commit -m "feat: deploy MyDigitalShop"\ngit branch -M main\ngit remote add origin https://github.com/USERNAME/REPO.git\ngit push -u origin main';
           this.copyToClipboard(cmds, 'Perintah Git berhasil disalin!');
         },
 
@@ -8190,7 +8190,7 @@ git push -u origin main</pre>
         // UNDUH FILE firebase-config.js
         downloadFirebaseConfigJs() {
           const cfg = this.firebaseConfigInput.apiKey ? this.firebaseConfigInput : (window.FirebaseBridge ? window.FirebaseBridge.getConfig() : {});
-          const jsContent = `// firebase-config.js\n// Di-generate otomatis dari Panel Admin Dapur Kuliner Viral\n\nexport const firebaseConfig = ${JSON.stringify(cfg, null, 2)};\n\nexport const IS_DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_FIREBASE");\n`;
+          const jsContent = `// firebase-config.js\n// Di-generate otomatis dari Panel Admin MyDigitalShop\n\nexport const firebaseConfig = ${JSON.stringify(cfg, null, 2)};\n\nexport const IS_DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_FIREBASE");\n`;
           const blob = new Blob([jsContent], { type: "application/javascript" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -8233,7 +8233,7 @@ git push -u origin main</pre>
             const { jsPDF } = window.jspdf;
 
             // FASE 5: nama outlet untuk footer struk (siteConfig.brandName, tanpa uppercase)
-            const brandNameRaw = String(this.siteConfig.brandName || "Dapur Kuliner Viral").trim();
+            const brandNameRaw = String(this.siteConfig.brandName || "MyDigitalShop").trim();
 
             // Hitung tinggi halaman dinamis berdasarkan jumlah items + footer (wrap-aware)
             const itemCount = (order.items || []).length;

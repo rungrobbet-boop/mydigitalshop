@@ -127,7 +127,7 @@
           await set(testRef, {
             pingAt: new Date().toISOString(),
             status: "OK",
-            client: "Admin CMS Dapur Kuliner Viral"
+            client: "Admin CMS MyDigitalShop"
           });
           return { success: true, message: "Koneksi Realtime Database BERHASIL! Sinkronisasi multi-device aktif." };
         } catch (err) {

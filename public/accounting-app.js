@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * SISTEM AKUNTANSI & KEUANGAN (DOUBLE-ENTRY ACCOUNTING ENGINE)
- * Dapur Kuliner Viral - Panel Admin & Ownerj.debitName || ('Akun '
+ * MyDigitalShop - Panel Admin & Ownerj.debitName || ('Akun '
  * 
  * Modul:
  * 1. Chart of Accounts (COA) Standar Resto & Catering (Real dari Firebase / Endpoint)
@@ -155,11 +155,11 @@ window.accountingApp = function() {
     // ------------------------------------------------------------------------
     appReady: false,
     splashAkunTitle: 'AKUNTANSI',
-    splashAkunSubtitle: 'Digital Culinary',
+    splashAkunSubtitle: 'MyDigitalShop',
     activeTab: 'dashboard',
     reportSubTab: 'pl',
     mobileMenuOpen: false,
-    siteName: 'Dapur Kuliner Viral',  // fallback, akan di-load dari site_config/brandName
+    siteName: 'MyDigitalShop',  // fallback, akan di-load dari site_config/brandName
         // ✅ PIN Accounting gate
     supervisorPin: '211211',          // default, overwrite dari Firebase saat init
     showFinancePinModal: false,       // modal PIN aktif
@@ -581,7 +581,7 @@ window.accountingApp = function() {
           if (cached && cached.trim()) {
             this.siteName = cached.trim();
             this.splashAkunTitle = 'AKUNTANSI';
-            this.splashAkunSubtitle = this.siteName || 'Digital Culinary';
+            this.splashAkunSubtitle = this.siteName || 'MyDigitalShop';
           }
         } catch (e) {}
 
@@ -605,7 +605,7 @@ window.accountingApp = function() {
           if (name && typeof name === 'string' && name.trim()) {
             this.siteName = name.trim();
             this.splashAkunTitle = 'AKUNTANSI';
-            this.splashAkunSubtitle = this.siteName || 'Digital Culinary';
+            this.splashAkunSubtitle = this.siteName || 'MyDigitalShop';
             try { localStorage.setItem('dapur_site_name', this.siteName); } catch (e) {}
             console.log('[ACCT-APP] Site name loaded:', this.siteName);
           }
@@ -2402,7 +2402,7 @@ this.jurnalList.forEach(j => {
         }
 
         // pastikan nama outlet terbaru (site_config.brandName) — kalau fetch saat init sempat gagal
-        if (!this.siteName || this.siteName === 'Dapur Kuliner Viral') {
+        if (!this.siteName || this.siteName === 'MyDigitalShop') {
           try { await this.loadSiteName(); } catch (e) {}
         }
         const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
@@ -3065,7 +3065,7 @@ this.jurnalList.forEach(j => {
         }
 
         // pastikan nama outlet terbaru (site_config.brandName) — ada localStorage fallback
-        if (!this.siteName || this.siteName === 'Dapur Kuliner Viral') {
+        if (!this.siteName || this.siteName === 'MyDigitalShop') {
           try { await this.loadSiteName(); } catch (e) {}
         }
         const periodeStr = bulan || this.bulanAktif;
