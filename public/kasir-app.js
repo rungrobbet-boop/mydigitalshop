@@ -703,7 +703,8 @@ window.kasirApp = () => ({
     minOrderAgen: 1,
     unit: 'pcs',
     stock: 0,
-    imageUrl: ''
+    imageUrl: '',
+    favoriteOrder: 0
   },
   get menuItems() {
     return Array.isArray(this.menuList) ? this.menuList : [];
@@ -723,6 +724,7 @@ window.kasirApp = () => ({
     unit: 'pcs',
     stock: 0,
     imageUrl: '',
+    favoriteOrder: 0,
     ingredients: []
   },
   menuRecipes: {}, // { menuId: { ingredients: [...] } }
@@ -6997,6 +6999,7 @@ async loadMoreProducts() {
       minOrderAgen: Number(menu.minOrderAgen ?? 0),
       unit: menu.unit || 'pcs',
       stock: Number(menu.stock || menu.stok) || 0,
+      favoriteOrder: menu.favoriteOrder || 0,
       imageUrl: menu.imageUrl || menu.image || '',
       ingredients: JSON.parse(JSON.stringify(existingRecipe.ingredients || []))
     };
@@ -7068,6 +7071,7 @@ async loadMoreProducts() {
         menuObj.stock = updatedStock;
         menuObj.stok = updatedStock;
         menuObj.imageUrl = updatedImageUrl;
+        menuObj.favoriteOrder = Number(this.recipeForm.favoriteOrder) || 0;
         menuObj.price = updatedPriceEcer; // backward compat
         menuObj.desc = ''; // no longer used in CSV form
       }
@@ -7105,6 +7109,7 @@ async loadMoreProducts() {
           stock: updatedStock,
           stok: updatedStock,
           imageUrl: updatedImageUrl,
+          favoriteOrder: Number(this.recipeForm.favoriteOrder) || 0,
           desc: '',
           showOnMain: menuObj ? menuObj.showOnMain !== false : true
         })
@@ -7149,6 +7154,7 @@ async loadMoreProducts() {
                 stock: updatedStock,
                 stok: updatedStock,
                 imageUrl: updatedImageUrl,
+                favoriteOrder: Number(this.recipeForm.favoriteOrder) || 0,
                 source: 'csv-import',
                 updatedAt: new Date().toISOString()
               }, { merge: true });
@@ -7298,9 +7304,20 @@ async loadMoreProducts() {
    */
   filteredProductMenus() {
     const list = Array.isArray(this.menuList) ? this.menuList : [];
-    if (!this.inventorySearch) return list;
+    
+    // Urutan Favorit: menu dengan favoriteOrder > 0 tampil di atas (1 = paling atas)
+    const sorted = [...list].sort((a, b) => {
+      const fa = Number(a.favoriteOrder) || 0;
+      const fb = Number(b.favoriteOrder) || 0;
+      if (fa > 0 && fb > 0) return fa - fb;
+      if (fa > 0) return -1;
+      if (fb > 0) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    
+    if (!this.inventorySearch) return sorted;
     const q = this.inventorySearch.toLowerCase();
-    return list.filter(m => 
+    return sorted.filter(m =>
       (m.name || '').toLowerCase().includes(q) ||
       (m.category || '').toLowerCase().includes(q) ||
       (m.desc || '').toLowerCase().includes(q)
@@ -7480,6 +7497,7 @@ async loadMoreProducts() {
       stok: stock,
       imageUrl,
       image: imageUrl,
+      favoriteOrder: Number(form.favoriteOrder) || 0,
       desc: '',
       isReadyToSell: true,
       fromKasir: true,

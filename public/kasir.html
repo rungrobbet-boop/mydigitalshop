@@ -5578,6 +5578,19 @@
             class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
+
+        <div class="sm:col-span-1">
+          <label class="block text-[11px] font-bold text-stone-700 uppercase mb-1">Urutan Favorit (1-20)</label>
+          <input
+            type="number"
+            x-model.number="recipeForm.favoriteOrder"
+            min="0"
+            max="20"
+            placeholder="0 = biasa"
+            class="w-full h-10 px-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+          <p class="text-[9px] text-stone-500 mt-0.5">1 = tampil paling atas di Toko Utama</p>
+        </div>
       </div>
 
       <!-- Tombol Simpan & Batal -->
@@ -5761,6 +5774,18 @@
           />
         </div>
 
+        <div>
+          <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Urutan Favorit (1-20)</label>
+          <input
+            type="number"
+            x-model.number="newMenuForm.favoriteOrder"
+            min="0"
+            max="20"
+            placeholder="0 = biasa"
+            class="w-full h-11 px-3 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+          <p class="text-[9px] text-stone-500 mt-0.5">1 = tampil paling atas di Toko Utama</p>
+        </div>
 
           </div>
 
