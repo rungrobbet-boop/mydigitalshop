@@ -1010,11 +1010,30 @@
 
       <!-- Controls Paginasi Menu -->
       <div x-show="totalPages > 1" class="flex items-center justify-center gap-2 pt-6">
+        <!-- Navigasi Halaman Client-Side (Prev / Next) untuk produk yang sudah termuat semua -->
+        <div class="flex items-center gap-2">
+          <button
+            :disabled="currentPage === 1"
+            @click="currentPage--"
+            class="px-6 py-3 rounded-xl font-bold text-sm border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+            <i class="fa-solid fa-chevron-left"></i> Prev
+          </button>
+          <span class="text-xs text-stone-500 font-medium">
+            Halaman <span x-text="currentPage"></span> dari <span x-text="totalPages"></span>
+          </span>
+          <button
+            :disabled="currentPage === totalPages"
+            @click="currentPage++"
+            class="px-6 py-3 rounded-xl font-bold text-sm border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+            Next <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+
         <!-- Paginasi Firestore Cursor-based "Muat Lebih Banyak" (Load More) -->
-        <div class="mt-8 flex flex-col items-center justify-center gap-3">
-          <button 
-            x-show="firestoreHasMore" 
-            @click="loadMoreProducts()" 
+        <div class="mt-6 flex flex-col items-center justify-center gap-3">
+          <button
+            x-show="firestoreHasMore"
+            @click="loadMoreProducts()"
             :disabled="firestoreLoading"
             class="px-8 py-3.5 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
             <i class="fa-solid fa-spinner fa-spin" x-show="firestoreLoading"></i>
@@ -6336,13 +6355,7 @@ git push -u origin main</pre>
 
         // Kategori Material Sesuai Firestore & Standar Toko Bangunan
         menuCategories: [
-          { id: 'all', name: 'Semua Material', icon: 'fa-border-all' },
-          { id: 'semen-pasir', name: 'Semen & Pasir', icon: 'fa-cubes' },
-          { id: 'besi-baja', name: 'Besi & Baja Ringan', icon: 'fa-shield-halved' },
-          { id: 'cat-finishing', name: 'Cat & Finishing', icon: 'fa-paint-roller' },
-          { id: 'keramik-lantai', name: 'Keramik & Lantai', icon: 'fa-border-all' },
-          { id: 'atap-plafon', name: 'Atap & Plafon', icon: 'fa-house-chimney' },
-          { id: 'plumbing-pipa', name: 'Plumbing & Sanitari', icon: 'fa-faucet-drip' }
+          { id: 'all', name: 'Semua Menu', icon: 'fa-border-all' }
         ],
 
         // 3 Paket Catering
@@ -7237,6 +7250,7 @@ git push -u origin main</pre>
                 if (p.imageUrl && !p.image) p.image = p.imageUrl;
                 if (p.image && !p.imageUrl) p.imageUrl = p.image;
               });
+              this.syncCategoriesWithKasir();
               this.firestoreLastDoc = result.lastDoc;
               this.firestoreHasMore = Boolean(result.hasMore);
               console.log('[Firestore] Produk termuat:', this.menuItems.length, 'hasMore:', this.firestoreHasMore);
@@ -7298,6 +7312,7 @@ git push -u origin main</pre>
               if (p.imageUrl && !p.image) p.image = p.imageUrl;
               if (p.image && !p.imageUrl) p.imageUrl = p.image;
             });
+            this.syncCategoriesWithKasir();
 
             this.firestoreLastDoc = null;
             this.firestoreHasMore = products.length >= 50;
@@ -9052,6 +9067,9 @@ git push -u origin main</pre>
         },
 
         // SINKRONISASI KATEGORI MENU DENGAN KASIR POS (Mencegah Crash & Memastikan Selalu Sinkron)
+        // Kategori di-DERIVE langsung dari menuItems (products yang aktif di state).
+        // Tidak ada hardcode, tidak di-merge dengan localStorage lama.
+        // Hanya kategori yang punya produk (>0) yang tampil di filter.
         existsCat(idOrName) {
           if (!idOrName) return false;
           return this.menuCategories.some(c => c && (c.id === idOrName || c.name === idOrName));
@@ -9059,83 +9077,36 @@ git push -u origin main</pre>
 
         syncCategoriesWithKasir() {
           try {
-            if (!Array.isArray(this.menuCategories) || this.menuCategories.length === 0) {
-              this.menuCategories = [
-                { id: 'all', name: 'Semua Menu', icon: 'fa-border-all' }
-              ];
-            }
+            // Mulai dari nol: hanya 'all' sebagai default
+            this.menuCategories = [
+              { id: 'all', name: 'Semua Menu', icon: 'fa-border-all' }
+            ];
 
-            if (!this.menuCategories.some(c => c.id === 'all')) {
-              this.menuCategories.unshift({ id: 'all', name: 'Semua Menu', icon: 'fa-border-all' });
-            }
-            // Kategori hanya dari data yang tersimpan, tidak ada hardcode F&B fallback
-
-            // 2. Baca kategori dari localStorage 'dapur_menu_categories'
-            try {
-              const saved = localStorage.getItem('dapur_menu_categories');
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
-                  parsed.forEach(c => {
-                    if (c && c.id && c.id !== 'all' && c.id !== 'semua' && !existsCat(c.id) && !existsCat(c.name)) {
-                      this.menuCategories.push({
-                        id: c.id,
-                        name: c.name || c.id,
-                        icon: c.icon || 'fa-bowl-food'
-                      });
-                    }
-                  });
-                }
-              }
-            } catch (e) {}
-
-            // 3. Ekstrak kategori dari daftar menuItems
+            // Derive kategori langsung dari menuItems (products aktif di state)
+            const catMap = new Map();
             if (Array.isArray(this.menuItems)) {
               this.menuItems.forEach(item => {
-                if (item && item.category && item.category !== 'all' && item.category !== 'semua') {
-                  const catId = item.category;
-                  const catLabel = item.categoryLabel || item.category;
-                  if (!existsCat(catId) && !existsCat(catLabel)) {
-                    this.menuCategories.push({
-                      id: catId,
-                      name: catLabel,
-                      icon: 'fa-bowl-food'
-                    });
-                  }
-                  if (!item.categoryLabel) {
-                    item.categoryLabel = this.getCategoryLabel(item.category);
-                  }
-                }
+                if (!item) return;
+                const catId = item.categoryId || item.category || item.categoryLabel || '';
+                if (!catId || catId === 'all' || catId === 'semua') return;
+                const norm = this.normalizeCatId(catId);
+                if (!norm || catMap.has(norm)) return;
+                const catName = item.categoryLabel || this.getCategoryName(catId) || catId;
+                catMap.set(norm, { id: catId, name: catName, icon: 'fa-bowl-food' });
               });
             }
 
-            // 4. Ekstrak kategori dari Kasir POS di localStorage 'dapur_menu_list' jika ada
-            try {
-              const kasirListStr = localStorage.getItem('dapur_menu_list');
-              if (kasirListStr) {
-                const kasirList = JSON.parse(kasirListStr);
-                if (Array.isArray(kasirList)) {
-                  kasirList.forEach(km => {
-                    if (km && km.category && km.category !== 'all' && km.category !== 'semua') {
-                      const cId = km.category;
-                      const cLabel = km.categoryLabel || km.category;
-                      if (!existsCat(cId) && !existsCat(cLabel)) {
-                        this.menuCategories.push({
-                          id: cId,
-                          name: cLabel,
-                          icon: 'fa-bowl-food'
-                        });
-                      }
-                    }
-                  });
-                }
-              }
-            } catch (e) {}
+            // Masukkan ke menuCategories (hanya kategori dengan produk > 0)
+            catMap.forEach(cat => {
+              this.menuCategories.push(cat);
+            });
 
             // Sinkronkan balik ke localStorage agar POS kasir juga menerima update kategori
             try {
               localStorage.setItem('dapur_menu_categories', JSON.stringify(this.menuCategories));
-            } catch (e) {}
+            } catch (e) { }
+
+            console.log('[CATEGORIES] Derived from products:', (this.menuCategories.length - 1), 'kategori aktif');
           } catch (err) {
             console.warn('Gagal sinkronkan kategori menu admin & kasir:', err);
           }
