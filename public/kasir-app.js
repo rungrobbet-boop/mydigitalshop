@@ -5584,7 +5584,7 @@ async loadMoreProducts() {
   /**
    * Realtime listener /inventory & fetch awal
    */
-  async loadInventory() {
+  async loadInventory(force = false) {
     this.loadingStates.inventory = true;
     localStorage.removeItem('dapur_inventory_list');
 
@@ -5602,7 +5602,7 @@ async loadMoreProducts() {
 
         // ✅ Sumber data utama: Firestore collection 'products' (hasil import CSV Landing Page)
         // Dipakai saat RTDB /inventory masih kosong, agar inventory di Kasir selaras dengan data Landing Page.
-        if ((!this.inventoryList || this.inventoryList.length === 0) && FB_FS) {
+        if ((force || !this.inventoryList || this.inventoryList.length === 0) && FB_FS) {
         try {
           const products = await this.getProducts();
           if (products && products.length > 0) {
@@ -5653,7 +5653,7 @@ async loadMoreProducts() {
 
 
       // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong
-      if (!this.inventoryList || this.inventoryList.length === 0) {
+      if (force || !this.inventoryList || this.inventoryList.length === 0) {
         try {
           if (FB_FS) {
             const snap = await FB_FS.collection('products').get();
@@ -5713,7 +5713,7 @@ async loadMoreProducts() {
       }
 
       // ✅ RTDB FALLBACK: jika Firestore tidak tersedia (FB_FS null), muat inventory dari RTDB /inventory
-      if ((!this.inventoryList || this.inventoryList.length === 0) && !FB_FS && this._fbDb && this._fbRef && this._fbGet) {
+      if ((force || !this.inventoryList || this.inventoryList.length === 0) && !FB_FS && this._fbDb && this._fbRef && this._fbGet) {
         try {
           const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
           const rtdbSnap = await this._fbGet(rtdbInvRef);
@@ -12372,8 +12372,15 @@ async loadMoreProducts() {
         this.showToast(`✅ Transaksi ${txId} di-void. Stok & jurnal dipulihkan.`, 'success');
         this.playSound('success');
 
-        // 7. Tarik ulang data inventory (bukan manipulasi lokal)
-        try { await this.loadInventory(); } catch (e) {}
+        // 7. Tarik ulang data inventory dari database (paksa refresh agar UI reaktif)
+        try {
+          await this.loadInventory({ force: true });
+          if (typeof this.listenMenuItems === 'function') {
+            await this.listenMenuItems();
+          }
+        } catch (e) {
+          console.warn('[VOID] Gagal refresh inventory UI:', e);
+        }
 
         // 8. Auto-jurnal reversal (counter-entry)
         const total = Number(existingData.tot || existingData.total || 0);
