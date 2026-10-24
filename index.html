@@ -6866,6 +6866,7 @@ git push -u origin main</pre>
 
               // ✅ Cloud Firestore: Ambil produk bertahap dengan pagination kursor
               this.loadFirestoreProducts(false);
+              this.attachProductsListener();
               attachNonCriticalListeners();
             } catch (e) {
               console.warn('[FIREBASE] syncFirebaseListeners error:', e);
@@ -7176,8 +7177,9 @@ git push -u origin main</pre>
           if (this.selectedCategory === 'all' || this.selectedCategory === 'semua') return visible;
           const selNorm = this.normalizeCatId(this.selectedCategory);
           return visible.filter(item => {
-            if (item.category === this.selectedCategory) return true;
-            return this.normalizeCatId(item.category) === selNorm || this.normalizeCatId(item.categoryLabel) === selNorm;
+            const itemCatId = item.categoryId || item.category || item.categoryLabel || '';
+            if (this.normalizeCatId(itemCatId) === selNorm) return true;
+            return false;
           });
         },
 
@@ -7212,7 +7214,7 @@ git push -u origin main</pre>
             if (typeof fetchFn === 'function') {
               try {
                 result = await fetchFn({
-                  limit: 8,
+                  limit: 100,
                   lastDoc: isLoadMore ? this.firestoreLastDoc : null,
                   categoryId: catFilter,
                   orderByField: 'name',
@@ -7244,7 +7246,7 @@ git push -u origin main</pre>
                 || (window.FirebaseBridge && window.FirebaseBridge.PRODUCTS_SEED) || [];
               if (seedList.length > 0) {
                 const filtered = catFilter ? seedList.filter(p => p.categoryId === catFilter) : seedList;
-                this.menuItems = filtered.slice(0, 8);
+                this.menuItems = filtered;
                 this.menuItems.forEach(p => {
                   if (p.imageUrl && !p.image) p.image = p.imageUrl;
                   if (p.image && !p.imageUrl) p.imageUrl = p.image;
@@ -7269,6 +7271,40 @@ git push -u origin main</pre>
           } finally {
             this.firestoreLoading = false;
           }
+        },
+
+        // =========================================================================
+        // REALTIME LISTENER PRODUK (onSnapshot) — data selalu segar dari Firebase
+        // =========================================================================
+        attachProductsListener() {
+          if (this._productsListenerAttached) return;
+          this._productsListenerAttached = true;
+
+          const snapshotFn = window.FirestoreService && window.FirestoreService.onAdminProductsSnapshot;
+          if (typeof snapshotFn !== 'function') {
+            console.warn('[Firestore] onAdminProductsSnapshot tidak tersedia, lewat real-time listener.');
+            return;
+          }
+
+          // Muat SEMUA produk (tanpa filter kategori di query) agar badge & filter akurat.
+          // Pemotongan (slice) DIHAPUS — semua data yang masuk disimpan utuh.
+          this._productsUnsubscribe = snapshotFn((products, snapshot) => {
+            console.log("Jumlah produk dari Firebase:", snapshot.size);
+            if (!Array.isArray(products)) return;
+
+            // Simpan utuh ke state — TANPA dipotong / slice
+            this.menuItems = products;
+            this.menuItems.forEach(p => {
+              if (p.imageUrl && !p.image) p.image = p.imageUrl;
+              if (p.image && !p.imageUrl) p.imageUrl = p.image;
+            });
+
+            this.firestoreLastDoc = null;
+            this.firestoreHasMore = products.length >= 50;
+            console.log('[Firestore] Produk real-time termuat:', this.menuItems.length, 'hasMore:', this.firestoreHasMore);
+          }, { limitCount: 50, categoryId: null });
+
+          console.log('[Firestore] Realtime listener produk aktif (onSnapshot).');
         },
 
         async loadMoreProducts() {
@@ -7308,7 +7344,31 @@ git push -u origin main</pre>
 
         getCategoryCount(catId) {
           if (catId === 'all') return this.menuItems.length;
-          return this.menuItems.filter(item => item.category === catId).length;
+          const norm = this.normalizeCatId(catId);
+          return this.menuItems.filter(item => {
+            const itemCatId = item.categoryId || item.category || '';
+            return this.normalizeCatId(itemCatId) === norm;
+          }).length;
+        },
+
+        getCategoryName(categoryId) {
+          if (!categoryId) return categoryId;
+          const mapping = {
+            'cat-semen': 'Semen & Pasir',
+            'cat-besi': 'Besi & Baja Ringan',
+            'cat-cat': 'Cat & Finishing',
+            'cat-multi': 'Keramik & Lantai',
+            'semen-pasir': 'Semen & Pasir',
+            'besi-baja': 'Besi & Baja Ringan',
+            'cat-finishing': 'Cat & Finishing',
+            'keramik-lantai': 'Keramik & Lantai',
+            'atap-plafon': 'Atap & Plafon',
+            'plumbing-pipa': 'Plumbing & Sanitari'
+          };
+          if (mapping[categoryId]) return mapping[categoryId];
+          const cat = (this.menuCategories || []).find(c => c && c.id === categoryId);
+          if (cat) return cat.name;
+          return categoryId;
         },
 
         get cartTotalCount() {
