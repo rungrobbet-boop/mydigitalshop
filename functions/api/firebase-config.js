@@ -23,8 +23,8 @@ export async function onRequest(context) {
     databaseURL: finalDatabaseURL,
     projectId: projectId,
     storageBucket: projectId ? projectId + '.appspot.com' : '',
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890"
+    messagingSenderId: env.MESSAGING_SENDER_ID || env.VITE_MESSAGING_SENDER_ID || "",
+    appId: env.APP_ID || env.VITE_APP_ID || ""
   };
 
   return new Response(JSON.stringify(config), {
