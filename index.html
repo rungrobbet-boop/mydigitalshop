@@ -9776,6 +9776,7 @@ git push -u origin main</pre>
                         const supplierIdx = headers.indexOf('supplier');
                         const categoryIdx = headers.indexOf('category');
                         const priceIdx = headers.indexOf('purchasePrice');
+                        const kreditIdx = headers.indexOf('Kredit(Y/N)') >= 0 ? headers.indexOf('Kredit(Y/N)') : headers.indexOf('Kredit');
 
                         if (idIdx < 0 || priceIdx < 0) {
                           this.showToast('CSV harus memiliki kolom: id dan purchasePrice', 'error');
@@ -9808,12 +9809,26 @@ git push -u origin main</pre>
                           if (categoryIdx >= 0) rawCategory = cols[categoryIdx] || '';
                           const category = rawCategory === '-' ? '' : rawCategory;
 
+                          // Logika bisnis Kredit/Tunai (Y/N)
+                          const supplierName = String(supplier || '').trim();
+                          const kreditRaw = (kreditIdx >= 0 && cols[kreditIdx] !== undefined) ? String(cols[kreditIdx] || '').trim().toUpperCase() : '';
+                          let isCreditValue = true;
+                          if (kreditRaw === 'N') {
+                            isCreditValue = false;
+                          } else if (kreditRaw === 'Y') {
+                            isCreditValue = true;
+                          } else if (kreditRaw === '') {
+                            isCreditValue = supplierName !== ''; // Kosong & ada supplier = Y, Kosong & tanpa supplier = N
+                          }
+                          console.log(`[LOGIKA KREDIT] Supplier: "${supplierName}" | Kredit CSV: "${kreditRaw}" | Hasil isCredit: ${isCreditValue}`);
+
                           updates.push({
                             id,
                             purchasePrice: price,
                             supplier,
                             category,
-                            name: cols[nameIdx] || ''
+                            name: cols[nameIdx] || '',
+                            isCredit: isCreditValue
                           });
                         }
 
@@ -9836,12 +9851,13 @@ git push -u origin main</pre>
                         let failCount = 0;
                         for (const u of updates) {
                           try {
-                            console.log('[UPDATE FIRESTORE] payload untuk', u.id, JSON.stringify({ purchasePrice: u.purchasePrice, supplier: u.supplier, category: u.category, categoryId: u.category }));
+                            console.log('[UPDATE FIRESTORE] payload untuk', u.id, JSON.stringify({ purchasePrice: u.purchasePrice, supplier: u.supplier, category: u.category, categoryId: u.category, isCredit: u.isCredit }));
                             const payload = {
                               purchasePrice: u.purchasePrice,
                               supplier: u.supplier || '',
                               category: u.category || '',
                               categoryId: u.category || '',
+                              isCredit: u.isCredit,
                               updatedAt: new Date().toISOString()
                             };
                             await fs.updateProduct(u.id, payload);
@@ -9869,6 +9885,7 @@ git push -u origin main</pre>
                                       supplier: u.supplier || '',
                                       category: u.category || '',
                                       categoryId: u.category || '',
+                                      isCredit: u.isCredit,
                                       updatedAt: new Date().toISOString()
                                     });
                                     rtdbSuccess++;
