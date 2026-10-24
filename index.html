@@ -6703,19 +6703,11 @@ git push -u origin main</pre>
           // 0. Muat Akun Kasir POS dari LocalStorage
           this.loadKasirAccounts();
 
-          // 1. Muat Site Configuration dari LocalStorage jika ada
-          try {
-            const savedConfig = localStorage.getItem("dapur_site_config");
-            if (savedConfig) {
-              const parsed = JSON.parse(savedConfig);
-              this.siteConfig = { ...this.siteConfig, ...parsed };
-              if (parsed.cateringPackages) {
-                this.cateringPackages = parsed.cateringPackages;
-              }
-            }
-          } catch (e) {
-            console.warn("Error loading saved config:", e);
-          }
+          // 1. Site Configuration hanya dari Firebase RTDB /site_config (single source of truth).
+          // localStorage 'dapur_site_config' DIHAPUS dari initApp sehingga perubahan admin
+          // (mis. brandName) selalu sinkron di semua device lewat listener onValue
+          // di syncFirebaseListeners() (baris ~6851) — Firebase data SELALU menimpa,
+          // tidak ada fallback localStorage untuk site_config.
 
           // FASE 5: terapkan mode conditional modal keranjang/checkout
           this.applyRtoRestrictions();
