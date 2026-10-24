@@ -125,9 +125,26 @@ function parseCSV(text) {
       continue;
     }
 
-    const kreditVal = String(row['Kredit(Y/N)'] || 'Y').trim().toUpperCase();
-    const isCredit = kreditVal !== 'N';
-    console.log(`[CEK IMPORT] Produk: ${row.name} | Kredit(Y/N): ${row['Kredit(Y/N)']} | isCredit: ${isCredit}`);
+    const supplierName = String(row.supplier || '').trim();
+    const kreditRaw = String(row['Kredit(Y/N)'] || row['Kredit'] || '').trim().toUpperCase();
+
+    let isCreditValue = true; // Default
+
+    if (kreditRaw === 'N') {
+        isCreditValue = false;
+    } else if (kreditRaw === 'Y') {
+        isCreditValue = true;
+    } else if (kreditRaw === '') {
+        // Terapkan aturan bisnis khusus kolom kosong
+        if (supplierName === '') {
+            isCreditValue = false; // Kondisi 1: Tanpa supplier & kosong = Tunai (N)
+        } else {
+            isCreditValue = true;  // Kondisi 2: Ada supplier & kosong = Kredit (Y)
+        }
+    }
+
+    // Tambahkan log untuk memastikan logika berjalan
+    console.log(`[LOGIKA KREDIT] Supplier: "${supplierName}" | Kredit CSV: "${kreditRaw}" | Hasil isCredit: ${isCreditValue}`);
     parsed.push({
       name: String(row.name || ''),
       supplier: String(row.supplier || ''),
@@ -140,8 +157,8 @@ function parseCSV(text) {
       unit: String(row.unit || 'pcs'),
       stock: Number(row.stock) || 0,
       imageUrl: String(row.imageUrl || '').trim(),
-      kredit: kreditVal,
-      isCredit: isCredit,
+      kredit: String(isCreditValue ? 'Y' : 'N'),
+      isCredit: isCreditValue,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
