@@ -7667,6 +7667,7 @@ async loadMoreProducts() {
       const breakdown = { cash: 0, qris: 0, transfer: 0, ewallet: 0 };
 
       for (const tx of txList) {
+        if (tx.voided === true) continue; // Lewati transaksi yang sudah di-void
         // ✅ Pakai field short-form 'tot'
         const amt = Number(tx.tot || tx.total || tx.amount || 0);
         totalSales += amt;
@@ -7723,6 +7724,7 @@ async loadMoreProducts() {
       const nameMap = {};
 
       for (const tx of transactions) {
+        if (tx.voided === true) continue; // Lewati transaksi yang sudah di-void
         if (!Array.isArray(tx.items)) continue;
         for (const it of tx.items) {
           let mId, mQty, mPrice;
@@ -7776,6 +7778,7 @@ async loadMoreProducts() {
 
       const hourlyTotals = new Array(24).fill(0);
       for (const tx of transactions) {
+        if (tx.voided === true) continue; // Lewati transaksi yang sudah di-void
         if (!tx.t) continue;
         const d = new Date(Number(tx.t) || tx.t);
         const hour = d.getHours();
@@ -12280,6 +12283,25 @@ async loadMoreProducts() {
                 updatedAt: Date.now()
               });
               console.log(`[VOID] Stok RTDB ${itemId} dikembalikan +${qty}`);
+
+              // Log inventori pengembalian stok karena void transaksi
+              try {
+                const itemName = Array.isArray(rawItem)
+                  ? (rawItem[2] || itemId)
+                  : (rawItem.name || itemId);
+                const unit = (current && current.unit) || 'pcs';
+                this.addInventoryLog(
+                  itemName,
+                  currentStock,
+                  currentStock + qty,
+                  unit,
+                  'Void Penjualan',
+                  `Transaksi #${txId} dibatalkan`
+                );
+                console.log(`[VOID] Log inventori ${itemName} +${qty} dicatat`);
+              } catch (logErr) {
+                console.warn('[VOID] Gagal catat log inventori:', logErr);
+              }
             } catch (invErr) {
               console.warn(`[VOID] Gagal update RTDB inventory/${itemId}:`, invErr);
             }
