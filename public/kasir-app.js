@@ -6085,14 +6085,14 @@ async loadMoreProducts() {
     const journalId = 'JRN-' + Date.now();
     const refStr = ref || ('INV-' + dateStr.replace(/-/g, '') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase());
 
-    let creditAcc = '1001';
+    let creditAcc = '101';
     let creditAccName = 'Kas di Tangan';
     const pm = String(paymentMethod).toLowerCase();
     if (pm === 'transfer' || pm === 'bank' || pm === 'bca') {
-      creditAcc = '1002';
+      creditAcc = '102';
       creditAccName = 'Kas di Bank BCA';
     } else if (pm === 'payable' || pm === 'hutang' || pm === 'kredit') {
-      creditAcc = '2001';
+      creditAcc = '201';
       creditAccName = 'Hutang Usaha Supplier';
     }
 
@@ -6105,7 +6105,7 @@ async loadMoreProducts() {
       status: 'approved',
       timestamp: Date.now(),
       lines: [
-        { acc: '1004', name: 'Persediaan Bahan Baku', debit: Number(amount), credit: 0 },
+        { acc: '105', name: 'Persediaan Bahan Baku', debit: Number(amount), credit: 0 },
         { acc: creditAcc, name: creditAccName, debit: 0, credit: Number(amount) }
       ]
     };
@@ -6141,7 +6141,7 @@ async loadMoreProducts() {
       timestamp: Date.now(),
       lines: [
         { acc: '6005', name: 'Beban Operasional & Kerugian Bahan', debit: Number(amount), credit: 0 },
-        { acc: '1004', name: 'Persediaan Bahan Baku', debit: 0, credit: Number(amount) }
+        { acc: '105', name: 'Persediaan Bahan Baku', debit: 0, credit: Number(amount) }
       ]
     };
 
@@ -8437,20 +8437,24 @@ async loadMoreProducts() {
     }
 
     try {
-      // 1. Grouping inventoryList berdasarkan supplierName
+      // 1. Grouping inventoryList berdasarkan supplierName DAN isCredit (per item)
+      // Satu supplier boleh punya campuran Y dan N → pisahkan jurnal per kelompok kredit
       const groups = {};
       for (const item of this.inventoryList) {
         const supName = String(item.supplierName || item.supplier || 'Tanpa Supplier').trim();
-        if (!groups[supName]) groups[supName] = [];
-        groups[supName].push(item);
+        const isCredit = String(item.isCredit || item.kredit || 'Y').trim().toUpperCase() !== 'N';
+        const key = supName + '||' + (isCredit ? 'KREDIT' : 'TUNAI');
+        if (!groups[key]) groups[key] = { supName, isCredit, items: [] };
+        groups[key].items.push(item);
       }
 
       const bulan = new Date().toISOString().slice(0, 7);
       const dateStr = new Date().toISOString().slice(0, 10);
       const createdBy = (this.kasirInfo && this.kasirInfo.nama) ? this.kasirInfo.nama : 'kasir';
 
-      // 2. Perhitungan per Supplier & pembuatan jurnal
-      for (const [supName, items] of Object.entries(groups)) {
+      // 2. Perhitungan per kelompok & pembuatan jurnal
+      for (const [key, g] of Object.entries(groups)) {
+        const { supName, isCredit, items } = g;
         // Total Nilai = Sum(stock * purchasePrice)
         let totalValue = 0;
         for (const it of items) {
@@ -8458,22 +8462,18 @@ async loadMoreProducts() {
         }
         if (totalValue <= 0) continue;
 
-        // Cek tipe supplier dari suppliersList
-        const sup = (this.suppliersList || []).find(s => String(s.name || '').trim().toLowerCase() === supName.toLowerCase());
-        const isCredit = sup ? Boolean(sup.isCredit) : false;
-
         const lines = [
-          { acc: '1004', debit: totalValue, credit: 0 } // Debit Persediaan
+          { acc: '105', debit: totalValue, credit: 0 } // Debit Persediaan (3-digit: 105)
         ];
         let desc = '';
         if (isCredit) {
-          // Kredit: Debit 1004 / Kredit 2001 Hutang Supplier
-          lines.push({ acc: '2001', debit: 0, credit: totalValue });
-          desc = `Saldo Awal - ${supName}`;
+          // Kredit: Debit 105 Persediaan / Kredit 201 Hutang Supplier
+          lines.push({ acc: '201', debit: 0, credit: totalValue });
+          desc = `Saldo Awal - ${supName} (Kredit)`;
         } else {
-          // Tunai / Tanpa Supplier: Debit 1004 / Kredit 3001 Modal Pemilik
-          lines.push({ acc: '3001', debit: 0, credit: totalValue });
-          desc = `Saldo Awal - Modal Pemilik`;
+          // Tunai / Tanpa Supplier: Debit 105 Persediaan / Kredit 301 Modal Pemilik
+          lines.push({ acc: '301', debit: 0, credit: totalValue });
+          desc = `Saldo Awal - ${supName} (Tunai)`;
         }
 
         // Simpan jurnal ke backend via endpoint generic /accounting/journal/:bulan
@@ -10175,8 +10175,8 @@ async loadMoreProducts() {
     this.journalForm.ref = item.sku || code;
     this.journalForm.category = 'pembelian';
     this.journalForm.lines = [
-      { acc: '1004', debit: price, credit: 0, hint: 'Persediaan Bahan Baku' },
-      { acc: '1001', debit: 0, credit: price, hint: 'Kas Tunai' }
+      { acc: '105', debit: price, credit: 0, hint: 'Persediaan Bahan Baku' },
+      { acc: '101', debit: 0, credit: price, hint: 'Kas Tunai' }
     ];
     this.showToast(`Form jurnal otomatis terisi untuk "${item.name}"`, 'success');
   },

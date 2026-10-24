@@ -904,19 +904,19 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
   const totalHpp = Number(body.totalHpp) || 0;
   const pm = String(body.pm || 'cash').toLowerCase();
   const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet');
-  const debitAcc = isBank ? '1002' : '1001';
+  const debitAcc = isBank ? '102' : '101';
 
   if (!serverJournals[bulan]) serverJournals[bulan] = {};
   const jrnId = `JRN-${dateStr.replace(/-/g, '')}-POS-${Date.now().toString().slice(-4)}`;
   const lines = [
     { acc: debitAcc, debit: total, credit: 0 },
-    { acc: '4001', debit: 0, credit: total }
+    { acc: '401', debit: 0, credit: total }
   ];
-  // Jurnal HPP: Debit 5001 HPP Bahan Baku / Kredit 1004 Persediaan
+  // Jurnal HPP: Debit 501 HPP Bahan Baku / Kredit 105 Persediaan
   if (totalHpp > 0) {
     lines.push(
-      { acc: '5001', debit: totalHpp, credit: 0 },
-      { acc: '1004', debit: 0, credit: totalHpp }
+      { acc: '501', debit: totalHpp, credit: 0 },
+      { acc: '105', debit: 0, credit: totalHpp }
     );
   }
   serverJournals[bulan][jrnId] = {
@@ -936,7 +936,7 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
   res.status(201).json({ success: true, message: "Jurnal POS berhasil disimpan", totalRev: total, totalHpp });
 });
 
-// POST /accounting/journal/receive (Konsinyasi: Debit Persediaan 1004 / Kredit Hutang Supplier 2001)
+// POST /accounting/journal/receive (Konsinyasi: Debit Persediaan 105 / Kredit Hutang Supplier 201)
 app.post(['/accounting/journal/receive', '/api/accounting/journal/receive'], (req, res) => {
   const body = req.body || {};
   const dateStr = body.date || new Date().toISOString().split('T')[0];
@@ -956,8 +956,8 @@ app.post(['/accounting/journal/receive', '/api/accounting/journal/receive'], (re
     ref,
     status: 'approved',
     lines: [
-      { acc: '1004', debit: amount, credit: 0 },
-      { acc: '2001', debit: 0, credit: amount }
+      { acc: '105', debit: amount, credit: 0 },
+      { acc: '201', debit: 0, credit: amount }
     ],
     total: amount,
     createdAt: Date.now()
@@ -966,7 +966,7 @@ app.post(['/accounting/journal/receive', '/api/accounting/journal/receive'], (re
   res.status(201).json({ success: true, message: "Jurnal Penerimaan Konsinyasi berhasil dicatat", jrnId, amount });
 });
 
-// POST /accounting/journal/settlement (Konsinyasi: Debit Hutang Supplier 2001 / Kredit Kas 1001/1002)
+// POST /accounting/journal/settlement (Konsinyasi: Debit Hutang Supplier 201 / Kredit Kas 101/102)
 app.post(['/accounting/journal/settlement', '/api/accounting/journal/settlement'], (req, res) => {
   const body = req.body || {};
   const dateStr = body.date || new Date().toISOString().split('T')[0];
@@ -974,7 +974,7 @@ app.post(['/accounting/journal/settlement', '/api/accounting/journal/settlement'
   const amount = Number(body.amount || body.totalPaid) || 0;
   const pm = String(body.paymentMethod || 'cash').toLowerCase();
   const isBank = pm.includes('transfer') || pm.includes('bank') || pm.includes('qris');
-  const creditAcc = isBank ? '1002' : '1001';
+  const creditAcc = isBank ? '102' : '101';
   const ref = body.ref || body.settlementId || `STL-${Date.now()}`;
   const desc = body.desc || `Settlement & Bayar Konsinyasi: ${body.supplierName || 'Semua'} (${pm.toUpperCase()})`;
 
@@ -989,7 +989,7 @@ app.post(['/accounting/journal/settlement', '/api/accounting/journal/settlement'
     ref,
     status: 'approved',
     lines: [
-      { acc: '2001', debit: amount, credit: 0 },
+      { acc: '201', debit: amount, credit: 0 },
       { acc: creditAcc, debit: 0, credit: amount }
     ],
     total: amount,
@@ -999,7 +999,7 @@ app.post(['/accounting/journal/settlement', '/api/accounting/journal/settlement'
   res.status(201).json({ success: true, message: "Jurnal Settlement Konsinyasi berhasil dicatat", jrnId, amount });
 });
 
-// POST /accounting/journal/return (Konsinyasi: Debit Hutang Supplier 2001 / Kredit Persediaan 1004)
+// POST /accounting/journal/return (Konsinyasi: Debit Hutang Supplier 201 / Kredit Persediaan 105)
 app.post(['/accounting/journal/return', '/api/accounting/journal/return'], (req, res) => {
   const body = req.body || {};
   const dateStr = body.date || new Date().toISOString().split('T')[0];
@@ -1019,8 +1019,8 @@ app.post(['/accounting/journal/return', '/api/accounting/journal/return'], (req,
     ref,
     status: 'approved',
     lines: [
-      { acc: '2001', debit: amount, credit: 0 },
-      { acc: '1004', debit: 0, credit: amount }
+      { acc: '201', debit: amount, credit: 0 },
+      { acc: '105', debit: 0, credit: amount }
     ],
     total: amount,
     createdAt: Date.now()
