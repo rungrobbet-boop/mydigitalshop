@@ -9659,7 +9659,7 @@ git push -u origin main</pre>
             const products = result && Array.isArray(result.products) ? result.products : [];
 
             // Buat CSV
-            const headers = ['id', 'name', 'supplier', 'category', 'purchasePrice'];
+            const headers = ['id', 'name', 'supplier', 'category', 'purchasePrice', 'Kredit(Y/N)'];
             const catsMap = new Map();
             (this.menuCategories || []).forEach(c => {
               if (c && c.id) catsMap.set(String(c.id), c.name || c.id);
@@ -9687,7 +9687,8 @@ git push -u origin main</pre>
                 p.name || '',
                 supplier,
                 category,
-                purchasePrice
+                purchasePrice,
+                'Y'
               ].map(v => {
                 const s = String(v || '');
                 // Escape kolom yang mengandung kommas, kutip, atau baris baru
