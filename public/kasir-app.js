@@ -125,6 +125,9 @@ function parseCSV(text) {
       continue;
     }
 
+    const kreditVal = String(row['Kredit(Y/N)'] || 'Y').trim().toUpperCase();
+    const isCredit = kreditVal !== 'N';
+    console.log(`[CEK IMPORT] Produk: ${row.name} | Kredit(Y/N): ${row['Kredit(Y/N)']} | isCredit: ${isCredit}`);
     parsed.push({
       name: String(row.name || ''),
       supplier: String(row.supplier || ''),
@@ -137,8 +140,8 @@ function parseCSV(text) {
       unit: String(row.unit || 'pcs'),
       stock: Number(row.stock) || 0,
       imageUrl: String(row.imageUrl || '').trim(),
-      kredit: String(row.kredit || 'Y').trim().toUpperCase(),
-      isCredit: String(row.kredit || 'Y').trim().toUpperCase() !== 'N',
+      kredit: kreditVal,
+      isCredit: isCredit,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -8437,68 +8440,69 @@ async loadMoreProducts() {
     }
 
     try {
-      // 1. Grouping inventoryList berdasarkan supplierName DAN isCredit (per item)
-      // Satu supplier boleh punya campuran Y dan N → pisahkan jurnal per kelompok kredit
-      const groups = {};
-      for (const item of this.inventoryList) {
-        const supName = String(item.supplierName || item.supplier || 'Tanpa Supplier').trim();
-        const isCredit = String(item.isCredit || item.kredit || 'Y').trim().toUpperCase() !== 'N';
-        const key = supName + '||' + (isCredit ? 'KREDIT' : 'TUNAI');
-        if (!groups[key]) groups[key] = { supName, isCredit, items: [] };
-        groups[key].items.push(item);
-      }
-
       const bulan = new Date().toISOString().slice(0, 7);
       const dateStr = new Date().toISOString().slice(0, 10);
       const createdBy = (this.kasirInfo && this.kasirInfo.nama) ? this.kasirInfo.nama : 'kasir';
 
-      // 2. Perhitungan per kelompok & pembuatan jurnal
-      for (const [key, g] of Object.entries(groups)) {
-        const { supName, isCredit, items } = g;
-        // Total Nilai = Sum(stock * purchasePrice)
-        let totalValue = 0;
-        for (const it of items) {
-          totalValue += Number(it.stock || 0) * Number(it.purchasePrice || 0);
-        }
-        if (totalValue <= 0) continue;
+      const supplierHutang = {};
+      let totalTunai = 0;
+      let grandTotal = 0;
 
-        const lines = [
-          { acc: '105', debit: totalValue, credit: 0 } // Debit Persediaan (3-digit: 105)
-        ];
-        let desc = '';
-        if (isCredit) {
-          // Kredit: Debit 105 Persediaan / Kredit 201 Hutang Supplier
-          lines.push({ acc: '201', debit: 0, credit: totalValue });
-          desc = `Saldo Awal - ${supName} (Kredit)`;
+      this.inventoryList.forEach(item => {
+        console.log(`[CEK JURNAL] Produk: ${item.name} | isCredit: ${item.isCredit} | Target: ${item.isCredit === true ? '201 (Hutang)' : '301 (Modal)'}`);
+        const totalValue = Number(item.stock || 0) * Number(item.purchasePrice || 0);
+        if (totalValue <= 0) return;
+        grandTotal += totalValue;
+
+        // CEK STRICT BOOLEAN
+        if (item.isCredit === true || String(item.isCredit) === 'true') {
+          const supName = item.supplierName || item.supplier || 'Tanpa Supplier';
+          if (!supplierHutang[supName]) supplierHutang[supName] = 0;
+          supplierHutang[supName] += totalValue;
         } else {
-          // Tunai / Tanpa Supplier: Debit 105 Persediaan / Kredit 301 Modal Pemilik
-          lines.push({ acc: '301', debit: 0, credit: totalValue });
-          desc = `Saldo Awal - ${supName} (Tunai)`;
+          totalTunai += totalValue;
+        }
+      });
+
+      const lines = [];
+      if (grandTotal > 0) {
+        lines.push({ acc: '105', debit: grandTotal, credit: 0 });
+
+        // Masukkan ke Hutang (201) per supplier
+        for (const [supplier, amount] of Object.entries(supplierHutang)) {
+          if (amount > 0) {
+            lines.push({ acc: '201', debit: 0, credit: amount, desc: `Saldo Awal - ${supplier}` });
+          }
         }
 
-        // Simpan jurnal ke backend via endpoint generic /accounting/journal/:bulan
-        try {
-          const res = await fetch(`/accounting/journal/${bulan}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              category: 'penyesuaian',
-              date: dateStr,
-              desc,
-              ref: `SALDO-AWAL-${supName.replace(/\s+/g, '-')}`,
-              status: 'approved',
-              createdBy,
-              lines
-            })
-          });
-          if (res.ok) {
-            console.log('[SALDO-AWAL] ✅ Jurnal tersimpan:', supName, 'total Rp', totalValue.toLocaleString());
-          } else {
-            console.warn('[SALDO-AWAL] ⚠️ Gagal simpan jurnal:', supName, res.status);
-          }
-        } catch (jeErr) {
-          console.warn('[SALDO-AWAL] ❌ Error simpan jurnal:', supName, jeErr);
+        // Masukkan ke Modal (301) untuk yang Tunai
+        if (totalTunai > 0) {
+          lines.push({ acc: '301', debit: 0, credit: totalTunai, desc: 'Saldo Awal - Pembelian Tunai' });
         }
+      }
+
+      // Simpan jurnal ke backend via endpoint generic /accounting/journal/:bulan
+      try {
+        const res = await fetch(`/accounting/journal/${bulan}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category: 'penyesuaian',
+            date: dateStr,
+            desc: 'Saldo Awal - Semua Supplier',
+            ref: 'SALDO-AWAL-ALL',
+            status: 'approved',
+            createdBy,
+            lines
+          })
+        });
+        if (res.ok) {
+          console.log('[SALDO-AWAL] ✅ Jurnal tersimpan, grandTotal Rp', grandTotal.toLocaleString());
+        } else {
+          console.warn('[SALDO-AWAL] ⚠️ Gagal simpan jurnal:', res.status);
+        }
+      } catch (jeErr) {
+        console.warn('[SALDO-AWAL] ❌ Error simpan jurnal:', jeErr);
       }
 
       // Tandai sudah generate saldo awal (localStorage) agar tidak diulang
@@ -8611,6 +8615,7 @@ async loadMoreProducts() {
           const imageUrl = String(row.imageUrl || '').trim();
           const minStock = 5;
           const itemId = `inv_${slugify(itemName)}_${idx}`;
+          console.log(`[CEK IMPORT] Produk: ${row.name} | Kredit(Y/N): ${row['Kredit(Y/N)']} | isCredit: ${row.isCredit}`);
 
           // DEBUG: Lihat nilai dari CSV
           console.log("CEK CSV ROW:", {
