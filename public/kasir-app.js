@@ -884,7 +884,7 @@ try {
     await this.loadInventory();
     this.loadSuppliers();
     this.loadMenuRecipes();
-    this.loadInventoryLogs();
+    await this.loadInventoryLogs();
     this.loadRiwayatShift();
 
     // 7. Muat Snapshot Laporan Offline & Laporan Hari Ini
@@ -2352,6 +2352,7 @@ async loadMoreProducts() {
           purchasePrice: Number(item.purchasePrice) || 0,
           unit: item.unit || 'pcs',
           stock: Math.max(0, Number(item.stock) || 0),
+          stok: Math.max(0, Number(item.stock) || 0),
           minStock: Number(item.minStock) || 5,
           imageUrl: item.imageUrl || '',
           syncedAt: now,
@@ -8323,8 +8324,26 @@ async loadMoreProducts() {
   // 14.7 LOG INVENTORI, EXPORT & IMPORT CSV STOK OPNAME
   // -------------------------------------------------------------------------
 
-  loadInventoryLogs() {
+  async loadInventoryLogs() {
     try {
+      // Prioritas 1: ambil dari Firebase RTDB /inventory_logs
+      if (this._fbDb && this._fbGet && this._fbRef) {
+        try {
+          const logsRef = this._fbRef(this._fbDb, 'inventory_logs');
+          const snap = await this._fbGet(logsRef);
+          const val = snap.val();
+          if (val && typeof val === 'object') {
+            this.inventoryLogs = Object.values(val).sort((a, b) => {
+              return new Date(b.time || 0) - new Date(a.time || 0);
+            });
+            console.log('[INV-LOG] Muat ' + this.inventoryLogs.length + ' log dari RTDB');
+            return;
+          }
+        } catch (rtdbErr) {
+          console.warn('[INV-LOG] Gagal baca RTDB, fallback localStorage:', rtdbErr);
+        }
+      }
+      // Fallback ke localStorage
       const raw = localStorage.getItem('dapur_inventory_logs');
       if (raw) {
         this.inventoryLogs = JSON.parse(raw);
@@ -8332,6 +8351,7 @@ async loadMoreProducts() {
         this.inventoryLogs = [];
       }
     } catch (e) {
+      console.warn('Error load logs:', e);
       this.inventoryLogs = [];
     }
   },
@@ -8361,6 +8381,17 @@ async loadMoreProducts() {
     try {
       localStorage.setItem('dapur_inventory_logs', JSON.stringify(this.inventoryLogs));
     } catch (e) {}
+
+    // Simpan juga ke Firebase RTDB /inventory_logs agar tidak hilang setelah refresh
+    if (this._fbDb && this._fbRef && this._fbSet) {
+      try {
+        const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const logRef = this._fbRef(this._fbDb, 'inventory_logs/' + logId);
+        this._fbSet(logRef, logEntry).catch(e => console.warn('[INV-LOG] Gagal simpan log ke RTDB:', e));
+      } catch (rtdbErr) {
+        console.warn('[INV-LOG] Gagal siapkan RTDB log ref:', rtdbErr);
+      }
+    }
   },
 
   exportInventoryCSV() {
