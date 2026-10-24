@@ -125,8 +125,10 @@ function parseCSV(text) {
       continue;
     }
 
+    // Cari key yang mengandung 'kredit' (case-insensitive, handle spasi tak terlihat)
+    const kreditKey = Object.keys(row).find(k => k.toLowerCase().includes('kredit'));
+    const kreditRaw = kreditKey ? String(row[kreditKey] || '').trim().toUpperCase() : '';
     const supplierName = String(row.supplier || '').trim();
-    const kreditRaw = String(row['Kredit(Y/N)'] || row['Kredit'] || '').trim().toUpperCase();
 
     let isCreditValue = true; // Default
 
@@ -1668,8 +1670,10 @@ try {
             barcode: data.barcode || '',
             isReadyToSell: Boolean(data.isReadyToSell) || false,
             linkedMenuId: data.linkedMenuId || null,
+            isCredit: data.isCredit !== undefined ? data.isCredit : true,
           });
           // DEBUG: Lihat nilai yang dibaca dari Firestore
+          console.log(`[TRACE FETCH] Produk: ${data.name} | isCredit DB: ${data.isCredit} (Tipe: ${typeof data.isCredit})`);
           console.log(`[FB-FS] Produk: ${data.name} | Gambar: ${data.imageUrl} | Min Partai: ${data.minOrderPartai} | Min Agen: ${data.minOrderAgen}`);
         }
       });
@@ -5651,6 +5655,7 @@ async loadMoreProducts() {
               isReadyToSell: Boolean(p.isReadyToSell) || false,
               linkedMenuId: p.linkedMenuId || null,
               image: p.image || '',
+              isCredit: p.isCredit !== undefined ? p.isCredit : true,
             }));
             console.log(`[FB-FS] Inventory dimuat dari Firestore 'products': ${this.inventoryList.length} item`);
             // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
@@ -5712,10 +5717,15 @@ async loadMoreProducts() {
                 isReadyToSell: Boolean(d.isReadyToSell) || false,
                 linkedMenuId: d.linkedMenuId || null,
                 image: d.image || '',
+                isCredit: d.isCredit !== undefined ? d.isCredit : true,
               });
             });
             this.inventoryList = invFromProducts;
             console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
+            // Trace isCredit dari semua item yang di-load
+            this.inventoryList.forEach(inv => {
+              console.log(`[TRACE FETCH] Produk: ${inv.name} | isCredit DB: ${inv.isCredit} (Tipe: ${typeof inv.isCredit})`);
+            });
             // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
             const menuByInvId2 = new Map();
             for (const m of (this.menuList || [])) {
@@ -8466,13 +8476,16 @@ async loadMoreProducts() {
       let grandTotal = 0;
 
       this.inventoryList.forEach(item => {
-        console.log(`[CEK JURNAL] Produk: ${item.name} | isCredit: ${item.isCredit} | Target: ${item.isCredit === true ? '201 (Hutang)' : '301 (Modal)'}`);
         const totalValue = Number(item.stock || 0) * Number(item.purchasePrice || 0);
         if (totalValue <= 0) return;
         grandTotal += totalValue;
 
-        // CEK STRICT BOOLEAN
-        if (item.isCredit === true || String(item.isCredit) === 'true') {
+        // PENGECEKAN SUPER KAKU (String "true" atau Boolean true)
+        const isKredit = item.isCredit === true || String(item.isCredit).toLowerCase() === 'true';
+
+        console.log(`[TRACE JURNAL] Produk: ${item.name} | isCredit Terbaca: ${item.isCredit} | Masuk ke: ${isKredit ? 'HUTANG (201)' : 'MODAL (301)'}`);
+
+        if (isKredit) {
           const supName = item.supplierName || item.supplier || 'Tanpa Supplier';
           if (!supplierHutang[supName]) supplierHutang[supName] = 0;
           supplierHutang[supName] += totalValue;
@@ -8632,7 +8645,7 @@ async loadMoreProducts() {
           const imageUrl = String(row.imageUrl || '').trim();
           const minStock = 5;
           const itemId = `inv_${slugify(itemName)}_${idx}`;
-          console.log(`[CEK IMPORT] Produk: ${row.name} | Kredit(Y/N): ${row['Kredit(Y/N)']} | isCredit: ${row.isCredit}`);
+          console.log(`[TRACE IMPORT] Produk: ${row.name} | Kredit CSV: "${row['Kredit(Y/N)']}" | isCredit Value: ${row.isCredit} (Tipe: ${typeof row.isCredit})`);
 
           // DEBUG: Lihat nilai dari CSV
           console.log("CEK CSV ROW:", {
