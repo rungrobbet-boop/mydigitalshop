@@ -105,11 +105,11 @@ function parseCSV(text) {
 
     const trimmed = fields.map(f => f.trim());
 
-    // Validasi jumlah kolom - harus tepat 11 sesuai skema
+    // Validasi jumlah kolom - harus tepat 12 sesuai skema
     // name, supplier, categoryId, priceEcer, pricePartai, priceAgen,
-    // minOrderPartai, minOrderAgen, unit, stock, imageUrl
-    if (trimmed.length !== 11) {
-      const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 11), dilewati';
+    // minOrderPartai, minOrderAgen, unit, stock, imageUrl, kredit(Y/N)
+    if (trimmed.length !== 12) {
+      const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 12), dilewati';
       errors.push(msg);
       console.log('[parseCSV] ' + msg, trimmed);
       continue;
@@ -139,6 +139,8 @@ function parseCSV(text) {
       unit: String(row.unit || 'pcs'),
       stock: Number(row.stock) || 0,
       imageUrl: String(row.imageUrl || '').trim(),
+      kredit: String(row.kredit || 'Y').trim().toUpperCase(),
+      isCredit: String(row.kredit || 'Y').trim().toUpperCase() !== 'N',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -8394,6 +8396,106 @@ async loadMoreProducts() {
     }
   },
 
+  // ===== FITUR GENERATE JURNAL SALDO AWAL =====
+  async generateOpeningBalanceJournal() {
+    // Cegah generate ulang jika sudah pernah dilakukan
+    if (localStorage.getItem('dapur_opening_balance_done') === 'true') {
+      this.showToast('Jurnal Saldo Awal sudah pernah dibuat. Tidak dapat diulang.', 'notify');
+      return;
+    }
+
+    if (!this.inventoryList || this.inventoryList.length === 0) {
+      this.showToast('Inventory kosong. Import CSV terlebih dahulu sebelum generate saldo awal.', 'error');
+      return;
+    }
+
+    // PIN Supervisor wajib sebelum mengeksekusi
+    const pinOk = await this.requestSupervisorPin('GENERATE SALDO AWAL', 'Buat Jurnal Saldo Awal per Supplier');
+    if (!pinOk) {
+      this.showToast('Generate Saldo Awal dibatalkan (PIN tidak valid).', 'notify');
+      return;
+    }
+
+    try {
+      // 1. Grouping inventoryList berdasarkan supplierName
+      const groups = {};
+      for (const item of this.inventoryList) {
+        const supName = String(item.supplierName || item.supplier || 'Tanpa Supplier').trim();
+        if (!groups[supName]) groups[supName] = [];
+        groups[supName].push(item);
+      }
+
+      const bulan = new Date().toISOString().slice(0, 7);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const createdBy = (this.kasirInfo && this.kasirInfo.nama) ? this.kasirInfo.nama : 'kasir';
+
+      // 2. Perhitungan per Supplier & pembuatan jurnal
+      for (const [supName, items] of Object.entries(groups)) {
+        // Total Nilai = Sum(stock * purchasePrice)
+        let totalValue = 0;
+        for (const it of items) {
+          totalValue += Number(it.stock || 0) * Number(it.purchasePrice || 0);
+        }
+        if (totalValue <= 0) continue;
+
+        // Cek tipe supplier dari suppliersList
+        const sup = (this.suppliersList || []).find(s => String(s.name || '').trim().toLowerCase() === supName.toLowerCase());
+        const isCredit = sup ? Boolean(sup.isCredit) : false;
+
+        const lines = [
+          { acc: '1004', debit: totalValue, credit: 0 } // Debit Persediaan
+        ];
+        let desc = '';
+        if (isCredit) {
+          // Kredit: Debit 1004 / Kredit 2001 Hutang Supplier
+          lines.push({ acc: '2001', debit: 0, credit: totalValue });
+          desc = `Saldo Awal - ${supName}`;
+        } else {
+          // Tunai / Tanpa Supplier: Debit 1004 / Kredit 3001 Modal Pemilik
+          lines.push({ acc: '3001', debit: 0, credit: totalValue });
+          desc = `Saldo Awal - Modal Pemilik`;
+        }
+
+        // Simpan jurnal ke backend via endpoint generic /accounting/journal/:bulan
+        try {
+          const res = await fetch(`/accounting/journal/${bulan}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category: 'penyesuaian',
+              date: dateStr,
+              desc,
+              ref: `SALDO-AWAL-${supName.replace(/\s+/g, '-')}`,
+              status: 'approved',
+              createdBy,
+              lines
+            })
+          });
+          if (res.ok) {
+            console.log('[SALDO-AWAL] ✅ Jurnal tersimpan:', supName, 'total Rp', totalValue.toLocaleString());
+          } else {
+            console.warn('[SALDO-AWAL] ⚠️ Gagal simpan jurnal:', supName, res.status);
+          }
+        } catch (jeErr) {
+          console.warn('[SALDO-AWAL] ❌ Error simpan jurnal:', supName, jeErr);
+        }
+      }
+
+      // Tandai sudah generate saldo awal (localStorage) agar tidak diulang
+      localStorage.setItem('dapur_opening_balance_done', 'true');
+      this.showToast('✅ Jurnal Saldo Awal per supplier berhasil dibuat.', 'success');
+      this.playSound('success');
+
+      // Refresh laporan akuntansi
+      if (typeof this.loadAccountingSummary === 'function') {
+        await this.loadAccountingSummary(true);
+      }
+    } catch (e) {
+      console.error('[SALDO-AWAL] Error:', e);
+      this.showToast('Gagal generate saldo awal: ' + (e && e.message ? e.message : e), 'error');
+    }
+  },
+
   exportInventoryCSV() {
     try {
       const list = Array.isArray(this.inventoryList) ? this.inventoryList : [];
@@ -8516,12 +8618,17 @@ async loadMoreProducts() {
             existing.imageUrl = imageUrl;
             existing.image = imageUrl;
             existing.minStock = minStock;
+            existing.supplier = supplier || existing.supplier || '';
+            existing.supplierName = supplier;
+            existing.isCredit = row.isCredit;
             updatedCount++;
 
             itemsForFirestore.push({
               id: existing.id,
               name: existing.name,
               supplier: supplier || existing.supplier || '',
+              supplierName: existing.supplierName || '',
+              isCredit: existing.isCredit,
               categoryId: existing.categoryId || '',
               category: existing.category,
               priceEcer: Number(existing.priceEcer) || 0,
@@ -8567,7 +8674,9 @@ async loadMoreProducts() {
               isCountable: true,
               imageUrl: imageUrl,
               image: imageUrl,
-              source: 'csv-import'
+              source: 'csv-import',
+              supplierName: supplier,
+              isCredit: row.isCredit
             };
             this.inventoryList.push(newItemObj);
             addedCount++;
@@ -8576,6 +8685,8 @@ async loadMoreProducts() {
               id: newItemObj.id,
               name: newItemObj.name,
               supplier: newItemObj.supplier || '',
+              supplierName: newItemObj.supplierName || '',
+              isCredit: newItemObj.isCredit,
               categoryId: newItemObj.categoryId || '',
               category: newItemObj.category,
               priceEcer: Number(newItemObj.priceEcer) || 0,
@@ -8602,6 +8713,51 @@ async loadMoreProducts() {
             );
           }
         });
+
+        // ===== SINKRONISASI MASTER SUPPLIER OTOMATIS =====
+        // Kumpulkan nama supplier unik dari CSV yang belum ada di suppliersList
+        try {
+          const supplierNamesFromCSV = [...new Set(
+            parsed.map(p => p.supplier).filter(s => s && s.trim() !== '')
+          )];
+          const existingSupNames = new Set(
+            (this.suppliersList || []).map(s => String(s.name || '').trim().toLowerCase())
+          );
+          const newSuppliers = supplierNamesFromCSV
+            .filter(s => !existingSupNames.has(s.toLowerCase()))
+            .map(name => ({ name: name.trim(), contact: '', address: '', active: true, isCredit: false }));
+
+          if (newSuppliers.length > 0) {
+            console.log('[IMPORT-CSV] Supplier baru terdeteksi:', newSuppliers.map(s => s.name));
+            for (const sup of newSuppliers) {
+              try {
+                const supRes = await fetch('/suppliers', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id: 'sp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    name: sup.name,
+                    contact: sup.contact,
+                    address: sup.address,
+                    active: sup.active,
+                    createdAt: new Date().toISOString()
+                  })
+                });
+                if (supRes.ok) {
+                  console.log('[IMPORT-CSV] ✅ Supplier dibuat otomatis:', sup.name);
+                } else {
+                  console.warn('[IMPORT-CSV] ⚠️ Gagal buat supplier:', sup.name, supRes.status);
+                }
+              } catch (supErr) {
+                console.warn('[IMPORT-CSV] ❌ Error buat supplier:', sup.name, supErr);
+              }
+            }
+            // Reload daftar supplier agar muncul di modul Kasir
+            await this.loadSuppliers();
+          }
+        } catch (syncErr) {
+          console.warn('[IMPORT-CSV] Gagal sinkronkan supplier otomatis:', syncErr);
+        }
 
         // ✅ Tulis ke Firestore collection 'products' — paksa Firestore, tidak RTDB/LocalStorage
         if (FB_FS) {

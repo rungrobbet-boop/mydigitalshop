@@ -901,12 +901,24 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
   const dateStr = body.date || new Date().toISOString().split('T')[0];
   const bulan = dateStr.substring(0, 7);
   const total = Number(body.total || body.tot) || 0;
+  const totalHpp = Number(body.totalHpp) || 0;
   const pm = String(body.pm || 'cash').toLowerCase();
   const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet');
   const debitAcc = isBank ? '1002' : '1001';
 
   if (!serverJournals[bulan]) serverJournals[bulan] = {};
   const jrnId = `JRN-${dateStr.replace(/-/g, '')}-POS-${Date.now().toString().slice(-4)}`;
+  const lines = [
+    { acc: debitAcc, debit: total, credit: 0 },
+    { acc: '4001', debit: 0, credit: total }
+  ];
+  // Jurnal HPP: Debit 5001 HPP Bahan Baku / Kredit 1004 Persediaan
+  if (totalHpp > 0) {
+    lines.push(
+      { acc: '5001', debit: totalHpp, credit: 0 },
+      { acc: '1004', debit: 0, credit: totalHpp }
+    );
+  }
   serverJournals[bulan][jrnId] = {
     noEntry: `POS-REV-${orderId.slice(-6)}`,
     date: dateStr,
@@ -915,15 +927,13 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
     desc: `Penjualan POS #${orderId} (${pm.toUpperCase()})`,
     ref: orderId,
     status: 'approved',
-    lines: [
-      { acc: debitAcc, debit: total, credit: 0 },
-      { acc: '4001', debit: 0, credit: total }
-    ],
+    lines,
     total,
+    totalHpp,
     createdAt: Date.now()
   };
 
-  res.status(201).json({ success: true, message: "Jurnal POS berhasil disimpan", totalRev: total, totalHpp: 0 });
+  res.status(201).json({ success: true, message: "Jurnal POS berhasil disimpan", totalRev: total, totalHpp });
 });
 
 // POST /accounting/journal/receive (Konsinyasi: Debit Persediaan 1004 / Kredit Hutang Supplier 2001)
