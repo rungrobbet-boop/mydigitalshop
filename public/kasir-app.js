@@ -293,6 +293,8 @@ window.kasirApp = () => ({
   pinInput: '',
   pinErrorMessage: '',
   pinContext: null,               // { actionLabel, targetLabel, opts, resolve }
+  showGenerateSaldoModal: false,
+  genSaldoForm: { pin: '', password: '', keyword: '' },
   qrisQrUrl: '',
   qrisRedirectUrl: '',
   midtransPollingTimer: null,
@@ -8395,6 +8397,33 @@ async loadMoreProducts() {
   },
 
   // ===== FITUR GENERATE JURNAL SALDO AWAL =====
+  openGenerateSaldoAwalModal() {
+    this.genSaldoForm = { pin: '', password: '', keyword: '' };
+    this.showGenerateSaldoModal = true;
+  },
+
+  async submitGenerateSaldoAwal() {
+    // Lapisan 1: PIN Supervisor
+    if (String(this.genSaldoForm.pin || '').trim() !== String(this.supervisorPin || '').trim()) {
+      return this.showToast('PIN Supervisor salah!', 'error');
+    }
+
+    // Lapisan 2: Password Admin (baca dari localStorage, fallback 'admin123')
+    const adminPassword = localStorage.getItem('dapur_admin_pw') || 'admin123';
+    if (String(this.genSaldoForm.password || '').trim() !== String(adminPassword).trim()) {
+      return this.showToast('Password Admin salah!', 'error');
+    }
+
+    // Lapisan 3: Keyword konfirmasi
+    if (String(this.genSaldoForm.keyword || '').trim() !== 'GENERATE') {
+      return this.showToast('Kata kunci konfirmasi salah! Ketik "GENERATE".', 'error');
+    }
+
+    this.showGenerateSaldoModal = false;
+    this.genSaldoForm = { pin: '', password: '', keyword: '' };
+    await this.generateOpeningBalanceJournal();
+  },
+
   async generateOpeningBalanceJournal() {
     // Cegah generate ulang jika sudah pernah dilakukan
     if (localStorage.getItem('dapur_opening_balance_done') === 'true') {
@@ -8404,13 +8433,6 @@ async loadMoreProducts() {
 
     if (!this.inventoryList || this.inventoryList.length === 0) {
       this.showToast('Inventory kosong. Import CSV terlebih dahulu sebelum generate saldo awal.', 'error');
-      return;
-    }
-
-    // PIN Supervisor wajib sebelum mengeksekusi
-    const pinOk = await this.requestSupervisorPin('GENERATE SALDO AWAL', 'Buat Jurnal Saldo Awal per Supplier');
-    if (!pinOk) {
-      this.showToast('Generate Saldo Awal dibatalkan (PIN tidak valid).', 'notify');
       return;
     }
 
