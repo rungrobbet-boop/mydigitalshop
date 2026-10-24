@@ -105,11 +105,9 @@ function parseCSV(text) {
 
     const trimmed = fields.map(f => f.trim());
 
-    // Validasi jumlah kolom - harus tepat 12 sesuai skema
-    // name, supplier, categoryId, priceEcer, pricePartai, priceAgen,
-    // minOrderPartai, minOrderAgen, unit, stock, imageUrl, kredit(Y/N)
-    if (trimmed.length !== 12) {
-      const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 12), dilewati';
+    // Validasi jumlah kolom - terima 11 (lama, tanpa Kredit) atau 12 (baru, dengan Kredit)
+    if (trimmed.length !== 11 && trimmed.length !== 12) {
+      const msg = 'Baris ' + (r + 1) + ': ' + trimmed.length + ' kolom (harus 11 atau 12), dilewati';
       errors.push(msg);
       console.log('[parseCSV] ' + msg, trimmed);
       continue;
