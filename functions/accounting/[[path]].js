@@ -804,8 +804,8 @@ export async function onRequest(context) {
             ref: orderId,
             status: 'approved',
             lines: [
-              { acc: '5001', debit: totalHpp, credit: 0 },
-              { acc: '1004', debit: 0, credit: totalHpp }
+              { acc: '501', debit: totalHpp, credit: 0 },
+              { acc: '105', debit: 0, credit: totalHpp }
             ],
             total: totalHpp,
             createdAt: Date.now()

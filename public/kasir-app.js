@@ -3239,28 +3239,41 @@ async loadMoreProducts() {
     fifoResult = { usedBatches: [], totalHpp: 0 };
     try {
       console.log("[FIFO-TX] Item yang akan dipotong:", JSON.stringify(normalizedItems));
-      // Panggil engine FIFO yang sudah dibuat
       fifoResult = await this.processFifoSale(normalizedItems);
       console.log("[FIFO-TX] Hasil HPP:", JSON.stringify(fifoResult));
-
-      // Opsional: Tetap update /inventory/{id} untuk stok live UI
-      for (const item of normalizedItems) {
-        const invRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
-        const snap = await this._fbGet(invRef);
-        const current = snap.val() || {};
-        const newStock = Math.max(0, (Number(current.stock) || 0) - item.qty);
-        await this._fbSet(invRef, { ...current, stock: newStock, stok: newStock, updatedAt: Date.now() });
-      }
-
-      // Perbarui txRecord di Firebase dengan usedBatches dari FIFO (untuk void transaksi nanti)
-      if (this._fbDb && this._fbSet && this._fbRef) {
-        const txRef = this._fbRef(this._fbDb, `pos/transactions/${dateStr}/${txId}`);
-        await this._fbSet(txRef, { ...txRecord, usedBatches: fifoResult.usedBatches || [], totalHpp: fifoResult.totalHpp });
-      }
     } catch (fifoError) {
       console.error("[FIFO-TX] ERROR FATAL:", fifoError);
-      console.error("[FIFO-TX] Stok tidak akan berkurang dan HPP akan 0 karena FIFO gagal di atas.");
-      // Fallback: biarkan transaksi tetap tercatat, tapi HPP akan 0 (jurnal HPP tidak terbentuk)
+      console.error("[FIFO-TX] HPP akan 0 karena FIFO gagal di atas.");
+    }
+
+    // ✅ Pemotongan stok RTDB — berjalan meski FIFO gagal (asalkan DB siap)
+    for (const item of normalizedItems) {
+      const invRef = this._fbRef(this._fbDb, `inventory/${item.id}`);
+      const snap = await this._fbGet(invRef);
+      const current = snap.val() || {};
+      const currentStock = Number(current.stock !== undefined ? current.stock : current.stok) || 0;
+
+      await this._fbSet(invRef, {
+        ...current,
+        stock: Math.max(0, currentStock - item.qty),
+        stok: Math.max(0, currentStock - item.qty),
+        updatedAt: Date.now()
+      });
+      console.log(`[INVENTORY-TX] Mengurangi stok ${item.id}: ${currentStock} -> ${currentStock - item.qty}`);
+
+      // Update local state
+      const localItem = this.inventoryList.find(i => i.id === item.id);
+      if (localItem) {
+        localItem.stock = Math.max(0, currentStock - item.qty);
+        localItem.stok = localItem.stock;
+      }
+    }
+    this.inventoryList = [...this.inventoryList]; // Paksa render ulang
+
+    // Perbarui txRecord di Firebase dengan usedBatches dari FIFO (untuk void transaksi nanti)
+    if (this._fbDb && this._fbSet && this._fbRef) {
+      const txRef = this._fbRef(this._fbDb, `pos/transactions/${dateStr}/${txId}`);
+      await this._fbSet(txRef, { ...txRecord, usedBatches: fifoResult.usedBatches || [], totalHpp: fifoResult.totalHpp });
     }
 
     // Update lokal inventoryList agar UI segera refleksi

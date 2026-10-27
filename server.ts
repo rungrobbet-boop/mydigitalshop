@@ -919,6 +919,7 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
       { acc: '501', debit: totalHpp, credit: 0 },
       { acc: '105', debit: 0, credit: totalHpp }
     );
+    console.log("[BACKEND] Jurnal HPP dibuat: Debit 501 =", totalHpp, ", Kredit 105 =", totalHpp, "untuk orderId:", orderId);
   }
   serverJournals[bulan][jrnId] = {
     noEntry: `POS-REV-${orderId.slice(-6)}`,
