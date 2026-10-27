@@ -5828,6 +5828,7 @@ async loadMoreProducts() {
       // 🎣 FASE 7: Inisialisasi stock_batches (opening balance) setelah loadInventory selesai
       if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
         await this.initStockBatches();
+        await this.syncBatchCosts();
       }
 
     } catch (e) {
@@ -5874,7 +5875,46 @@ async loadMoreProducts() {
     }
   },
 
-  /**
+  /** 
+   * FASE 7 FIFO: Sinkronisasi costPerUnit batch lama di RTDB 
+   * agar cocok dengan purchasePrice terbaru di inventoryList.
+   * Dipanggil sekali saat aplikasi dimuat untuk memperbaiki data batch 
+   * yang terlanjur tersimpan dengan harga jual (priceEcer) bukan harga beli.
+   */
+  async syncBatchCosts() {
+    try {
+      if (!this._fbDb || !this._fbRef || !this._fbGet || !this._fbSet) {
+        console.warn('[SYNC-BATCH] RTDB belum siap, lewati sinkronisasi costPerUnit');
+        return;
+      }
+      let synced = 0;
+      for (const item of this.inventoryList || []) {
+        const purchasePrice = Number(item.purchasePrice || 0);
+        if (!purchasePrice) continue; // lewati produk yang belum ada purchasePrice
+        const batchRef = this._fbRef(this._fbDb, `stock_batches/${item.id}`);
+        const snap = await this._fbGet(batchRef);
+        const batchesData = snap.val() || {};
+        for (const [batchId, b] of Object.entries(batchesData || {})) {
+          if (!b || typeof b !== 'object') continue;
+          const oldCost = Number(b.costPerUnit || 0);
+          if (oldCost === purchasePrice) continue; // sudah benar, lewati
+          await this._fbSet(this._fbRef(this._fbDb, `stock_batches/${item.id}/${batchId}`), {
+            ...b,
+            costPerUnit: purchasePrice,
+            syncedAt: Date.now(),
+            syncedFrom: 'purchasePrice'
+          });
+          synced++;
+          console.log(`[SYNC-BATCH] ${item.id}/${batchId}: costPerUnit ${oldCost} -> ${purchasePrice}`);
+        }
+      }
+      console.log(`[SYNC-BATCH] Selesai, ${synced} batch diperbarui costPerUnit dari purchasePrice`);
+    } catch (e) {
+      console.warn('[SYNC-BATCH] Gagal sinkronkan costPerUnit:', e.message);
+    }
+  },
+
+  /** 
    * FASE 7 FIFO: Engine FIFO — potong stok dari batch tertua ke terbaru.
    * Menerima array items [{ id, qty }]. Tidak menyentuh simpanTransaksi().
    * Return { usedBatches: [...], totalHpp: number }.
