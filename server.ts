@@ -895,14 +895,15 @@ app.get(['/accounting/approvals', '/api/accounting/approvals'], (req, res) => {
 });
 
 // POST /accounting/journal/pos
-app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) => {
+app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], async (req, res) => {
+  console.log("[BACKEND-HPP] Request diterima. Body:", JSON.stringify(req.body));
   const body = req.body || {};
   const orderId = String(body.orderId || '').trim();
   const dateStr = body.date || new Date().toISOString().split('T')[0];
   const bulan = dateStr.substring(0, 7);
   const total = Number(body.total || body.tot) || 0;
   const totalHpp = Number(body.totalHpp) || 0;
-  console.log("[BACKEND] Menerima totalHpp:", totalHpp, "untuk orderId:", orderId);
+  console.log("[BACKEND-HPP] Membaca totalHpp:", totalHpp, "dari body.totalHpp untuk orderId:", orderId);
   const pm = String(body.pm || 'cash').toLowerCase();
   const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet');
   const debitAcc = isBank ? '102' : '101';
@@ -919,9 +920,9 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
       { acc: '501', debit: totalHpp, credit: 0 },
       { acc: '105', debit: 0, credit: totalHpp }
     );
-    console.log("[BACKEND] Jurnal HPP dibuat: Debit 501 =", totalHpp, ", Kredit 105 =", totalHpp, "untuk orderId:", orderId);
+    console.log("[BACKEND-HPP] Membuat jurnal HPP: Debit 501 =", totalHpp, ", Kredit 105 =", totalHpp, "untuk orderId:", orderId);
   }
-  serverJournals[bulan][jrnId] = {
+  const jurnalData = {
     noEntry: `POS-REV-${orderId.slice(-6)}`,
     date: dateStr,
     timestamp: Date.now(),
@@ -934,6 +935,20 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
     totalHpp,
     createdAt: Date.now()
   };
+  serverJournals[bulan][jrnId] = jurnalData;
+
+  // Simpan ke RTDB /accounting/journal/{bulan}/{jrnId} untuk persistensi
+  if (db) {
+    try {
+      const journalRef = ref(db, `accounting/journal/${bulan}/${jrnId}`);
+      await set(journalRef, jurnalData);
+      console.log("[BACKEND-HPP] Jurnal berhasil disimpan:", jurnalData);
+    } catch (rtdbErr) {
+      console.warn("[BACKEND-HPP] Gagal simpan ke RTDB:", rtdbErr);
+    }
+  } else {
+    console.warn("[BACKEND-HPP] RTDB db tidak tersedia, jurnal hanya disimpan di memori");
+  }
 
   res.status(201).json({ success: true, message: "Jurnal POS berhasil disimpan", totalRev: total, totalHpp });
 });
