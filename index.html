@@ -886,8 +886,11 @@
                 </div>
               </template>
 
-              <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute bottom-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
+              <!-- Badge Promo -->
+              <div x-show="item.badge" class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs z-50" x-text="item.badge"></div>
+
+              <!-- Bintang Top Brand -->
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 right-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -944,8 +947,11 @@
                 </div>
               </template>
 
-              <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute bottom-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
+              <!-- Badge Promo -->
+              <div x-show="item.badge" class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs z-50" x-text="item.badge"></div>
+
+              <!-- Bintang Top Brand -->
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 right-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -9232,7 +9238,7 @@ git push -u origin main</pre>
 
         async toggleMenuItemSpicy(item) {
           item.isTopBrand = !Boolean(item.isTopBrand);
-          console.log("[SAVE ADMIN] Menyimpan produk:", this.menuForm.name, "| isTopBrand:", this.menuForm.isTopBrand);
+          console.log("[SAVE ADMIN] Menyimpan produk:", item.name, "| isTopBrand:", item.isTopBrand);
           await window.FirebaseBridge.saveMenu(this.menuItems);
           this.showToast(item.isTopBrand ? `Logo bintang diaktifkan untuk "${item.name}"!` : `Logo bintang dinonaktifkan untuk "${item.name}"!`);
         },
@@ -9240,7 +9246,7 @@ git push -u origin main</pre>
         async toggleShowOnMain(item) {
           if (!item) return;
           item.showOnMain = item.showOnMain === false ? true : false;
-          console.log("[SAVE ADMIN] Menyimpan produk:", this.menuForm.name, "| isTopBrand:", this.menuForm.isTopBrand);
+          console.log("[SAVE ADMIN] Menyimpan produk:", item.name, "| isTopBrand:", item.isTopBrand);
           await window.FirebaseBridge.saveMenu(this.menuItems);
           this.showToast(
             item.showOnMain 
@@ -9351,8 +9357,9 @@ git push -u origin main</pre>
 
         async deleteMenuItem(id) {
           if (confirm('Yakin ingin menghapus menu ini dari daftar tayang?')) {
+            const item = this.menuItems.find(m => m.id === id);
             this.menuItems = this.menuItems.filter(m => m.id !== id);
-            console.log("[SAVE ADMIN] Menyimpan produk:", this.menuForm.name, "| isTopBrand:", this.menuForm.isTopBrand);
+            console.log("[SAVE ADMIN] Menyimpan produk:", item ? item.name : '(tidak diketahui)', "| isTopBrand:", item ? item.isTopBrand : '-');
           await window.FirebaseBridge.saveMenu(this.menuItems);
             this.showToast('Menu berhasil dihapus!');
           }

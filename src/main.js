@@ -306,6 +306,42 @@
             console.warn("Firebase saveMenu error:", err);
           }
         }
+        // Sinkronisasi ke Firestore 'products' agar Landing Page dapat membaca isTopBrand & badge
+        if (firestoreDb) {
+          try {
+            const cleanItems = JSON.parse(JSON.stringify(items));
+            const batch = writeBatch(firestoreDb);
+            let count = 0;
+            cleanItems.forEach(item => {
+              if (!item.id) return;
+              const productRef = doc(firestoreDb, 'products', item.id);
+              batch.set(productRef, {
+                id: item.id,
+                name: item.name || '',
+                categoryId: item.categoryId || item.category || '',
+                category: item.category || item.categoryId || '',
+                categoryLabel: item.categoryLabel || '',
+                price: item.price || 0,
+                originalPrice: item.originalPrice || null,
+                badge: item.badge || '',
+                badgeColor: item.badgeColor || 'bg-brand-600 text-white',
+                image: item.image || '',
+                imageUrl: item.imageUrl || item.image || '',
+                description: item.description || '',
+                isTopBrand: Boolean(item.isTopBrand),
+                showOnMain: item.showOnMain !== false,
+                updatedAt: Date.now()
+              }, { merge: true });
+              count++;
+            });
+            if (count > 0) {
+              await batch.commit();
+              console.log("[FIRESTORE] saveMenu berhasil sinkronkan", count, "produk ke Firestore products (termasuk isTopBrand & badge)");
+            }
+          } catch (err) {
+            console.warn("Firebase saveMenu to Firestore error:", err);
+          }
+        }
       },
         listenMenu: (callback) => {
         if (db) {
