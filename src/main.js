@@ -335,6 +335,7 @@
               count++;
             });
             if (count > 0) {
+              console.log("[SYNC BRIDGE] Mengirim ke Firestore:", cleanItems.map(i => ({ id: i.id, name: i.name, badge: i.badge, isTopBrand: Boolean(i.isTopBrand) })));
               await batch.commit();
               console.log("[FIRESTORE] saveMenu berhasil sinkronkan", count, "produk ke Firestore products (termasuk isTopBrand & badge)");
             }
