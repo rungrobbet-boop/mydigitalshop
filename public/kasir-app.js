@@ -3277,9 +3277,13 @@ async loadMoreProducts() {
       for (const item of normalizedItems) {
         try {
           const productRef = FB_FS.collection('products').doc(item.id);
+          // Baca dulu lalu tulis manual (hindari firebase.firestore.FieldValue.increment undefined)
+          const productSnap = await productRef.get();
+          const currentData = productSnap.data() || {};
+          const currentStock = Math.max(0, Number(currentData.stock || currentData.stok || 0));
           await productRef.update({
-            stock: FB_FS.FieldValue.increment(-item.qty),
-            stok: FB_FS.FieldValue.increment(-item.qty)
+            stock: Math.max(0, currentStock - item.qty),
+            stok: Math.max(0, currentStock - item.qty)
           });
           console.log(`[SYNC-FS] Berhasil mengurangi Firestore untuk ${item.id}`);
         } catch (fsErr) {
@@ -8502,7 +8506,7 @@ async loadMoreProducts() {
     }
   },
 
-  addInventoryLog(itemName, oldStock, newStock, unit, changeType, note) {
+  addInventoryLog(itemName = '', oldStock = 0, newStock = 0, unit = '', changeType = '', note = '') {
     if (!Array.isArray(this.inventoryLogs)) this.inventoryLogs = [];
     const diffNum = Number(newStock) - Number(oldStock);
     const diffStr = diffNum > 0 ? `+${diffNum}` : `${diffNum}`;
