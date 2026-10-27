@@ -3270,6 +3270,22 @@ async loadMoreProducts() {
     }
     this.inventoryList = [...this.inventoryList]; // Paksa render ulang
 
+    // ✅ Sync stok ke Firestore setelah RTDB terupdate
+    if (typeof FB_FS !== 'undefined' && FB_FS) {
+      for (const item of normalizedItems) {
+        try {
+          const productRef = FB_FS.collection('products').doc(item.id);
+          await productRef.update({
+            stock: FB_FS.FieldValue.increment(-item.qty),
+            stok: FB_FS.FieldValue.increment(-item.qty)
+          });
+          console.log(`[SYNC-FS] Berhasil mengurangi Firestore untuk ${item.id}`);
+        } catch (fsErr) {
+          console.warn(`[SYNC-FS] Gagal update Firestore ${item.id}:`, fsErr);
+        }
+      }
+    }
+
     // Perbarui txRecord di Firebase dengan usedBatches dari FIFO (untuk void transaksi nanti)
     if (this._fbDb && this._fbSet && this._fbRef) {
       const txRef = this._fbRef(this._fbDb, `pos/transactions/${dateStr}/${txId}`);
@@ -5639,124 +5655,53 @@ async loadMoreProducts() {
     }, 15000);
 
     try {
-      // ✅ HANYA ambil dari Firestore collection 'products' — tidak ada RTDB /inventory listener, tidak ada backend fetch, tidak ada localStorage restore
-      // Jika Firestore kosong, inventory tetap kosong (tampilkan pesan "Silakan Import CSV")
-
-        // ✅ Sumber data utama: Selalu fetch dari Firestore collection 'products' — overwrite data memori basi
-        if (FB_FS) {
+      // ========================================================================
+      // UTAMA: Ambil stok LIVE dari RTDB /inventory (sumber kebenaran stok real-time)
+      // UI Kasir harus selalu menampilkan data dari RTDB, bukan menunggu Firestore.
+      // ========================================================================
+      if (this._fbDb && this._fbRef && this._fbGet) {
         try {
-          const products = await this.getProducts();
-          if (products && products.length > 0) {
-            this.inventoryList = products.map(p => ({
-              id: p.id,
-              name: p.name,
-              supplier: p.supplier || '',
-              sku: p.sku || '',
-              category: p.category || 'Bahan Bangunan',
-              categoryId: p.categoryId || p.category || '',
-              priceEcer: Number(p.priceEcer) || 0,
-              price: Number(p.priceEcer) || 0,
-              purchasePrice: Number(p.purchasePrice) || 0,
-              pricePartai: Number(p.pricePartai) || 0,
-              priceAgen: Number(p.priceAgen) || 0,
-              minOrderPartai: Number(p.minOrderPartai) || 0,
-              minOrderAgen: Number(p.minOrderAgen) || 0,
-              unit: p.unit || 'pcs',
-              stock: Math.max(0, Number(p.stock) || 0),
-              stok: Math.max(0, Number(p.stock) || 0),
-              minStock: Number(p.minStock) || 5,
-              source: 'firestore-products',
+          const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
+          const rtdbSnap = await this._fbGet(rtdbInvRef);
+          const rtdbData = rtdbSnap.val() || {};
+          const invFromRtdb = [];
+          for (const [id, d] of Object.entries(rtdbData)) {
+            if (!d || !d.name) continue;
+            invFromRtdb.push({
+              id: d.id || id,
+              name: d.name,
+              sku: d.sku || '',
+              category: d.category || 'Bahan Bangunan',
+              categoryId: d.categoryId || d.category || '',
+              priceEcer: Number(d.priceEcer || d.price || 0) || 0,
+              price: Number(d.priceEcer || d.price || 0) || 0,
+              purchasePrice: Number(d.purchasePrice || d.priceEcer || d.price || 0) || 0,
+              pricePartai: Number(d.pricePartai || 0) || 0,
+              priceAgen: Number(d.priceAgen || 0) || 0,
+              unit: d.unit || 'pcs',
+              stock: Math.max(0, Number(d.stock || d.stok || 0) || 0),
+              stok: Math.max(0, Number(d.stok || d.stok || 0) || 0),
+              minStock: Number(d.minStock || 5) || 5,
+              source: 'rtdb-inventory',
               isCountable: true,
-              isReadyToSell: Boolean(p.isReadyToSell) || false,
-              linkedMenuId: p.linkedMenuId || null,
-              image: p.image || '',
-              isCredit: p.isCredit !== undefined ? p.isCredit : true,
-            }));
-            console.log(`[FB-FS] Inventory dimuat dari Firestore 'products': ${this.inventoryList.length} item`);
-            // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
-            // agar tombol "Edit Menu" tidak kembali jadi "Jadi Produk" setelah hard refresh
-            const menuByInvId1 = new Map();
-            for (const m of (this.menuList || [])) {
-              if (m.inventoryId) menuByInvId1.set(m.inventoryId, m);
-            }
-            for (const inv of this.inventoryList) {
-              const menu = menuByInvId1.get(inv.id);
-              if (menu) {
-                inv.isReadyToSell = true;
-                inv.linkedMenuId = menu.id;
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[FB-FS] Gagal muat inventory dari Firestore products:', e);
-        }
-        }
-
-
-
-      // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong dan FB_FS tidak tersedia
-      if (!FB_FS && (!this.inventoryList || this.inventoryList.length === 0)) {
-        try {
-          if (FB_FS) {
-            const snap = await FB_FS.collection('products').get();
-            const invFromProducts = [];
-            snap.forEach((doc) => {
-              const d = doc.data() || {};
-              if (!d.name) return;
-                const priceEcerVal = Number(
-                  d.priceEcer !== undefined && d.priceEcer !== null
-                    ? d.priceEcer
-                    : d.hargaEcer !== undefined && d.hargaEcer !== null
-                      ? d.hargaEcer
-                      : d.harga !== undefined && d.harga !== null
-                        ? d.harga
-                        : d.price
-                ) || 0;
-              invFromProducts.push({
-                id: d.id || doc.id,
-                name: d.name,
-                sku: d.sku || '',
-                category: d.category || 'Bahan Bangunan',
-                stock: Math.max(0, Number(d.stock) || 0),
-                stok: Math.max(0, Number(d.stock) || 0),
-                minStock: Number(d.minStock) || 5,
-                unit: d.unit || 'pcs',
-                purchasePrice: Number(d.purchasePrice) || 0,
-                priceEcer: priceEcerVal,
-                pricePartai: Number(d.pricePartai || 0) || 0,
-                priceAgen: Number(d.priceAgen || 0) || 0,
-                minOrderPartai: Number(d.minOrderPartai || 0) || 0,
-                minOrderAgen: Number(d.minOrderAgen || 0) || 0,
-                isCountable: true,
-                source: 'firestore-products',
-                isReadyToSell: Boolean(d.isReadyToSell) || false,
-                linkedMenuId: d.linkedMenuId || null,
-                image: d.image || '',
-                isCredit: d.isCredit !== undefined ? d.isCredit : true,
-              });
+              isReadyToSell: Boolean(d.isReadyToSell) || false,
+              linkedMenuId: d.linkedMenuId || null,
+              image: d.image || d.imageUrl || '',
             });
-            this.inventoryList = invFromProducts;
-            console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
-            // Trace isCredit dari semua item yang di-load
-            this.inventoryList.forEach(inv => {
-              console.log(`[TRACE FETCH] Produk: ${inv.name} | isCredit DB: ${inv.isCredit} (Tipe: ${typeof inv.isCredit})`);
-            });
-            // ✅ FIX BUG-REVERT: Pulihkan isReadyToSell & linkedMenuId dari menuList
-            const menuByInvId2 = new Map();
-            for (const m of (this.menuList || [])) {
-              if (m.inventoryId) menuByInvId2.set(m.inventoryId, m);
-            }
-            for (const inv of this.inventoryList) {
-              const menu = menuByInvId2.get(inv.id);
-              if (menu) {
-                inv.isReadyToSell = true;
-                inv.linkedMenuId = menu.id;
-              }
-            }
           }
+          this.inventoryList = invFromRtdb;
+          console.log(`[RTDB-INV] Inventory dimuat dari RTDB '/inventory': ${this.inventoryList.length} item`);
         } catch (e) {
-          console.warn('[FB-FS-INV] Gagal muat inventory dari Firestore products:', e);
+          console.warn('[RTDB-INV] Gagal muat inventory dari RTDB:', e);
         }
+      }
+
+
+
+      // RTDB sudah difetch di atas sebagai sumber utama. Jika inventory masih kosong
+      // (RTDB gagal atau kosong), coba Firestore sebagai fallback terakhir.
+      if (!this.inventoryList || this.inventoryList.length === 0) {
+        this._loadInventoryFromFirestoreFallback();
       }
 
       // ✅ RTDB FALLBACK: jika inventory masih kosong, muat dari RTDB /inventory
@@ -5799,44 +5744,13 @@ async loadMoreProducts() {
 
       // Tidak ada dummy data — inventory kosong sampai ada data dari Firestore / RTDB / CSV import
 
-      // ✅ SYNC Firestore → RTDB: pastikan setiap produk di Firestore juga ada di RTDB,
-      // dan jika stok Firestore lebih besar dari RTDB (indikasi import CSV baru), sinkronkan stoknya ke RTDB.
+      // SYNC Firestore → RTDB di background (hanya produk baru, tidak menunggu UI)
       if (FB_FS && this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
-        try {
-          const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
-          const rtdbSnap = await this._fbGet(rtdbInvRef);
-          const rtdbData = rtdbSnap.val() || {};
-
-          for (const item of this.inventoryList) {
-            const rtdbItem = rtdbData[item.id];
-            if (!rtdbItem) {
-              // Produk ada di Firestore tapi belum di RTDB — salin ke RTDB
-              await this._fbSet(this._fbRef(this._fbDb, `inventory/${item.id}`), {
-                id: item.id,
-                name: item.name,
-                sku: item.sku || '',
-                category: item.category || 'Bahan Bangunan',
-                stock: Math.max(0, item.stock || 0),
-                stok: Math.max(0, item.stok || 0),
-                purchasePrice: item.purchasePrice || 0,
-                priceEcer: item.priceEcer || 0,
-                unit: item.unit || 'pcs',
-                minStock: item.minStock || 5,
-                source: 'firestore-products',
-                syncedAt: Date.now()
-              });
-              console.log(`[SYNC-FS→RTDB] Produk baru disalin ke RTDB: ${item.id}`);
-            } else {
-              // RTDB adalah sumber kebenaran untuk stok live. Jangan timpa RTDB dengan stok Firestore (bisa stale).
-              console.log(`[SYNC-FS→RTDB] Lewati overwrite RTDB ${item.id} — RTDB tetap sebagai sumber kebenaran stok live`);
-            }
-          }
-          console.log('[SYNC-FS→RTDB] ✅ Selesai sinkronkan Firestore → RTDB');
-        } catch (e) {
-          console.warn('[SYNC-FS→RTDB] ❌ Gagal sinkronkan ke RTDB:', e.message);
-        }
+        this.syncFirestoreToRtdbInventory().catch(e => {
+          console.warn('[SYNC-FS→RTDB] Background sync gagal:', e.message);
+        });
       }
-      
+
       // 🎣 FASE 7: Inisialisasi stock_batches (opening balance) setelah loadInventory selesai
       if (this._fbDb && this._fbRef && this._fbSet && this._fbGet) {
         await this.initStockBatches();
@@ -5848,6 +5762,116 @@ async loadMoreProducts() {
     } finally {
       clearTimeout(invTimeout);
       this.loadingStates.inventory = false;
+    }
+  },
+
+  /**
+   * Fallback: muat inventory dari Firestore 'products' hanya jika RTDB kosong/gagal.
+   * Dipanggil sebagai fallback terakhir di loadInventory.
+   */
+  async _loadInventoryFromFirestoreFallback() {
+    if (!FB_FS) return;
+    try {
+      const snap = await FB_FS.collection('products').get();
+      const invFromProducts = [];
+      snap.forEach((doc) => {
+        const d = doc.data() || {};
+        if (!d.name) return;
+        const priceEcerVal = Number(
+          d.priceEcer !== undefined && d.priceEcer !== null
+            ? d.priceEcer
+            : d.hargaEcer !== undefined && d.hargaEcer !== null
+              ? d.hargaEcer
+              : d.harga !== undefined && d.harga !== null
+                ? d.harga
+                : d.price
+        ) || 0;
+        invFromProducts.push({
+          id: d.id || doc.id,
+          name: d.name,
+          sku: d.sku || '',
+          category: d.category || 'Bahan Bangunan',
+          stock: Math.max(0, Number(d.stock) || 0),
+          stok: Math.max(0, Number(d.stok) || 0),
+          minStock: Number(d.minStock) || 5,
+          unit: d.unit || 'pcs',
+          purchasePrice: Number(d.purchasePrice) || 0,
+          priceEcer: priceEcerVal,
+          pricePartai: Number(d.pricePartai || 0) || 0,
+          priceAgen: Number(d.priceAgen || 0) || 0,
+          isCountable: true,
+          source: 'firestore-products',
+          isReadyToSell: Boolean(d.isReadyToSell) || false,
+          linkedMenuId: d.linkedMenuId || null,
+          image: d.image || '',
+          isCredit: d.isCredit !== undefined ? d.isCredit : true,
+        });
+      });
+      if (invFromProducts.length > 0) {
+        this.inventoryList = invFromProducts;
+        console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
+        const menuByInvId = new Map();
+        for (const m of (this.menuList || [])) {
+          if (m.inventoryId) menuByInvId.set(m.inventoryId, m);
+        }
+        for (const inv of this.inventoryList) {
+          const menu = menuByInvId.get(inv.id);
+          if (menu) {
+            inv.isReadyToSell = true;
+            inv.linkedMenuId = menu.id;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[FB-FS-INV] Gagal muat inventory dari Firestore products:', e);
+    }
+  },
+
+  /**
+   * Background sync: copy produk baru dari Firestore ke RTDB /inventory.
+   * Tidak menimpa stok RTDB (sumber kebenaran live).
+   */
+  async syncFirestoreToRtdbInventory() {
+    try {
+      const snap = await FB_FS.collection('products').get();
+      const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
+      const rtdbSnap = await this._fbGet(rtdbInvRef);
+      const rtdbData = rtdbSnap.val() || {};
+      let synced = 0;
+      snap.forEach((doc) => {
+        const d = doc.data() || {};
+        if (!d.name) return;
+        if (!rtdbData[d.id || doc.id]) {
+          this._fbSet(this._fbRef(this._fbDb, `inventory/${d.id || doc.id}`), {
+            id: d.id || doc.id,
+            name: d.name,
+            sku: d.sku || '',
+            category: d.category || 'Bahan Bangunan',
+            stock: Math.max(0, Number(d.stock) || 0),
+            stok: Math.max(0, Number(d.stok) || 0),
+            purchasePrice: Number(d.purchasePrice) || 0,
+            priceEcer: Number(
+              d.priceEcer !== undefined && d.priceEcer !== null
+                ? d.priceEcer
+                : d.hargaEcer !== undefined && d.hargaEcer !== null
+                  ? d.hargaEcer
+                  : d.harga !== undefined && d.harga !== null
+                    ? d.harga
+                    : d.price
+            ) || 0,
+            unit: d.unit || 'pcs',
+            minStock: Number(d.minStock) || 5,
+            source: 'firestore-products',
+            syncedAt: Date.now(),
+          });
+          synced++;
+        }
+      });
+      if (synced > 0) {
+        console.log(`[SYNC-FS→RTDB] ${synced} produk baru disalin ke RTDB`);
+      }
+    } catch (e) {
+      console.warn('[SYNC-FS→RTDB] Gagal sinkronkan ke RTDB:', e.message);
     }
   },
 
