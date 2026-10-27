@@ -5815,7 +5815,13 @@ async loadMoreProducts() {
           if (m.inventoryId) menuByInvId.set(m.inventoryId, m);
         }
         for (const inv of this.inventoryList) {
-          const menu = menuByInvId.get(inv.id);
+          let menu = menuByInvId.get(inv.id);
+          // Fallback: cocokkan berdasarkan nama jika ID tidak sama (false negative)
+          if (!menu) {
+            menu = (this.menuList || []).find(m =>
+              String(m.name).toLowerCase() === String(inv.name).toLowerCase()
+            );
+          }
           if (menu) {
             inv.isReadyToSell = true;
             inv.linkedMenuId = menu.id;
@@ -12211,6 +12217,27 @@ async loadMoreProducts() {
 
     const inv = this.inventoryList.find(i => i.id === this.generateMenuForm.inventoryId);
     if (!inv) return;
+
+    // Cegah duplikasi: cek apakah produk sudah ada di menuList (berdasarkan inventoryId atau nama)
+    const existingMenu = this.menuList.find(m =>
+      m.inventoryId === inv.id || String(m.name).toLowerCase() === String(inv.name).toLowerCase()
+    );
+    if (existingMenu) {
+      // Tautkan kembali tanpa membuat duplikasi
+      console.log("[GENERATE-MENU] Menu sudah ada, memperbaiki relasi:", existingMenu.id);
+      inv.isReadyToSell = true;
+      inv.linkedMenuId = existingMenu.id;
+      try {
+        await fetch(`/inventory/${encodeURIComponent(inv.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isReadyToSell: true, linkedMenuId: existingMenu.id })
+        }).catch(() => {});
+      } catch (e) { console.warn("[GENERATE-MENU] Gagal update inventory:", e); }
+      this.showToast('Relasi produk diperbaiki (tidak ada duplikasi).', 'success');
+      this.generateMenuModal = false;
+      return;
+    }
 
     const newMenuId = `m_${Date.now()}`;
     const price = Number(this.generateMenuForm.price) || 0;
