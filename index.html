@@ -678,7 +678,7 @@
           :class="activeTab === 'menu' ? 'bg-white text-blue-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-semibold'"
           class="px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-base transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer">
           <i class="fa-solid fa-cubes"></i>
-          <span>Katalog Material Bangunan</span>
+          <span>Material</span>
         </button>
 
         <button 
@@ -7188,11 +7188,10 @@ git push -u origin main</pre>
           }
           const visible = deduped.filter(item => item.showOnMain !== false);
           if (this.selectedCategory === 'all' || this.selectedCategory === 'semua') return visible;
-          const selNorm = this.normalizeCatId(this.selectedCategory);
+          const sel = String(this.selectedCategory || '').toLowerCase();
           return visible.filter(item => {
-            const itemCatId = item.categoryId || item.category || item.categoryLabel || '';
-            if (this.normalizeCatId(itemCatId) === selNorm) return true;
-            return false;
+            const itemCatId = String(item.categoryId || item.category || item.categoryLabel || '').toLowerCase();
+            return itemCatId === sel;
           });
         },
 
@@ -7259,7 +7258,7 @@ git push -u origin main</pre>
               const seedList = (window.SeedData && window.SeedData.PRODUCTS_SEED) 
                 || (window.FirebaseBridge && window.FirebaseBridge.PRODUCTS_SEED) || [];
               if (seedList.length > 0) {
-                const filtered = catFilter ? seedList.filter(p => p.categoryId === catFilter) : seedList;
+                const filtered = catFilter ? seedList.filter(p => String(p.categoryId || '').toLowerCase() === String(catFilter || '').toLowerCase()) : seedList;
                 this.menuItems = filtered;
                 this.menuItems.forEach(p => {
                   if (p.imageUrl && !p.image) p.image = p.imageUrl;
@@ -7272,7 +7271,7 @@ git push -u origin main</pre>
               // Load more fallback for local seed items
               const seedList = (window.SeedData && window.SeedData.PRODUCTS_SEED) 
                 || (window.FirebaseBridge && window.FirebaseBridge.PRODUCTS_SEED) || [];
-              const filtered = catFilter ? seedList.filter(p => p.categoryId === catFilter) : seedList;
+              const filtered = catFilter ? seedList.filter(p => String(p.categoryId || '').toLowerCase() === String(catFilter || '').toLowerCase()) : seedList;
               this.menuItems = filtered;
               this.menuItems.forEach(p => {
                 if (p.imageUrl && !p.image) p.image = p.imageUrl;
@@ -7359,10 +7358,10 @@ git push -u origin main</pre>
 
         getCategoryCount(catId) {
           if (catId === 'all') return this.menuItems.length;
-          const norm = this.normalizeCatId(catId);
+          const sel = String(catId || '').toLowerCase();
           return this.menuItems.filter(item => {
-            const itemCatId = item.categoryId || item.category || '';
-            return this.normalizeCatId(itemCatId) === norm;
+            const itemCatId = String(item.categoryId || item.category || '').toLowerCase();
+            return itemCatId === sel;
           }).length;
         },
 
