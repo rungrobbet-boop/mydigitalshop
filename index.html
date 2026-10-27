@@ -887,7 +887,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isSpicy" class="absolute bottom-1.5 right-1.5 z-10">
+              <div x-show="item.isSpicy || item.isTopBrand || item.is_top_brand" class="absolute bottom-1.5 right-1.5 z-10">
                 <div class="flex items-center gap-1 bg-red-600/90 text-white px-1.5 py-0.5 rounded-lg shadow-sm" title="Menu Top Brand">
                   <i class="fa-solid fa-star text-amber-300 text-[9px]"></i>
                   <span class="text-[8px] font-black uppercase hidden sm:inline">Top Brand</span>
@@ -948,7 +948,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isSpicy" class="absolute bottom-1 right-1 z-10">
+              <div x-show="item.isSpicy || item.isTopBrand || item.is_top_brand" class="absolute bottom-1 right-1 z-10">
                 <span class="w-5 h-5 rounded-md bg-red-600 text-white flex items-center justify-center shadow-xs" title="Menu Top Brand">
                   <i class="fa-solid fa-star text-amber-300 text-[10px]"></i>
                 </span>
@@ -3432,7 +3432,7 @@
                 <i class="fa-solid fa-boxes-stacked text-sm"></i>
               </div>
               <div>
-                <h5 class="font-extrabold text-stone-900 text-xs sm:text-sm">Tampilkan Stok Menu di Halaman Utama (Web Pelanggan)</h5>
+                <h5 class="font-extrabold text-stone-900 text-xs sm:text-sm">Tampilkan Stok Menu di Halaman Utama (Web Pelanggan) untuk fungsi RTO</h5>
                 <p class="text-[11px] text-stone-500 mt-1 leading-relaxed">
                   Tampilkan Stok Menu di Halaman Utama (Web Pelanggan): Hanya jika anda siap dan memastikan selalu memantau dan update stok menu untuk terlihat secara online. Jika dinonaktifkan, maka jumlah stok menu tidak akan ditampilkan pada semua menu di etalase beranda.
                 </p>
@@ -3521,7 +3521,7 @@
                   <div class="relative flex-shrink-0">
                     <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-14 h-14 rounded-xl object-cover border border-stone-300" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
                     <!-- Indikator Top Brand di thumbnail admin -->
-                    <span x-show="item.isSpicy" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] shadow-sm border border-white" title="Menu Top Brand">
+                    <span x-show="item.isSpicy || item.isTopBrand || item.is_top_brand" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] shadow-sm border border-white" title="Menu Top Brand">
                       <i class="fa-solid fa-star text-[9px] text-amber-300"></i>
                     </span>
                   </div>
@@ -3536,7 +3536,7 @@
                         <span>Kasir POS</span>
                       </span>
                       <!-- Badge Top Brand -->
-                      <span x-show="item.isSpicy" class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-red-200" title="Menu Top Brand">
+                      <span x-show="item.isSpicy || item.isTopBrand || item.is_top_brand" class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-red-200" title="Menu Top Brand">
                         <i class="fa-solid fa-star text-red-500 text-[10px]"></i>
                         <span>Top Brand</span>
                       </span>
