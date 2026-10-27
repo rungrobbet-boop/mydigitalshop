@@ -1647,8 +1647,8 @@ try {
         if (data) {
           // Ambil harga murni dari database — JANGAN fallback agresif yang menimpa
           // priceEcer/pricePartai/priceAgen dengan nilai lain.
-          // Jika pricePartai/priceAgen kosong di DB, biarkan 0 (UI yang menangani tampilan).
-          const priceEcer = Number(data.priceEcer) || Number(data.price) || 0;
+          // Jika pricePartai/priceAgen/purchasePrice kosong di DB, biarkan 0 (UI yang menangani tampilan).
+          const priceEcer = Number(data.priceEcer) || 0;
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
@@ -1674,6 +1674,10 @@ try {
             linkedMenuId: data.linkedMenuId || null,
             isCredit: data.isCredit !== undefined ? data.isCredit : true,
           });
+          // Warning jika harga beli atau harga grosir kosong di database
+          if (!data.purchasePrice) console.warn(`[WARNING] Produk ${data.name} belum punya purchasePrice (Harga Beli).`);
+          if (!data.pricePartai) console.warn(`[WARNING] Produk ${data.name} belum punya pricePartai.`);
+          if (!data.priceAgen) console.warn(`[WARNING] Produk ${data.name} belum punya priceAgen.`);
           // DEBUG: Lihat nilai yang dibaca dari Firestore
           console.log(`[TRACE FETCH] Produk: ${data.name} | isCredit DB: ${data.isCredit} (Tipe: ${typeof data.isCredit})`);
           console.log(`[FB-FS] Produk: ${data.name} | Gambar: ${data.imageUrl} | Min Partai: ${data.minOrderPartai} | Min Agen: ${data.minOrderAgen}`);
@@ -5681,7 +5685,7 @@ async loadMoreProducts() {
               categoryId: d.categoryId || d.category || '',
               priceEcer: Number(d.priceEcer || d.price || 0) || 0,
               price: Number(d.priceEcer || d.price || 0) || 0,
-              purchasePrice: Number(d.purchasePrice || d.priceEcer || d.price || 0) || 0,
+              purchasePrice: Number(d.purchasePrice) || 0,
               pricePartai: Number(d.pricePartai || 0) || 0,
               priceAgen: Number(d.priceAgen || 0) || 0,
               unit: d.unit || 'pcs',
@@ -5727,7 +5731,7 @@ async loadMoreProducts() {
               categoryId: d.categoryId || d.category || '',
               priceEcer: Number(d.priceEcer || d.price || 0) || 0,
               price: Number(d.priceEcer || d.price || 0) || 0,
-              purchasePrice: Number(d.purchasePrice || d.priceEcer || d.price || 0) || 0,
+              purchasePrice: Number(d.purchasePrice) || 0,
               pricePartai: Number(d.pricePartai || 0) || 0,
               priceAgen: Number(d.priceAgen || 0) || 0,
               unit: d.unit || 'pcs',
@@ -8678,9 +8682,9 @@ async loadMoreProducts() {
         const name = `"${(item.name || '').replace(/"/g, '""')}"`;
         const supplier = `"${(item.supplier || '').replace(/"/g, '""')}"`;
         const categoryId = `"${(item.categoryId || item.category || '').replace(/"/g, '""')}"`;
-        const priceEcer = Number(item.priceEcer || item.purchasePrice || item.hargaBeli || 0);
-        const pricePartai = Number(item.pricePartai || item.priceEcer || item.purchasePrice || 0);
-        const priceAgen = Number(item.priceAgen || item.priceEcer || item.purchasePrice || 0);
+        const priceEcer = Number(item.priceEcer) || 0;
+        const pricePartai = Number(item.pricePartai) || 0;
+        const priceAgen = Number(item.priceAgen) || 0;
         const stock = Number(item.stock || item.stok || 0);
         const unit = `"${(item.unit || 'pcs').replace(/"/g, '""')}"`;
 
@@ -8766,6 +8770,7 @@ async loadMoreProducts() {
           const purchasePriceCsv = row.purchasePrice || row.hargaBeli || '';
           const itemId = `inv_${slugify(itemName)}_${idx}`;
           console.log(`[TRACE IMPORT] Produk: ${row.name} | Kredit CSV: "${row['Kredit(Y/N)']}" | isCredit Value: ${row.isCredit} (Tipe: ${typeof row.isCredit})`);
+          console.log("[BULK-UPLOAD] ID:", row.id, "| purchasePrice:", row.purchasePrice);
 
           // DEBUG: Lihat nilai dari CSV
           console.log("CEK CSV ROW:", {
@@ -8868,6 +8873,7 @@ async loadMoreProducts() {
               priceEcer: Number(newItemObj.priceEcer) || 0,
               pricePartai: Number(newItemObj.pricePartai) || 0,
               priceAgen: Number(newItemObj.priceAgen) || 0,
+              purchasePrice: Number(newItemObj.purchasePrice) || 0,
               price: Number(newItemObj.priceEcer) || 0,
               minOrderPartai: Number(newItemObj.minOrderPartai) || 0,
               minOrderAgen: Number(newItemObj.minOrderAgen) || 0,
@@ -8961,6 +8967,7 @@ async loadMoreProducts() {
                 priceEcer: Number(item.priceEcer) || 0,
                 pricePartai: Number(item.pricePartai) || 0,
                 priceAgen: Number(item.priceAgen) || 0,
+                purchasePrice: Number(item.purchasePrice) || 0,
                 minOrderPartai: Number(item.minOrderPartai) || 0,
                 minOrderAgen: Number(item.minOrderAgen) || 0,
                 unit: item.unit || 'pcs',
@@ -8994,6 +9001,7 @@ async loadMoreProducts() {
                     priceEcer: Number(item.priceEcer) || 0,
                     pricePartai: Number(item.pricePartai) || 0,
                     priceAgen: Number(item.priceAgen) || 0,
+                    purchasePrice: Number(item.purchasePrice) || 0,
                     price: Number(item.priceEcer) || 0,
                     unit: item.unit || 'pcs',
                     stock: Number(item.stock) || 0,
@@ -9004,6 +9012,33 @@ async loadMoreProducts() {
                   });
                 }
                 console.log(`[IMPORT-CSV] ✅ ${itemsForFirestore.length} produk juga ditulis ke RTDB '/inventory'`);
+
+                // ✅ Juga sinkronkan costPerUnit ke stock_batches di RTDB agar FIFO baca harga beli yang benar
+                if (itemsForFirestore.length > 0 && this._fbDb && this._fbRef && this._fbGet && this._fbSet) {
+                  try {
+                    for (const item of itemsForFirestore) {
+                      const invItem = this.inventoryList.find(i => i.id === item.id);
+                      if (invItem && invItem.purchasePrice) {
+                        const batchRef = this._fbRef(this._fbDb, `stock_batches/${invItem.id}`);
+                        const snap = await this._fbGet(batchRef);
+                        const batchesData = snap.val() || {};
+                        for (const [batchId, b] of Object.entries(batchesData || {})) {
+                          if (b && typeof b === 'object') {
+                            await this._fbSet(this._fbRef(this._fbDb, `stock_batches/${invItem.id}/${batchId}`), {
+                              ...b,
+                              costPerUnit: Number(invItem.purchasePrice) || 0,
+                              syncedAt: Date.now(),
+                              syncedFrom: 'purchasePrice-csv-import'
+                            });
+                          }
+                        }
+                        console.log(`[BULK-UPLOAD] costPerUnit di stock_batches/${invItem.id} diperbarui dari purchasePrice`);
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('[IMPORT-CSV] Gagal sinkronkan stock_batches costPerUnit:', e);
+                  }
+                }
               } catch (e) {
                 console.warn('[IMPORT-CSV] Gagal tulis RTDB (non-fatal):', e);
               }
@@ -12209,7 +12244,12 @@ async loadMoreProducts() {
     this.generateMenuForm = {
       inventoryId: item.id,
       name: item.name,
-      price: suggestedPrice,
+      priceEcer: Number(item.priceEcer || item.price || 0),
+      pricePartai: Number(item.pricePartai || 0),
+      priceAgen: Number(item.priceAgen || 0),
+      minOrderPartai: Number(item.minOrderPartai || 1),
+      minOrderAgen: Number(item.minOrderAgen || 1),
+      price: Number(item.priceEcer || item.price || 0),
       cost: cost,
       category: 'bahan_bangunan',
       desc: `Menu siap saji langsung dari bahan baku ${item.name}`,
@@ -12249,13 +12289,22 @@ async loadMoreProducts() {
     }
 
     const newMenuId = `m_${Date.now()}`;
-    const price = Number(this.generateMenuForm.price) || 0;
+    const priceEcer = Number(this.generateMenuForm.priceEcer || 0);
+    const pricePartai = Number(this.generateMenuForm.pricePartai || 0);
+    const priceAgen = Number(this.generateMenuForm.priceAgen || 0);
+    const minOrderPartai = Number(this.generateMenuForm.minOrderPartai || 1);
+    const minOrderAgen = Number(this.generateMenuForm.minOrderAgen || 1);
 
     const newMenuItem = {
       id: newMenuId,
       name: this.generateMenuForm.name.trim(),
       category: this.generateMenuForm.category || 'bahan_bangunan',
-      price: price,
+      price: priceEcer,
+      priceEcer: priceEcer,
+      pricePartai: pricePartai,
+      priceAgen: priceAgen,
+      minOrderPartai: minOrderPartai,
+      minOrderAgen: minOrderAgen,
       cost: Number(this.generateMenuForm.cost) || Number(inv.purchasePrice) || 0,
       desc: this.generateMenuForm.desc || '',
       image: this.generateMenuForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',

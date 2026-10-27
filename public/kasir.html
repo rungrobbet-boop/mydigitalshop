@@ -7838,20 +7838,60 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-bold text-stone-700 mb-1">Harga Jual POS (Rp) <span class="text-red-500">*</span></label>
-            <input 
-              type="number" 
-              min="0" 
-              step="500" 
-              x-model.number="generateMenuForm.price" 
-              required 
-              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+            <label class="block font-bold text-stone-700 mb-1">Harga Ecer (Rp) <span class="text-red-500">*</span></label>
+            <input
+              type="number"
+              min="0"
+              step="500"
+              x-model.number="generateMenuForm.priceEcer"
+              required
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Harga Partai (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              step="500"
+              x-model.number="generateMenuForm.pricePartai"
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Min Order Partai</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              x-model.number="generateMenuForm.minOrderPartai"
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Harga Agen (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              step="500"
+              x-model.number="generateMenuForm.priceAgen"
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Min Order Agen</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              x-model.number="generateMenuForm.minOrderAgen"
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-mono font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
           <div>
             <label class="block font-bold text-stone-700 mb-1">Kategori Menu</label>
-            <select 
-              x-model="generateMenuForm.category" 
+            <select
+              x-model="generateMenuForm.category"
               class="w-full min-h-[42px] px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
               <option value="bahan_bangunan">Bahan Bangunan</option>
               <option value="semen">Semen</option>
