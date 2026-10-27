@@ -902,6 +902,7 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], (req, res) 
   const bulan = dateStr.substring(0, 7);
   const total = Number(body.total || body.tot) || 0;
   const totalHpp = Number(body.totalHpp) || 0;
+  console.log("[BACKEND] Menerima totalHpp:", totalHpp, "untuk orderId:", orderId);
   const pm = String(body.pm || 'cash').toLowerCase();
   const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet');
   const debitAcc = isBank ? '102' : '101';

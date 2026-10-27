@@ -3238,8 +3238,10 @@ async loadMoreProducts() {
     // 4. ✅ Potong stok via FIFO engine (RTDB stock_batches) — mengganti pemotongan manual RTDB & Firestore
     fifoResult = { usedBatches: [], totalHpp: 0 };
     try {
+      console.log("[FIFO-TX] Item yang akan dipotong:", JSON.stringify(normalizedItems));
       // Panggil engine FIFO yang sudah dibuat
       fifoResult = await this.processFifoSale(normalizedItems);
+      console.log("[FIFO-TX] Hasil HPP:", JSON.stringify(fifoResult));
 
       // Opsional: Tetap update /inventory/{id} untuk stok live UI
       for (const item of normalizedItems) {
@@ -3256,8 +3258,9 @@ async loadMoreProducts() {
         await this._fbSet(txRef, { ...txRecord, usedBatches: fifoResult.usedBatches || [], totalHpp: fifoResult.totalHpp });
       }
     } catch (fifoError) {
-      console.error('[FIFO-TX] Gagal memproses FIFO, fallback ke metode lama:', fifoError);
-      // Fallback: biarkan transaksi tetap berjalan meski FIFO gagal
+      console.error("[FIFO-TX] ERROR FATAL:", fifoError);
+      console.error("[FIFO-TX] Stok tidak akan berkurang dan HPP akan 0 karena FIFO gagal di atas.");
+      // Fallback: biarkan transaksi tetap tercatat, tapi HPP akan 0 (jurnal HPP tidak terbentuk)
     }
 
     // Update lokal inventoryList agar UI segera refleksi
@@ -3303,10 +3306,10 @@ async loadMoreProducts() {
         date: dateStr,
         pm: pm,
         total: grandTotal,
-        totalHpp: fifoResult.totalHpp,
+        totalHpp: fifoResult ? fifoResult.totalHpp : 0,
         items: normalizedItems
       };
-      console.log('[KASIR→ACCT] Sending:', acctBody);
+      console.log("[ACCT-TX] Payload ke Jurnal:", JSON.stringify(acctBody));
 
       const acctRes = await fetch('/accounting/journal/pos', {
         method: 'POST',
@@ -5877,6 +5880,7 @@ async loadMoreProducts() {
    * Return { usedBatches: [...], totalHpp: number }.
    */
   async processFifoSale(items) {
+    console.log("[FIFO-TX] Item yang akan dipotong:", JSON.stringify(items));
     if (!Array.isArray(items) || items.length === 0) {
       return { usedBatches: [], totalHpp: 0 };
     }
@@ -5886,14 +5890,39 @@ async loadMoreProducts() {
     const allUsedBatches = [];
     let totalHpp = 0;
     for (const item of items) {
-      const productId = String(item.id);
+      // === ID MAPPING: cart id bisa berupa 'inv_cat-keramik-60x60_7' tapi batch di stock_batches pakai 'cat-keramik-60x60' ===
+      let productId = String(item.id);
+      let batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}`);
+      let snap = await this._fbGet(batchRef);
+      let batchesData = snap.val() || {};
+
+      // Fallback 1: strip prefix 'inv_' jika ada
+      if (!batchesData || Object.keys(batchesData).length === 0) {
+        const altId = productId.replace(/^inv_/, '');
+        if (altId !== productId) {
+          productId = altId;
+          batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}`);
+          snap = await this._fbGet(batchRef);
+          batchesData = snap.val() || {};
+        }
+      }
+      // Fallback 2: strip suffix '_N' (mis. cat-keramik-60x60_7 -> cat-keramik-60x60)
+      if (!batchesData || Object.keys(batchesData).length === 0) {
+        const altId = productId.replace(/_\d+$/, '');
+        if (altId !== productId) {
+          productId = altId;
+          batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}`);
+          snap = await this._fbGet(batchRef);
+          batchesData = snap.val() || {};
+        }
+      }
+
+      if (!batchesData || Object.keys(batchesData).length === 0) {
+        throw new Error(`[FIFO-TX] ERROR FATAL: stock_batches/${String(item.id)} tidak ditemukan di RTDB (dicoba juga ${productId}). Tidak dapat proses HPP untuk produk ini.`);
+      }
+
       const needQty = Number(item.qty) || 0;
       if (needQty <= 0) continue;
-
-      // Baca semua batch untuk produk ini dari RTDB
-      const batchRef = this._fbRef(this._fbDb, `stock_batches/${productId}`);
-      const snap = await this._fbGet(batchRef);
-      const batchesData = snap.val() || {};
 
       // Ubah object menjadi array, sortir ascending by dateIn (terlama dulu)
       const batches = Object.entries(batchesData)
@@ -5956,6 +5985,7 @@ async loadMoreProducts() {
       console.log(`[FIFO] ${productId}: qty=${needQty}, usedBatches=${JSON.stringify(usedBatches)}, totalHpp=${itemHpp}`);
     }
 
+    console.log("[FIFO-TX] Hasil HPP:", JSON.stringify({ usedBatches: allUsedBatches, totalHpp }));
     return { usedBatches: allUsedBatches, totalHpp };
   },
 
