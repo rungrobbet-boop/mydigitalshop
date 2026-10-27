@@ -8762,6 +8762,8 @@ async loadMoreProducts() {
           const stock = row.stock;
           const imageUrl = String(row.imageUrl || '').trim();
           const minStock = 5;
+          // Ambil purchasePrice dari CSV jika tersedia, jika tidak biarkan 0 (jangan ambil dari priceEcer)
+          const purchasePriceCsv = row.purchasePrice || row.hargaBeli || '';
           const itemId = `inv_${slugify(itemName)}_${idx}`;
           console.log(`[TRACE IMPORT] Produk: ${row.name} | Kredit CSV: "${row['Kredit(Y/N)']}" | isCredit Value: ${row.isCredit} (Tipe: ${typeof row.isCredit})`);
 
@@ -8781,7 +8783,8 @@ async loadMoreProducts() {
             const oldStock = Number(existing.stock || existing.stok || 0);
             existing.stock = stock;
             existing.stok = stock;
-            existing.purchasePrice = priceEcer;
+            // JANGAN timpa existing.purchasePrice dengan priceEcer dari CSV.
+            // purchasePrice dipertahankan dari database asli (Harga Beli).
             existing.priceEcer = priceEcer;
             existing.pricePartai = pricePartai;
             existing.priceAgen = priceAgen;
@@ -8843,7 +8846,7 @@ async loadMoreProducts() {
               stock: stock,
               stok: stock,
               minStock: minStock,
-              purchasePrice: priceEcer,
+              purchasePrice: Number(purchasePriceCsv || 0),
               isCountable: true,
               imageUrl: imageUrl,
               image: imageUrl,
