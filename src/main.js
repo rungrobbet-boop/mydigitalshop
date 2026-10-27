@@ -301,6 +301,7 @@
             const cleanItems = JSON.parse(JSON.stringify(items));
             const menuRef = ref(db, 'menu_items');
             await set(menuRef, cleanItems);
+            console.log("[FIREBASE] saveMenu berhasil menyimpan", cleanItems.length, "menu items ke RTDB");
           } catch (err) {
             console.warn("Firebase saveMenu error:", err);
           }

@@ -887,7 +887,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-10" title="Top Brand">
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute bottom-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -945,7 +945,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-10" title="Top Brand">
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute bottom-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-50 flex items-center justify-center" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -7275,6 +7275,8 @@ git push -u origin main</pre>
                 this.menuItems = [...this.menuItems, ...newItems];
               } else {
                 this.menuItems = result.products;
+              const batuBata = result.products.find(p => p.name && p.name.includes('Batu Bata'));
+              console.log("[LP TRACE] Data Batu Bata dari DB:", batuBata);
               console.log("[LP DEBUG] Produk diterima dari Firebase (Firestore):", this.menuItems.length, "items");
               }
               this.menuItems.forEach(p => {
