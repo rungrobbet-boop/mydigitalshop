@@ -698,10 +698,12 @@ export async function onRequest(context) {
       // ================================================================
       if (method === 'POST' && parts[1] === 'pos') {
         const body = await request.json().catch(() => ({}));
+        console.log("[POS-JOURNAL-FN] Request body:", JSON.stringify(body));
         const orderId = String(body.orderId || '').trim();
         const dateStr = body.date || new Date().toISOString().split('T')[0];
         const pm = String(body.pm || 'cash').toLowerCase();
         const total = toNum(body.total || body.totalAmount || body.tot);
+        const bodyTotalHpp = toNum(body.totalHpp);
 
         let items = [];
         if (Array.isArray(body.items)) {
@@ -790,6 +792,12 @@ export async function onRequest(context) {
           }
         }
         totalHpp = Math.round(totalHpp);
+
+        // Jika items tidak menghasilkan HPP (misal resep kosong), gunakan totalHpp dari frontend (body.totalHpp)
+        if (totalHpp === 0 && bodyTotalHpp > 0) {
+          totalHpp = Math.round(bodyTotalHpp);
+          console.log("[POS-JOURNAL-FN] Menggunakan totalHpp dari body.totalHpp:", totalHpp);
+        }
 
         // 4. Jurnal HPP (kalau ada biaya bahan)
         let hppId = null;

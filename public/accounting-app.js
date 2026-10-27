@@ -1129,6 +1129,7 @@ window.accountingApp = function() {
         let list = null;
 
         try {
+          console.log("[UI-ACCT] Mencoba memuat jurnal untuk bulan:", targetBulan);
           const res = await fetch(`/accounting/journal/${encodeURIComponent(targetBulan)}`);
           if (res.ok) {
             const json = await res.json();
