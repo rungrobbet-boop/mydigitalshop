@@ -2361,28 +2361,28 @@ async loadMoreProducts() {
       });
 
       // 3. Tulis ke Firestore collection 'products' menggunakan setDoc (merge)
+      // HANYA kirim field stok — JANGAN kirim field harga (priceEcer, pricePartai, priceAgen, purchasePrice)
+      // agar tidak menimpa harga yang sudah benar di Firestore dengan data lokal yang basi/0.
       const batch = FB_FS.batch();
       const now = new Date().toISOString();
       mergedList.forEach((item) => {
         const docId = String(item.id || item.name);
         const ref = FB_FS.collection('products').doc(docId);
-        console.log(`[SYNC-STOK] Menyiapkan setDoc: products/${docId} stock=${item.stock}`);
+        console.log(`[SYNC-STOK] Menyiapkan setDoc: products/${docId} stock=${item.stock} (harga diabaikan)`);
         batch.set(ref, {
           id: item.id,
           name: item.name,
           category: item.category || 'Bahan Bangunan',
           categoryId: item.categoryId || '',
-          priceEcer: Number(item.priceEcer) || 0,
-          pricePartai: Number(item.pricePartai) || 0,
-          priceAgen: Number(item.priceAgen) || 0,
-          purchasePrice: Number(item.purchasePrice) || 0,
+          // HARGA DIABAIKAN sengaja — sinkronisasi stok tidak boleh menimpa harga
+          // priceEcer, pricePartai, priceAgen, purchasePrice sengaja dihilangkan
           unit: item.unit || 'pcs',
           stock: Math.max(0, Number(item.stock) || 0),
-          stok: Math.max(0, Number(item.stock) || 0),
+          stok: Math.max(0, Number(item.stok) || 0),
           minStock: Number(item.minStock) || 5,
           imageUrl: item.imageUrl || '',
           syncedAt: now,
-          source: 'kasir-pos-sync',
+          source: 'kasir-pos-sync-stok-only',
         }, { merge: true });
       });
 

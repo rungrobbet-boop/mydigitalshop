@@ -9277,6 +9277,14 @@ git push -u origin main</pre>
         },
 
         async saveMenuItem() {
+          // Validasi: Harga Jual harus lebih dari 0, jangan biarkan menyimpan dengan harga kosong/0
+          // yang akan menimpa harga asli di database dengan nilai kosong.
+          const hargaJual = Number(this.menuForm.price) || 0;
+          if (!hargaJual || hargaJual <= 0) {
+            alert('Harga Jual harus lebih dari 0. Harap isi harga sebelum menyimpan.');
+            return;
+          }
+
           // Tangani custom category jika user mengetik nama baru
           if (this.menuForm.category === '__custom__') {
             const customName = (this.menuForm.customCategory || '').trim();
