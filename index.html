@@ -742,7 +742,7 @@
               <template x-if="!cat.icon || (!cat.icon.startsWith('http') && !cat.icon.startsWith('data:image'))">
                 <i :class="cat.icon && cat.icon.includes(' ') ? cat.icon : ('fa-solid ' + (cat.icon || 'fa-tag'))"></i>
               </template>
-              <span x-text="cat.name"></span>
+              <span x-text="formatCategoryLabel(cat.id)"></span>
               <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="selectedCategory === cat.id ? 'bg-brand-700 text-white' : 'bg-stone-100 text-stone-500'" x-text="getCategoryCount(cat.id)"></span>
             </button>
           </template>
@@ -767,7 +767,7 @@
         </div>
         <div class="flex items-center gap-3 flex-wrap">
           <div class="text-xs text-slate-500">
-            Menampilkan <span class="font-bold text-slate-800" x-text="paginatedMenuItems.length"></span> produk
+            Menampilkan <span class="font-bold text-slate-800" x-text="filteredMenuItems.length"></span> produk
           </div>
           <button 
             x-show="isAdminLoggedIn" 
@@ -781,7 +781,7 @@
 
       <!-- 1. Tampilan Card Besar (Tampilan Utama dengan 3-Tier Harga) -->
       <div x-show="menuViewMode === 'large'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <template x-for="item in paginatedMenuItems" :key="item.id">
+        <template x-for="item in filteredMenuItems" :key="item.id">
           <div class="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition overflow-hidden flex flex-col justify-between group relative">
             
             <div class="relative">
@@ -855,7 +855,7 @@
 
       <!-- 2. Tampilan Card Kecil (2 Menu Berdampingan di Layar HP Portrait) -->
       <div x-show="menuViewMode === 'compact'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
-        <template x-for="item in paginatedMenuItems" :key="'compact_' + item.id">
+        <template x-for="item in filteredMenuItems" :key="'compact_' + item.id">
           <div class="bg-white rounded-xl sm:rounded-2xl border border-stone-200/90 shadow-2xs hover:shadow-md transition overflow-hidden flex flex-col justify-between group relative">
             <div class="relative">
               <img :src="item.imageUrl || item.image || 'https://placehold.co/400x400/e2e8f0/475569?text=Material'" :alt="item.name" class="w-full h-28 sm:h-36 object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://placehold.co/400x400/e2e8f0/475569?text=Material'" />
@@ -928,7 +928,7 @@
 
       <!-- 3. Tampilan Daftar / List (Thumbnail Kecil dengan Detail) -->
       <div x-show="menuViewMode === 'list'" class="flex flex-col gap-2.5 sm:gap-3">
-        <template x-for="item in paginatedMenuItems" :key="'list_' + item.id">
+        <template x-for="item in filteredMenuItems" :key="'list_' + item.id">
           <div class="bg-white rounded-2xl border border-stone-200/90 p-2.5 sm:p-3.5 shadow-2xs hover:shadow-md transition flex items-center gap-3 sm:gap-4 group relative">
             
             <!-- Thumbnail Kecil -->
@@ -1041,7 +1041,7 @@
             <span x-text="firestoreLoading ? 'Memuat Data Produk...' : 'Muat Lebih Banyak (Load More)'"></span>
           </button>
 
-          <div x-show="!firestoreHasMore && paginatedMenuItems.length > 0" class="text-xs text-slate-500 font-medium flex items-center gap-2 py-2">
+          <div x-show="!firestoreHasMore && filteredMenuItems.length > 0" class="text-xs text-slate-500 font-medium flex items-center gap-2 py-2">
             <i class="fa-solid fa-circle-check text-emerald-600"></i>
             <span>Semua produk telah dimuat (<span class="font-bold text-slate-800" x-text="menuItems.length"></span> produk).</span>
           </div>
@@ -7177,6 +7177,12 @@ git push -u origin main</pre>
           this.menuViewMode = modes[this._menuViewStep];
         },
 
+        formatCategoryLabel(catId) {
+          if (!catId) return '';
+          if (catId === 'all' || catId === 'semua') return 'Semua Menu';
+          return String(catId).split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        },
+
         get filteredMenuItems() {
           // Dedup by ID — cegah produk feeder/CSV duplikat muncul berulang di landing page
           const seenIds = new Set();
@@ -7367,22 +7373,7 @@ git push -u origin main</pre>
 
         getCategoryName(categoryId) {
           if (!categoryId) return categoryId;
-          const mapping = {
-            'cat-semen': 'Semen & Pasir',
-            'cat-besi': 'Besi & Baja Ringan',
-            'cat-cat': 'Cat & Finishing',
-            'cat-multi': 'Keramik & Lantai',
-            'semen-pasir': 'Semen & Pasir',
-            'besi-baja': 'Besi & Baja Ringan',
-            'cat-finishing': 'Cat & Finishing',
-            'keramik-lantai': 'Keramik & Lantai',
-            'atap-plafon': 'Atap & Plafon',
-            'plumbing-pipa': 'Plumbing & Sanitari'
-          };
-          if (mapping[categoryId]) return mapping[categoryId];
-          const cat = (this.menuCategories || []).find(c => c && c.id === categoryId);
-          if (cat) return cat.name;
-          return categoryId;
+          return this.formatCategoryLabel(categoryId);
         },
 
         get cartTotalCount() {
@@ -9081,17 +9072,16 @@ git push -u origin main</pre>
               { id: 'all', name: 'Semua Menu', icon: 'fa-border-all' }
             ];
 
-            // Derive kategori langsung dari menuItems (products aktif di state)
+            // Derive kategori secara DINAMIS langsung dari products (tanpa hardcode/mapping statis)
             const catMap = new Map();
             if (Array.isArray(this.menuItems)) {
               this.menuItems.forEach(item => {
                 if (!item) return;
                 const catId = item.categoryId || item.category || item.categoryLabel || '';
                 if (!catId || catId === 'all' || catId === 'semua') return;
-                const norm = this.normalizeCatId(catId);
-                if (!norm || catMap.has(norm)) return;
-                const catName = item.categoryLabel || this.getCategoryName(catId) || catId;
-                catMap.set(norm, { id: catId, name: catName, icon: 'fa-bowl-food' });
+                const key = String(catId).toLowerCase();
+                if (catMap.has(key)) return;
+                catMap.set(key, { id: catId, name: this.formatCategoryLabel(catId), icon: 'fa-bowl-food' });
               });
             }
 
