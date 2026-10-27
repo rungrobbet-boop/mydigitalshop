@@ -1,9 +1,23 @@
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
+import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const app = express();
 const PORT = 3000;
+
+// Inisialisasi Firebase Realtime Database (untuk simpan dan baca jurnal)
+let db = null;
+try {
+  const firebaseApp = getApps().length > 0 ? getApp() : initializeApp({
+    databaseURL: process.env.FIREBASE_DATABASE_URL || ""
+  });
+  db = getDatabase(firebaseApp);
+  console.log("[FIREBASE] Database diinisialisasi:", db ? "OK" : "GAGAL");
+} catch (e) {
+  console.warn("[FIREBASE] Gagal inisialisasi database:", e);
+}
 
 app.use(express.json());
 
@@ -937,6 +951,7 @@ app.post(['/accounting/journal/pos', '/api/accounting/journal/pos'], async (req,
   };
   serverJournals[bulan][jrnId] = jurnalData;
 
+  console.log("[BACKEND-HPP] Akan menyimpan jurnal HPP ke RTDB:", jurnalData);
   // Simpan ke RTDB /accounting/journal/{bulan}/{jrnId} untuk persistensi
   if (db) {
     try {
@@ -1047,10 +1062,27 @@ app.post(['/accounting/journal/return', '/api/accounting/journal/return'], (req,
 });
 
 // GET & POST /accounting/journal/:bulan
-app.get(['/accounting/journal/:bulan', '/api/accounting/journal/:bulan'], (req, res) => {
+app.get(['/accounting/journal/:bulan', '/api/accounting/journal/:bulan'], async (req, res) => {
   const { bulan } = req.params;
   const monthData = serverJournals[bulan] || {};
-  const entries = Object.entries(monthData).map(([id, val]) => ({ entryId: id, bulan, ...val }));
+
+  // Baca juga dari RTDB /accounting/journal/{bulan} agar data persisten
+  let rtdbData = {};
+  if (db) {
+    try {
+      const journalRef = ref(db, `accounting/journal/${bulan}`);
+      const snapshot = await get(journalRef);
+      if (snapshot.exists()) {
+        rtdbData = snapshot.val() || {};
+      }
+    } catch (e) {
+      console.warn("[BACKEND-HPP] Gagal baca jurnal dari RTDB:", e);
+    }
+  }
+
+  // Merge: RTDB sebagai dasar, data memori menimpa (data terbaru belum ter-sync)
+  const allData = { ...rtdbData, ...monthData };
+  const entries = Object.entries(allData).map(([id, val]) => ({ entryId: id, bulan, ...val }));
   entries.sort((a, b) => (b.createdAt || b.t || 0) - (a.createdAt || a.t || 0));
   res.json({ success: true, bulan, data: entries });
 });
@@ -1194,7 +1226,7 @@ app.get(['/accounting/ledger/:accCode/:bulan', '/api/accounting/ledger/:accCode/
 });
 
 // GET /accounting/summary/:bulan
-app.get(['/accounting/summary/:bulan', '/api/accounting/summary/:bulan'], (req, res) => {
+app.get(['/accounting/summary/:bulan', '/api/accounting/summary/:bulan'], async (req, res) => {
   const { bulan } = req.params;
   let revenue = 0;
   let hpp = 0;
@@ -1203,7 +1235,25 @@ app.get(['/accounting/summary/:bulan', '/api/accounting/summary/:bulan'], (req, 
   let cashOut = 0;
 
   const monthJournals = serverJournals[bulan] || {};
-  Object.values(monthJournals).forEach(entry => {
+
+  // Baca juga dari RTDB /accounting/journal/{bulan} agar data persisten
+  let rtdbData = {};
+  if (db) {
+    try {
+      const journalRef = ref(db, `accounting/journal/${bulan}`);
+      const snapshot = await get(journalRef);
+      if (snapshot.exists()) {
+        rtdbData = snapshot.val() || {};
+      }
+    } catch (e) {
+      console.warn("[BACKEND-HPP] Gagal baca jurnal untuk summary dari RTDB:", e);
+    }
+  }
+
+  // Merge: RTDB sebagai dasar, data memori menimpa
+  const allData = { ...rtdbData, ...monthJournals };
+
+  Object.values(allData).forEach((entry: any) => {
     if (entry.status === 'approved' && Array.isArray(entry.lines)) {
       entry.lines.forEach((l: any) => {
         const acc = String(l.acc);

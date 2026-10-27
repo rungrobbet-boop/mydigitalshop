@@ -1134,6 +1134,7 @@ window.accountingApp = function() {
             const json = await res.json();
             if (json && json.success && Array.isArray(json.data)) {
               list = json.data;
+              console.log("[UI-ACCT] Data Jurnal dari Backend:", json.data);
               console.log(`[ACCT-APP] Loaded ${list.length} journals from API for ${targetBulan}`);
             }
           }
