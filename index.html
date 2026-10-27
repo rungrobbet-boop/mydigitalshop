@@ -887,7 +887,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || item.isTopBrand === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1 rounded-full">
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-10" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -945,7 +945,7 @@
               </template>
 
               <!-- Spicy Icon -->
-              <div x-show="item.isTopBrand === true || item.isTopBrand === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1 rounded-full">
+              <div x-show="item.isTopBrand === true || String(item.isTopBrand) === 'true'" class="absolute top-2 left-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-md text-xs z-10" title="Top Brand">
                 ⭐
               </div>
             </div>
@@ -5230,13 +5230,13 @@ git push -u origin main</pre>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Jual (Rp) *</label>
-            <input type="number" x-model.number="menuForm.price" required min="1000" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white font-extrabold text-brand-700 font-mono" />
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Jual (Diatur dari Kasir)</label>
+            <input type="number" x-model.number="menuForm.price" required min="1000" readonly class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-100 font-extrabold text-brand-700 font-mono cursor-not-allowed" />
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Coret / Normal (Rp)</label>
-            <input type="number" x-model.number="menuForm.originalPrice" min="0" placeholder="Opsional untuk diskon" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white font-mono" />
+            <label class="block text-xs font-bold text-stone-700 uppercase mb-1">Harga Coret / Normal (Diatur dari Kasir)</label>
+            <input type="number" x-model.number="menuForm.originalPrice" min="0" placeholder="Opsional untuk diskon" readonly class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-100 font-mono cursor-not-allowed" />
           </div>
         </div>
 
