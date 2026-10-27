@@ -7331,7 +7331,8 @@ git push -u origin main</pre>
 
           const snapshotFn = window.FirestoreService && window.FirestoreService.onAdminProductsSnapshot;
           if (typeof snapshotFn !== 'function') {
-            console.warn('[Firestore] onAdminProductsSnapshot tidak tersedia, lewat real-time listener.');
+            // Landing Page menggunakan fetch biasa (loadFirestoreProducts),
+            // real-time listener admin tidak diperlukan di sini.
             return;
           }
 
@@ -7934,7 +7935,7 @@ git push -u origin main</pre>
                 const d = await r.json();
                 if (d && d.order) this.rtoHandleStatus(d.order.status, d.order);
               } catch (e) {}
-            }, 4000);
+            }, 30000); // polling setiap 30 detik (hindari pemblokiran browser / terlalu banyak request)
           }
         },
 
