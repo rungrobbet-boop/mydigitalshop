@@ -9895,6 +9895,7 @@ git push -u origin main</pre>
                         let failCount = 0;
                         for (const u of updates) {
                           try {
+                            console.log('[BULK-UPLOAD-ADMIN] ID:', u.id, '| Harga Beli Baru:', u.purchasePrice);
                             console.log('[UPDATE FIRESTORE] payload untuk', u.id, JSON.stringify({ purchasePrice: u.purchasePrice, supplier: u.supplier, category: u.category, categoryId: u.category, isCredit: u.isCredit }));
                             const payload = {
                               purchasePrice: u.purchasePrice,
@@ -9938,6 +9939,39 @@ git push -u origin main</pre>
                                     console.error('[UPDATE RTDB] Gagal untuk', u.id, e);
                                   }
                                 }
+                              }
+                            }
+                            // ✅ Juga sinkronkan costPerUnit ke stock_batches di RTDB agar FIFO baca harga beli baru
+                            if (updates.length > 0 && bridge && !bridge.isDemo()) {
+                              try {
+                                const { getDatabase, ref, get, set } = await window.__firebaseDbModules || {};
+                                if (getDatabase && ref && get && set) {
+                                  const database = getDatabase();
+                                  if (database) {
+                                    for (const u of updates) {
+                                      try {
+                                        const batchRef = ref(database, `stock_batches/${u.id}`);
+                                        const snap = await get(batchRef);
+                                        const batchesData = snap.val() || {};
+                                        for (const [batchId, b] of Object.entries(batchesData || {})) {
+                                          if (b && typeof b === 'object') {
+                                            await set(ref(database, `stock_batches/${u.id}/${batchId}`), {
+                                              ...b,
+                                              costPerUnit: Number(u.purchasePrice) || 0,
+                                              syncedAt: new Date().toISOString(),
+                                              syncedFrom: 'purchasePrice-csv-upload-admin'
+                                            });
+                                          }
+                                        }
+                                        console.log(`[BULK-UPLOAD-ADMIN] costPerUnit stock_batches/${u.id} diperbarui dari purchasePrice ${u.purchasePrice}`);
+                                      } catch (e) {
+                                        console.warn('[IMPORT-CSV] Gagal sinkronkan stock_batches costPerUnit untuk', u.id, e);
+                                      }
+                                    }
+                                  }
+                                }
+                              } catch (e) {
+                                console.warn('[IMPORT-CSV] Gagal sinkronkan stock_batches costPerUnit:', e);
                               }
                             }
                           } catch (e) {
