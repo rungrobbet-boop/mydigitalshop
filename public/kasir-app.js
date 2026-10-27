@@ -1645,16 +1645,18 @@ try {
       snap.forEach((doc) => {
         const data = doc.data();
         if (data) {
-          // Fallback field harga agar tidak Rp 0 jika priceEcer kosong
-          const rawPrice = Number(data.priceEcer) || Number(data.price) || Number(data.pricePartai) || 0;
+          // Ambil harga murni dari database — JANGAN fallback agresif yang menimpa
+          // priceEcer/pricePartai/priceAgen dengan nilai lain.
+          // Jika pricePartai/priceAgen kosong di DB, biarkan 0 (UI yang menangani tampilan).
+          const priceEcer = Number(data.priceEcer) || Number(data.price) || 0;
           list.push({
             id: data.id || doc.id,
             name: data.name || '',
             supplier: data.supplier || '',
             category: data.category || '',
             categoryId: data.categoryId || data.category || '',
-            price: rawPrice,
-            priceEcer: rawPrice,
+            price: priceEcer,
+            priceEcer: priceEcer,
             pricePartai: Number(data.pricePartai) || 0,
             priceAgen: Number(data.priceAgen) || 0,
             purchasePrice: Number(data.purchasePrice) || 0,
