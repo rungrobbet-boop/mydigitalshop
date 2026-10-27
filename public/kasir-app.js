@@ -5629,9 +5629,8 @@ async loadMoreProducts() {
       // ✅ HANYA ambil dari Firestore collection 'products' — tidak ada RTDB /inventory listener, tidak ada backend fetch, tidak ada localStorage restore
       // Jika Firestore kosong, inventory tetap kosong (tampilkan pesan "Silakan Import CSV")
 
-        // ✅ Sumber data utama: Firestore collection 'products' (hasil import CSV Landing Page)
-        // Dipakai saat RTDB /inventory masih kosong, agar inventory di Kasir selaras dengan data Landing Page.
-        if ((force || !this.inventoryList || this.inventoryList.length === 0) && FB_FS) {
+        // ✅ Sumber data utama: Selalu fetch dari Firestore collection 'products' — overwrite data memori basi
+        if (FB_FS) {
         try {
           const products = await this.getProducts();
           if (products && products.length > 0) {
@@ -5682,8 +5681,8 @@ async loadMoreProducts() {
 
 
 
-      // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong
-      if (force || !this.inventoryList || this.inventoryList.length === 0) {
+      // Muat dari Firestore collection 'products' (hasil import CSV landing page) jika masih kosong dan FB_FS tidak tersedia
+      if (!FB_FS && (!this.inventoryList || this.inventoryList.length === 0)) {
         try {
           if (FB_FS) {
             const snap = await FB_FS.collection('products').get();
@@ -5747,8 +5746,8 @@ async loadMoreProducts() {
         }
       }
 
-      // ✅ RTDB FALLBACK: jika Firestore tidak tersedia (FB_FS null), muat inventory dari RTDB /inventory
-      if ((force || !this.inventoryList || this.inventoryList.length === 0) && !FB_FS && this._fbDb && this._fbRef && this._fbGet) {
+      // ✅ RTDB FALLBACK: jika inventory masih kosong, muat dari RTDB /inventory
+      if ((!this.inventoryList || this.inventoryList.length === 0) && this._fbDb && this._fbRef && this._fbGet) {
         try {
           const rtdbInvRef = this._fbRef(this._fbDb, 'inventory');
           const rtdbSnap = await this._fbGet(rtdbInvRef);
