@@ -8498,6 +8498,7 @@ async loadMoreProducts() {
               return new Date(b.time || 0) - new Date(a.time || 0);
             });
             console.log('[INV-LOG] Muat ' + this.inventoryLogs.length + ' log dari RTDB');
+            console.log('CEK LOG:', this.inventoryLogs[0]);
             return;
           }
         } catch (rtdbErr) {
@@ -9875,7 +9876,10 @@ async loadMoreProducts() {
       const json = await res.json();
       if (json && json.success && Array.isArray(json.data)) {
         this.accountingJournalList = json.data;
+        // Reset filter tanggal saat memuat data baru, agar tidak secara tidak sengaja menyembunyikan data
+        this.journalFilterDate = '';
         console.log(`[KASIR-JOURNAL] Loaded ${json.data.length} entries for ${bulan}`);
+        console.log('CEK JURNAL KASIR:', json.data.slice(0, 3));
       } else {
         this.accountingJournalList = [];
       }
