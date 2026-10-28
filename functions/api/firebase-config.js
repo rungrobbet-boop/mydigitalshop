@@ -4,7 +4,7 @@ export async function onRequest(context) {
   let projectId = env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || "";
   // Default ke fallback yang sama dengan kasir-app.js agar endpoint tidak
   // pernah mengembalikan databaseURL kosong di production kalau env belum di-set.
-  const DEFAULT_DATABASE_URL = "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app";
+  const DEFAULT_DATABASE_URL = "";
   const databaseURL = env.FIREBASE_DATABASE_URL || env.VITE_FIREBASE_DATABASE_URL || DEFAULT_DATABASE_URL;
 
   // Auto-infer projectId from databaseURL if missing

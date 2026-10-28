@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistem Akuntansi & Keuangan - MyDigitalShop</title>
+  <title>Sistem Akuntansi & Keuangan</title>
   
   <!-- Global safety shield: handle cross-origin Script error and prevent uncaught runtime stops -->
   <script>
@@ -126,6 +126,11 @@
   </style>
 
   <!-- Logic Alpine Terpisah (accounting-app.js) -->
+  <!-- Firebase Config (auto-generated oleh build) — dimuat SEBELUM accounting-app.js -->
+  <script type="module">
+    import { firebaseConfig } from '/firebase-config.js';
+    window.firebaseConfig = firebaseConfig;
+  </script>
   <script defer src="/accounting-app.js"></script>
 
   <!-- Alpine.js CDN -->

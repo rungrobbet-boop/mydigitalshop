@@ -13,7 +13,6 @@ import {
   getFirestore,
   collection,
   doc,
-  getDocs,
   getDoc,
   setDoc,
   addDoc,
@@ -27,27 +26,15 @@ import {
   onSnapshot
 } from "firebase/firestore";
 
-// Helper untuk mendeteksi konfigurasi Firebase di berbagai lingkungan (Vite/Node/Browser)
-export function resolveFirebaseConfig() {
-  // 1. Cek local storage browser jika ada custom config
-  if (typeof window !== "undefined" && window.localStorage) {
-    try {
-      const stored = window.localStorage.getItem("dapur_firebase_custom_config");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.apiKey && !parsed.apiKey.includes("YOUR_FIREBASE")) {
-          return {
-            apiKey: parsed.apiKey,
-            authDomain: parsed.authDomain || (parsed.projectId ? `${parsed.projectId}.firebaseapp.com` : ""),
-            projectId: parsed.projectId,
-            storageBucket: parsed.storageBucket || (parsed.projectId ? `${parsed.projectId}.appspot.com` : ""),
-            messagingSenderId: parsed.messagingSenderId || "",
-            appId: parsed.appId || ""
-          };
-        }
-      }
-    } catch (_) {}
-  }
+// Konfigurasi Firebase diambil dari public/firebase-config.js (single source of truth)
+import { firebaseConfig } from "../../public/firebase-config.js";
+
+// Inisialisasi Firebase App singleton
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// Inisialisasi Cloud Firestore
+export const db = getFirestore(app);
+
 
   // 2. Cek Environment variables (Vite import.meta.env atau process.env)
   const envApiKey = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY)
@@ -74,24 +61,9 @@ export function resolveFirebaseConfig() {
     || (typeof process !== "undefined" && process.env && process.env.FIREBASE_APP_ID)
     || "";
 
-  return {
-    apiKey: envApiKey,
-    authDomain: envAuthDomain,
-    projectId: envProjectId,
-    storageBucket: envStorageBucket,
-    messagingSenderId: envMessagingSenderId,
-    appId: envAppId
-    // PERHATIAN: databaseURL sengaja tidak dimasukkan karena Cloud Firestore tidak membutuhkannya.
-  };
-}
 
-export const firebaseConfig = resolveFirebaseConfig();
 
-// Inisialisasi Firebase App singleton
-export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Inisialisasi Cloud Firestore
-export const db = getFirestore(app);
 
 // Referensi Koleksi
 export const PRODUCTS_COLLECTION = "products";

@@ -64,7 +64,7 @@ export async function onRequest(context) {
     return jsonResponse({ success: false, error: 'Method not allowed. Use POST.' }, 405);
   }
 
-  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
   const apiKey = env.FIREBASE_API_KEY || "";
   const auth = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : '';
 

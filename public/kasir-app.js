@@ -1,6 +1,6 @@
 /**
 customKasirTitle: 'POS Toko Bangunan',
-customKasirSubtitle: 'MyDigitalShop',
+customKasirSubtitle: '',
 * /public/kasir-app.js — BAGIAN 1 dari 3 (Transaksi & Pembayaran)
 * Sistem MyDigitalShop POS - Toko Bangunan & Material Bangunan
  * 
@@ -185,7 +185,7 @@ window.kasirApp = () => ({
     _scanListenerBound: false,
     appReady: false,
     scannerEnabled: true,
-    splashKasirTitle: 'MyDigitalShop POS',
+    splashKasirTitle: '',
     splashKasirSubtitle: '',
 
   // =========================================================================
@@ -212,7 +212,7 @@ window.kasirApp = () => ({
  
   // ✅ Custom Title (dari Admin Panel → Security)
   customKasirTitle: 'POS Toko Bangunan',
-  customKasirSubtitle: 'MyDigitalShop',
+  customKasirSubtitle: '',
 
   // Katalog Menu & Keranjang (diisi dari Firestore collection 'products' via getProducts())
   cart: [],
@@ -785,7 +785,7 @@ window.kasirApp = () => ({
   // dan localStorage kosong. Tidak ada hardcoded apiKey (diambil dari Vite Env via Landing Page),
   // tapi databaseURL disediakan agar RTDB bisa terhubung secara otomatis.
   _defaultFirebaseConfig: {
-    databaseURL: 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app'
+    databaseURL: ''
   },
 
   // =========================================================================
@@ -851,10 +851,13 @@ try {
     this._fbOnValue(configRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
-        this.customKasirTitle = val.kasirTitle || 'MyDigitalShop POS';
+        this.customKasirTitle = val.kasirTitle || '';
         this.customKasirSubtitle = val.kasirSubtitle || '';
-        this.splashKasirTitle = val.kasirTitle || 'MyDigitalShop POS';
+        this.splashKasirTitle = val.kasirTitle || '';
         this.splashKasirSubtitle = val.kasirSubtitle || '';
+        if (val.brandName) {
+          document.title = val.brandName + ' - POS Kasir';
+        }
         console.log('[KASIR] Custom title loaded:', val.kasirTitle);
 
                // 🏢 Sync info bisnis (brand, alamat, telepon, logo)
@@ -2046,7 +2049,7 @@ async loadMoreProducts() {
   async _fetchShift(shiftId) {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || '';
       const res = await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts/${encodeURIComponent(shiftId)}.json`);
       if (!res.ok) return null;
       return await res.json();
@@ -2057,7 +2060,7 @@ async loadMoreProducts() {
   async _fetchAllShifts() {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || '';
       const res = await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts.json`);
       if (!res.ok) return {};
       return await res.json() || {};
@@ -2068,7 +2071,7 @@ async loadMoreProducts() {
   async _patchShift(shiftId, payload) {
     try {
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || '';
       await fetch(`${fbUrl.replace(/\/$/, '')}/pos/shifts/${encodeURIComponent(shiftId)}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -4724,7 +4727,7 @@ async loadMoreProducts() {
     try {
       // Ambil data langsung dari Firebase
       const dbUrl = (this._fbConfig && this._fbConfig.databaseURL) 
-        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || '';
       const res = await fetch(`${dbUrl.replace(/\/$/, '')}/orders.json`);
       if (res.ok) {
         const data = await res.json();
@@ -7099,7 +7102,7 @@ async loadMoreProducts() {
     if (!recipesData) {
       try {
         const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-          || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+          || '';
         const res = await fetch(`${fbUrl.replace(/\/$/, '')}/recipes.json`);
         if (res.ok) {
           recipesData = await res.json();
@@ -9938,7 +9941,7 @@ async loadMoreProducts() {
       //    Jadi fetch .json TANPA bulan, dapat semua akun
       // ============================================================
       const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-        || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+        || '';
       const saldoMap = {};
 
       try {
@@ -11431,7 +11434,7 @@ async loadMoreProducts() {
       const paidSupplierIds = new Set();
       try {
         const fbUrl = (this._fbConfig && this._fbConfig.databaseURL)
-          || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+          || '';
         const stlRes = await fetch(`${fbUrl.replace(/\/$/, '')}/settlements.json`);
         if (stlRes.ok) {
           const stls = await stlRes.json() || {};

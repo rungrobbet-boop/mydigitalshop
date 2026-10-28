@@ -11,7 +11,7 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), { status: 405, headers: CORS_HEADERS });
 
-  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
   const apiKey = env.FIREBASE_API_KEY || "";
   const authParam = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : "";
 

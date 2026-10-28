@@ -19,7 +19,7 @@ export async function onRequest(context) {
 
   if (method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
 
-  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
   const apiKey = env.FIREBASE_API_KEY || "";
   const authParam = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : "";
 

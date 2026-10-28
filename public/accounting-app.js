@@ -155,11 +155,11 @@ window.accountingApp = function() {
     // ------------------------------------------------------------------------
     appReady: false,
     splashAkunTitle: 'AKUNTANSI',
-    splashAkunSubtitle: 'MyDigitalShop',
+    splashAkunSubtitle: '',
     activeTab: 'dashboard',
     reportSubTab: 'pl',
     mobileMenuOpen: false,
-    siteName: 'MyDigitalShop',  // fallback, akan di-load dari site_config/brandName
+    siteName: '',  // fallback, akan di-load dari site_config/brandName
         // ✅ PIN Accounting gate
     supervisorPin: '211211',          // default, overwrite dari Firebase saat init
     showFinancePinModal: false,       // modal PIN aktif
@@ -581,7 +581,7 @@ window.accountingApp = function() {
           if (cached && cached.trim()) {
             this.siteName = cached.trim();
             this.splashAkunTitle = 'AKUNTANSI';
-            this.splashAkunSubtitle = this.siteName || 'MyDigitalShop';
+            this.splashAkunSubtitle = this.siteName || '';
           }
         } catch (e) {}
 
@@ -605,7 +605,10 @@ window.accountingApp = function() {
           if (name && typeof name === 'string' && name.trim()) {
             this.siteName = name.trim();
             this.splashAkunTitle = 'AKUNTANSI';
-            this.splashAkunSubtitle = this.siteName || 'MyDigitalShop';
+            this.splashAkunSubtitle = this.siteName || '';
+            if (this.siteName) {
+              document.title = this.siteName + ' - Akuntansi';
+            }
             try { localStorage.setItem('dapur_site_name', this.siteName); } catch (e) {}
             console.log('[ACCT-APP] Site name loaded:', this.siteName);
           }
@@ -796,7 +799,7 @@ window.accountingApp = function() {
 
         // Fallback: fetch langsung Firebase REST
         if (!data) {
-          const fbUrl = (this._fbConfig?.databaseURL || 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app').replace(/\/$/, '');
+          const fbUrl = (this._fbConfig?.databaseURL || '').replace(/\/$/, '');
           const rawRes = await fetch(`${fbUrl}/accounting/ledger.json`);
           if (rawRes.ok) {
             const all = await rawRes.json();

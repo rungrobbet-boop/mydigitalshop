@@ -19,15 +19,15 @@
       if (event.stopImmediatePropagation) event.stopImmediatePropagation();
     });
   </script>
-  <title>MyDigitalShop - Pusat Material Bangunan & Konstruksi Terlengkap</title>
+  <title id="app-title">Pusat Material Bangunan & Konstruksi Terlengkap</title>
   
   <!-- SEO Meta Tags -->
   <meta name="description" content="Pusat Material Bangunan & Konstruksi Terlengkap — Melayani Eceran, Partai Proyek, dan Agen Distribusi dengan Integrasi Cloud Firestore." />
   <meta name="keywords" content="toko bangunan, material bangunan, semen tiga roda, semen gresik, besi beton sni, baja ringan, pasir cor, cat tembok, pipa rucika, genteng metal" />
-  <meta name="author" content="MyDigitalShop" />
+  <meta name="author" content="Pusat Material Bangunan" />
 
   <!-- OpenGraph Social Cards -->
-  <meta property="og:title" content="MyDigitalShop - Pusat Material Bangunan & Konstruksi" />
+  <meta property="og:title" content="Pusat Material Bangunan & Konstruksi" />
   <meta property="og:description" content="Suplai semen SNI, besi beton, baja ringan, cat premium, dan pipa. Melayani eceran, borongan kontraktor, dan harga agen." />
   <meta property="og:image" content="/assets/hero_building_materials.jpg" />
   <meta property="og:type" content="website" />
@@ -38,7 +38,7 @@
   {
     "@context": "https://schema.org",
     "@type": "HardwareStore",
-    "name": "MyDigitalShop Material Bangunan",
+    "name": "Pusat Material Bangunan",
     "image": "/assets/hero_building_materials.jpg",
     "priceRange": "Rp850 - Rp1.450.000",
     "telephone": "+6281234567890",
@@ -60,9 +60,6 @@
   <!-- Google Fonts: Plus Jakarta Sans & Playfair Display -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- ✅ OPTIMASI: Preconnect Firebase RTDB untuk parallel handshake -->
-  <link rel="preconnect" href="https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
-  <link rel="dns-prefetch" href="https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://www.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
@@ -167,7 +164,7 @@
             const cfg = JSON.parse(raw);
             if (cfg && typeof cfg === 'object') {
               return {
-                brandName: String(cfg.brandName || 'MyDigitalShop').trim(),
+                brandName: String(cfg.brandName || '').trim(),
                 logoBgColor: String(cfg.logoBgColor || '#ea580c').trim(),
                 logoImage: (cfg.logoImage && String(cfg.logoImage).trim().length > 10)
                   ? String(cfg.logoImage).trim() : ''
@@ -176,7 +173,7 @@
           }
         } catch(e) { /* retry */ }
       }
-      return { brandName: 'MyDigitalShop', logoBgColor: '#ea580c', logoImage: '' };
+      return { brandName: '', logoBgColor: '#ea580c', logoImage: '' };
     })();
 
     // Preload image paralel dengan body parse
@@ -1676,7 +1673,7 @@
               </h4>
               <p class="text-xs text-stone-500">Tonton video review menu viral, proses masak higienis, dan diskon flash sale!</p>
             </div>
-            <span class="text-xs font-semibold text-stone-400">@mydigitalshop-app</span>
+            <span class="text-xs font-semibold text-stone-400" x-text="siteConfig.brandHandle || '@galanganshop'"></span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -7105,7 +7102,7 @@ git push -u origin main</pre>
 
         async loadRecipes() {
           try {
-            const fbUrl = 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+            const fbUrl = (window.FirebaseBridge?.getConfig?.()?.databaseURL || '').replace(/\/$/, '');
             const res = await fetch(`${fbUrl}/recipes.json`);
             const data = await res.json();
             if (data && typeof data === 'object') {

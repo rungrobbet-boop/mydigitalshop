@@ -20,7 +20,7 @@ export async function onRequest(context) {
   }
 
   // Konfigurasi URL Firebase Realtime Database & API Key
-  const dbUrl = (env.FIREBASE_DATABASE_URL || "https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app").replace(/\/$/, "");
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
   const apiKey = env.FIREBASE_API_KEY || "";
   const authParam = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : "";
 

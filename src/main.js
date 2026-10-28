@@ -27,42 +27,13 @@
     import * as seedData from "./services/seedData.js";
 
     // Inisialisasi Firebase & Dynamic Custom Configuration
+    // Konfigurasi diambil dari public/firebase-config.js (single source of truth)
+    // yang membaca dari Environment Variables (Vite import.meta.env) atau
+    // localStorage 'dapur_firebase_custom_config' (khusus Kasir Panel Admin)
     let app, db, firestoreDb, auth;
 
-    // Resolve konfigurasi Firebase dengan prioritas:
-    // 1. Environment Variables (Vite import.meta.env) — prioritas tertinggi
-    // 2. LocalStorage (input manual admin via panel)
-    // 3. firebase-config.js (hasil generate build)
-    // 4. Demo Mode (hanya jika semua kosong)
-    function resolveFirebaseConfig() {
-      // Landing Page (publik) HANYA membaca Environment Variables (Vite import.meta.env).
-      // TIDAK ada localStorage, TIDAK ada firebase-config.js fallback, TIDAK ada Demo Mode.
-      // Kredensial harus di-set di Cloudflare Pages Environment Variables (VITE_FIREBASE_*).
-      const envApiKey = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) || "";
-      const envDatabaseURL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_DATABASE_URL) || "";
-      const envProjectId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_PROJECT_ID) || "";
-      const envAuthDomain = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) || "";
-      const envStorageBucket = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_STORAGE_BUCKET) || "";
-      const envMessagingSenderId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) || "";
-      const envAppId = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_APP_ID) || "";
-
-      if (!envApiKey || envApiKey.includes("YOUR_FIREBASE") || !envDatabaseURL) {
-        console.error("[LANDING] VITE_FIREBASE_API_KEY / VITE_FIREBASE_DATABASE_URL belum di-set di Environment Variables. Landing Page publik TIDAK akan menyambung ke Firebase dan TIDAK akan menggunakan localStorage / Demo Mode.");
-        return { apiKey: "", databaseURL: "" };
-      }
-
-      return {
-        apiKey: envApiKey,
-        authDomain: envAuthDomain || (envProjectId ? `${envProjectId}.firebaseapp.com` : ""),
-        databaseURL: envDatabaseURL,
-        projectId: envProjectId,
-        storageBucket: envStorageBucket || (envProjectId ? `${envProjectId}.appspot.com` : ""),
-        messagingSenderId: envMessagingSenderId,
-        appId: envAppId,
-      };
-    }
-
-    let activeFirebaseConfig = resolveFirebaseConfig();
+    // Gunakan firebaseConfig dari public/firebase-config.js (single source of truth)
+    let activeFirebaseConfig = { ...firebaseConfig };
 
     function initFirebaseModule(cfg) {
       try {
@@ -286,7 +257,12 @@
           const configRef = ref(db, 'site_config');
           return onValue(configRef, (snapshot) => {
             const val = snapshot.val();
-            if (val) callback(val);
+            if (val) {
+              if (val.brandName) {
+                document.title = val.brandName + ' - Toko Bangunan';
+              }
+              callback(val);
+            }
           });
         }
         return () => {};
