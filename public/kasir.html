@@ -1145,13 +1145,23 @@
                 </button>
 
                 <!-- Tombol [Simpan Draft] (Min h-12) -->
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   @click="saveDraftOrder()"
                   :disabled="cart.length === 0"
                   class="w-full min-h-[48px] rounded-xl border border-stone-300 hover:bg-stone-100 disabled:opacity-50 text-stone-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
                   <i class="fa-regular fa-bookmark text-stone-500"></i>
                   <span>Simpan Sebagai Draft</span>
+                </button>
+
+                <!-- Tombol [Jadikan Invoice Kredit] -->
+                <button
+                  type="button"
+                  @click="simpanTransaksiKredit()"
+                  :disabled="cart.length === 0 || selectedCustomer"
+                  class="w-full min-h-[48px] rounded-xl border-2 border-orange-300 hover:bg-orange-50 disabled:opacity-50 text-orange-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                  <i class="fa-solid fa-file-invoice text-orange-600"></i>
+                  <span x-text="selectedCustomer ? 'Konfirmasi Invoice Kredit' : 'Jadikan Invoice Kredit'"></span>
                 </button>
               </div>
 
@@ -3854,6 +3864,20 @@
           <div>
             <h5 class="font-extrabold text-stone-900 text-sm group-hover:text-amber-800">E-Wallet</h5>
             <p class="text-[11px] text-stone-500">GoPay, OVO, Dana</p>
+          </div>
+        </button>
+
+        <!-- Opsi 4b: KREDIT (Piutang) -->
+        <button
+          type="button"
+          @click="openCustomerModal()"
+          class="min-h-[72px] p-4 rounded-2xl border-2 border-orange-200 hover:border-orange-600 bg-orange-50/50 hover:bg-orange-50 text-left transition flex items-center gap-3.5 group cursor-pointer">
+          <div class="w-12 h-12 rounded-xl bg-orange-600 text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition-transform flex-shrink-0">
+            <i class="fa-solid fa-credit-card"></i>
+          </div>
+          <div>
+            <h5 class="font-extrabold text-stone-900 text-sm group-hover:text-orange-800">Kredit (Piutang)</h5>
+            <p class="text-[11px] text-stone-500">Tagihan pelanggan</p>
           </div>
         </button>
       </div>
@@ -8057,6 +8081,156 @@
     <div class="flex justify-end gap-2 mt-6">
       <button @click="showGenerateSaldoModal = false" class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200">Batal</button>
       <button @click="submitGenerateSaldoAwal()" class="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Eksekusi Jurnal</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CUSTOMER (Pilih/Buat Customer untuk Piutang Kredit) -->
+<div x-show="showCustomerModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+  <div
+    @click.away="closeCustomerModal"
+    class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
+    
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-2">
+      <div class="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center text-xl">
+        <i class="fa-solid fa-users"></i>
+      </div>
+      <div>
+        <h3 class="font-extrabold text-lg text-stone-900" x-text="selectedCustomer ? 'Edit Customer' : 'Pilih / Buat Customer'"></h3>
+        <p class="text-xs text-stone-500" x-text="selectedCustomer ? 'Ubah data customer pelanggan' : 'Cari customer existing atau buat customer baru untuk transaksi kredit'"></p>
+      </div>
+    </div>
+
+    <!-- Search / Filter -->
+    <div class="relative">
+      <input
+        type="text"
+        class="w-full border border-stone-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
+        placeholder="Cari customer berdasarkan nama atau nomor HP..."
+        x-model="customerSearch"
+        @input="filterCustomers"
+      />
+    </div>
+
+    <!-- Daftar Customer -->
+    <div class="max-h-48 overflow-y-auto space-y-2 mb-4">
+      <template x-for="c in filteredCustomers" :key="c.id">
+        <div
+          @click="selectCustomer(c)"
+          class="p-3 rounded-lg border border-stone-200 hover:border-orange-300 hover:bg-orange-50 cursor-pointer transition flex items-center justify-between group">
+          <div>
+            <div class="font-bold text-stone-900 text-sm" x-text="c.name"></div>
+            <div class="text-xs text-stone-500" x-text="c.phone"></div>
+            <template x-if="c.tempoKredit">
+              <div class="text-[10px] text-orange-600 font-bold mt-1" x-text="'Tempo: ' + c.tempoKredit + ' hari'"></div>
+            </template>
+          </div>
+          <button
+            @click.stop="editCustomer(c)"
+            class="text-stone-400 hover:text-orange-600">
+            <i class="fa-solid fa-pen-to-sm"></i>
+          </button>
+        </div>
+      </template>
+      <div x-show="filteredCustomers.length === 0 && customerSearch" class="text-center text-xs text-stone-400 py-2">
+        Customer tidak ditemukan
+      </div>
+    </div>
+
+    <!-- Form Tambah / Edit Customer -->
+    <div class="border-t border-stone-200 pt-4 space-y-3">
+      <h4 class="text-xs font-bold uppercase text-stone-500 mb-2">Data Customer</h4>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs font-bold text-stone-700 mb-1">Nama Lengkap</label>
+          <input
+            id="customerFormName"
+            type="text"
+            x-model="customerForm.name"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="Masukkan nama customer">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Nomor HP</label>
+          <input
+            type="text"
+            x-model="customerForm.phone"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="08123456789">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Email</label>
+          <input
+            type="email"
+            x-model="customerForm.email"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="customer@email.com">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Tempo Kredit (hari)</label>
+          <input
+            type="number"
+            x-model="customerForm.tempoKredit"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="30">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Alamat Pengiriman</label>
+          <input
+            type="text"
+            x-model="customerForm.addressKirim"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="Alamat pengiriman">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Alamat KTP</label>
+          <input
+            type="text"
+            x-model="customerForm.addressKtp"
+            class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+            placeholder="Alamat KTP">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Telepon Kantor</label>
+        <input
+          type="text"
+          x-model="customerForm.officePhone"
+          class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+          placeholder="Telepon kantor (opsional)">
+      </div>
+
+      <!-- Tombol Aksi -->
+      <div class="flex justify-end gap-2 mt-4">
+        <button
+          @click="closeCustomerModal()"
+          class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition">
+          Batal
+        </button>
+        <button
+          @click="saveCustomer()"
+          :disabled="!customerForm.name || !customerForm.phone"
+          class="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition">
+          Simpan Customer
+        </button>
+      </div>
+
+      <!-- Tombol Pilih Customer (hanya jika sudah ada selectedCustomer dari daftar) -->
+      <template x-if="selectedCustomer && selectedCustomer.id">
+        <div class="mt-3 pt-3 border-t border-stone-200 flex justify-center">
+          <button
+            @click="simpanTransaksiKredit()"
+            class="w-full py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">
+            <i class="fa-solid fa-check mr-2"></i>
+            <span x-text="'Pilih ' + selectedCustomer.name + ' untuk Invoice Kredit'"></span>
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </div>

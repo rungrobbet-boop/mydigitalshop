@@ -240,7 +240,24 @@ window.kasirApp = () => ({
   orderNote: '',
   discountAmount: 0,
 
-  // Fitur Diskon, Pajak & Service Charge Keranjang
+  // Status Customer (Piutang Kredit)
+  customerList: [],
+  customerListLoading: false,
+  selectedCustomer: null,
+  showCustomerModal: false,
+  customerForm: {
+    name: '',
+    phone: '',
+    email: '',
+    addressKirim: '',
+    addressKtp: '',
+    officePhone: '',
+    tempoKredit: 30,
+    },
+    customerSearch: '',
+    filteredCustomers: [],
+
+    // Fitur Diskon, Pajak & Service Charge Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
   orderDiscountValue: 0,
   isTaxEnabled: false, // ✅ PATCH H-11: Default OFF — kasir centang manual bila perlu
@@ -904,6 +921,8 @@ try {
     this.loadPrinterConfig();
     this.loadAccountingSummary(true);
     await this.loadCOAListFromBackend();
+    // ✅ FASE 8: Muat daftar customer untuk Piutang Kredit
+    await this.loadCustomers();
     // ✅ Load journal list untuk tab Jurnal Umum
     await this.loadJournalListForKasir();
 
@@ -3168,6 +3187,14 @@ async loadMoreProducts() {
       shf: this.kasirInfo.shiftId,
       orderId: orderData ? (orderData.orderId || orderData.id) : (paymentData.orderId || null),
       reconciled: isReconciliation,
+      // ✅ FASE 8: Field Kredit (Piutang)
+      ...(pm === 'kredit' ? {
+        isCredit: true,
+        customerId: paymentData.customerId || '',
+        customerName: paymentData.customerName || '',
+        dueDate: paymentData.dueDate || '',
+        status: 'piutang',
+      } : {}),
       usedBatches: fifoResult.usedBatches || [],
       payDetail: {
         cash: paymentData.cashReceived || (this.cashReceived || grandTotal),
@@ -3349,7 +3376,14 @@ async loadMoreProducts() {
         pm: pm,
         total: grandTotal,
         totalHpp: fifoResult ? fifoResult.totalHpp : 0,
-        items: normalizedItems
+        items: normalizedItems,
+        // ✅ FASE 8: Field Kredit (Piutang) untuk backend jurnal
+        ...(pm === 'kredit' ? {
+          isCredit: true,
+          customerId: paymentData.customerId || '',
+          customerName: paymentData.customerName || '',
+          dueDate: paymentData.dueDate || '',
+        } : {}),
       };
       console.log("[ACCT-TX] Payload ke Jurnal:", JSON.stringify(acctBody));
 
@@ -4033,6 +4067,170 @@ async loadMoreProducts() {
     } catch (e) {
       console.warn('Draft load note:', e);
     }
+  },
+
+  /** =========================================================================
+   * FITUR CUSTOMER (Piutang Kredit)
+   * ========================================================================= */
+
+  // Muat daftar customer dari Firestore (via backend function)
+  async loadCustomers() {
+    this.customerListLoading = true;
+    try {
+      const res = await fetch('/customers', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Gagal memuat daftar customer');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        this.customerList = json.data;
+        console.log('[CUSTOMER] Dimuat:', this.customerList.length, 'customer');
+      } else {
+        this.customerList = [];
+      }
+    } catch (e) {
+      console.warn('[CUSTOMER] Gagal load:', e.message);
+      this.customerList = [];
+    } finally {
+      this.customerListLoading = false;
+    }
+  },
+
+  // Simpan customer baru atau update existing
+  async saveCustomer() {
+    const { name, phone } = this.customerForm;
+    if (!name || !phone) {
+      this.showToast('Nama dan nomor HP wajib diisi', 'error');
+      return;
+    }
+
+    try {
+      const isUpdate = !!this.selectedCustomer?.id;
+      const res = await fetch(
+        isUpdate ? `/customers/${encodeURIComponent(this.selectedCustomer.id)}` : '/customers',
+        {
+          method: isUpdate ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...this.customerForm,
+            tempoKredit: Number(this.customerForm.tempoKredit) || 30,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error('Gagal menyimpan customer');
+      const json = await res.json();
+      if (json.success) {
+        this.showToast(isUpdate ? 'Customer berhasil diupdate' : 'Customer berhasil ditambahkan', 'success');
+        this.closeCustomerModal();
+        await this.loadCustomers();
+      } else {
+        this.showToast(json.error || 'Gagal menyimpan customer', 'error');
+      }
+    } catch (e) {
+      this.showToast('Gagal menyimpan customer: ' + e.message, 'error');
+    }
+  },
+
+  // Buka modal Pilih/Buat Customer
+  openCustomerModal() {
+    this.selectedCustomer = null;
+    this.customerForm = {
+      name: '',
+      phone: '',
+      email: '',
+      addressKirim: '',
+      addressKtp: '',
+      officePhone: '',
+      tempoKredit: 30,
+    };
+    this.showCustomerModal = true;
+    this.$nextTick(() => {
+      const el = document.getElementById('customerFormName');
+      if (el) el.focus();
+    });
+  },
+
+  // Pilih customer dari daftar
+  selectCustomer(customer) {
+    this.selectedCustomer = customer;
+    this.customerForm = {
+      ...customer,
+      tempoKredit: Number(customer.tempoKredit) || 30,
+    };
+    this.showCustomerModal = false;
+    this.showToast(`Customer dipilih: ${customer.name}`, 'success');
+  },
+
+  // Tutup modal customer
+  closeCustomerModal() {
+    this.showCustomerModal = false;
+    this.selectedCustomer = null;
+    this.customerForm = {
+      name: '',
+      phone: '',
+      email: '',
+      addressKirim: '',
+      addressKtp: '',
+      officePhone: '',
+      tempoKredit: 30,
+    };
+  },
+
+  // Filter customer berdasarkan pencarian
+  filterCustomers() {
+    const search = String(this.customerSearch || '').toLowerCase().trim();
+    if (!search) {
+      this.filteredCustomers = this.customerList;
+      return;
+    }
+    this.filteredCustomers = this.customerList.filter(c =>
+      String(c.name || '').toLowerCase().includes(search) ||
+      String(c.phone || '').includes(search)
+    );
+  },
+
+  // Edit customer dari daftar (buka form dengan data existing)
+  editCustomer(customer) {
+    this.selectedCustomer = customer;
+    this.customerForm = {
+      ...customer,
+      tempoKredit: Number(customer.tempoKredit) || 30,
+    };
+  },
+
+  /**
+   * Konversi draft ke Invoice Kredit
+   * Dipanggil dari tombol "Jadikan Invoice Kredit" di UI
+   */
+  async simpanTransaksiKredit() {
+    if (this.cart.length === 0) {
+      this.showToast('Keranjang kosong, tidak bisa buat invoice kredit', 'error');
+      return;
+    }
+
+    if (!this.selectedCustomer) {
+      this.openCustomerModal();
+      return;
+    }
+
+    // Hitung dueDate dari tempoKredit
+    const tempoKredit = Number(this.selectedCustomer.tempoKredit) || 30;
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + tempoKredit);
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+
+    this.showCustomerModal = false;
+
+    // Panggil simpanTransaksi dengan parameter kredit
+    await this.simpanTransaksi({
+      method: 'kredit',
+      customerId: this.selectedCustomer.id,
+      customerName: this.selectedCustomer.name,
+      dueDate: dueDateStr,
+    });
   },
 
   /**

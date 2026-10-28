@@ -728,10 +728,16 @@ export async function onRequest(context) {
 
         const bulan = dateStr.substring(0, 7);
 
-        // 1. Tentukan akun debit (Kas/Bank)
-        const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
+        // 1. Tentukan akun debit (Kas/Bank untuk tunai, Piutang Usaha untuk kredit)
+        const isCredit = body.isCredit === true || pm === 'kredit';
+        let debitAcc;
+        if (isCredit) {
+          debitAcc = '103'; // Piutang Usaha
+        } else {
+          const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
                     || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
-        const debitAcc = isBank ? '1002' : '1001';
+          debitAcc = isBank ? '1002' : '1001';
+        }
 
         // 2. Jurnal Revenue
         const revId = `JRN-${dateStr.replace(/-/g, '')}-REV-${Date.now().toString().slice(-4)}`;
@@ -740,15 +746,22 @@ export async function onRequest(context) {
           date: dateStr,
           timestamp: Date.now(),
           category: 'pendapatan',
-          desc: `Penjualan POS #${orderId} (${pm.toUpperCase()})`,
+          desc: `Penjualan POS #${orderId} (${pm.toUpperCase()})${isCredit ? ' [KREDIT]' : ''}`,
           ref: orderId,
           status: 'approved',
           lines: [
             { acc: debitAcc, debit: total, credit: 0 },
-            { acc: '4001', debit: 0, credit: total }
+            { acc: '401', debit: 0, credit: total }
           ],
           total,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ...(isCredit ? {
+            isCredit: true,
+            customerId: String(body.customerId || ''),
+            customerName: String(body.customerName || ''),
+            dueDate: String(body.dueDate || ''),
+            status: 'piutang',
+          } : {}),
         };
 
         await fetch(`${dbUrl}/accounting/journal/${bulan}/${revId}.json${authParam}`, {
