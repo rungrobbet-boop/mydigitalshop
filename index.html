@@ -9891,73 +9891,30 @@ git push -u origin main</pre>
                           }
                         }
 
-                        // 2. Sync ke RTDB /inventory/{id} via FirebaseBridge (if db available)
+                        // 2. Sync ke RTDB /inventory/{id} via Modular SDK
                         let rtdbSuccess = 0;
                         let rtdbFail = 0;
                         const rtdbMods = window.__rtdbModules;
                         if (rtdbMods && rtdbMods.rtdb && rtdbMods.ref && rtdbMods.update) {
-                          try {
-                            const { rtdb: database, ref, update } = rtdbMods;
-                            if (database) {
-                              for (const u of updates) {
+                          const { rtdb: database, ref, update } = rtdbMods;
+                          if (database) {
+                            for (const u of updates) {
+                              if (typeof u.purchasePrice !== 'undefined') {
                                 try {
                                   console.log(`[BULK-WRITE] Mencoba update RTDB untuk ID: ${u.id} dengan harga: ${u.purchasePrice}`);
-                                  await update(ref(database, 'inventory/' + u.id), {
-                                    purchasePrice: u.purchasePrice,
-                                    supplier: u.supplier || '',
-                                    category: u.category || '',
-                                    categoryId: u.category || '',
-                                    isCredit: u.isCredit,
+                                  const invRef = ref(database, `inventory/${u.id}`);
+                                  await update(invRef, {
+                                    purchasePrice: Number(u.purchasePrice) || 0,
                                     updatedAt: new Date().toISOString()
                                   });
                                   console.log(`[BULK-WRITE] ✅ Sukses update RTDB untuk ${u.id}`);
                                   rtdbSuccess++;
-                                } catch (e) {
+                                } catch (err) {
                                   rtdbFail++;
-                                  console.error(`[BULK-WRITE] ❌ GAGAL update RTDB untuk ID ${u.id}:`, e);
+                                  console.error(`[BULK-WRITE] ❌ GAGAL update RTDB untuk ID ${u.id}:`, err);
                                 }
                               }
                             }
-                          } catch (e) {
-                          console.warn('[RTDB] Sync ke RTDB dilewati:', e);
-                          }
-
-                          const bridge = window.FirebaseBridge;
-                          // ✅ Juga sinkronkan costPerUnit ke stock_batches di RTDB agar FIFO baca harga beli baru
-                          if (updates.length > 0 && bridge && !bridge.isDemo()) {
-                              try {
-                                const { getDatabase, ref, get, set } = await window.__firebaseDbModules || {};
-                                if (getDatabase && ref && get && set) {
-                                  const database = getDatabase();
-                                  if (database) {
-                                    for (const u of updates) {
-                                      try {
-                                        const batchRef = ref(database, `stock_batches/${u.id}`);
-                                        const snap = await get(batchRef);
-                                        const batchesData = snap.val() || {};
-                                        for (const [batchId, b] of Object.entries(batchesData || {})) {
-                                          if (b && typeof b === 'object') {
-                                            await set(ref(database, `stock_batches/${u.id}/${batchId}`), {
-                                              ...b,
-                                              costPerUnit: Number(u.purchasePrice) || 0,
-                                              syncedAt: new Date().toISOString(),
-                                              syncedFrom: 'purchasePrice-csv-upload-admin'
-                                            });
-                                          }
-                                        }
-                                        console.log(`[BULK-UPLOAD-ADMIN] costPerUnit stock_batches/${u.id} diperbarui dari purchasePrice ${u.purchasePrice}`);
-                                      } catch (e) {
-                                        console.warn('[IMPORT-CSV] Gagal sinkronkan stock_batches costPerUnit untuk', u.id, e);
-                                      }
-                                    }
-                                  }
-                                }
-                              } catch (e) {
-                                console.warn('[IMPORT-CSV] Gagal sinkronkan stock_batches costPerUnit:', e);
-                              }
-                            }
-                          } catch (e) {
-                            console.warn('[RTDB] Sync ke RTDB dilewati:', e);
                           }
                         } else {
                           this.showToast('RTDB dalam mode demo — hanya Firestore yang diupdate.', 'notify');
