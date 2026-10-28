@@ -1867,9 +1867,9 @@ this.jurnalList.forEach(j => {
       if (operasional === 0 && getAccBal('605') > 0) operasional = getAccBal('605');
 
       const totalPendapatan = revPOS + revCatering;
-      const hppFinal = hpp;
+      const hppFinal = Math.abs(hpp);
       const labaKotor = totalPendapatan - hppFinal;
-      const totalBeban = gaji + sewa + listrik + marketing + operasional;
+      const totalBeban = Math.abs(gaji + sewa + listrik + marketing + operasional);
       const labaBersih = labaKotor - totalBeban;
 
       this.laporanData.pl = {

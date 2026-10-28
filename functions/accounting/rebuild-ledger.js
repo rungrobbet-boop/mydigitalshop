@@ -193,16 +193,14 @@ export async function onRequest(context) {
   // =======================================================================
   // ACTION: REBUILD (default)
   // =======================================================================
-  // Auto-migrate 4-digit → 3-digit before rebuild (for the target month only)
-  if (targetBulan) {
-    try {
-      const migrateResult = await runMigrateAccounts(dbUrl, auth, targetBulan);
-      if (migrateResult.success) {
-        console.log(`[REBUILD-LEDGER] Auto-migrate: ${migrateResult.message}`);
-      }
-    } catch (e) {
-      console.warn('[REBUILD-LEDGER] Auto-migrate skipped:', e.message);
+  // Auto-migrate 4-digit → 3-digit for ALL months before rebuild
+  try {
+    const migrateAll = await runMigrateAccounts(dbUrl, auth, null);
+    if (migrateAll.success) {
+      console.log(`[REBUILD-LEDGER] Auto-migrate ALL: ${migrateAll.message}`);
     }
+  } catch (e) {
+    console.warn('[REBUILD-LEDGER] Auto-migrate ALL skipped:', e.message);
   }
 
   try {
