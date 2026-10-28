@@ -504,8 +504,8 @@ window.accountingApp = function() {
       this.exportForm.period = this.bulanAktif;
 
       this.loading = true;
-
-      // 2. Muat konfigurasi Firebase jika ada
+      try {
+        // 2. Muat konfigurasi Firebase jika ada
       await this.initFirebaseConfig();
             await this.loadSiteName();
 
@@ -514,9 +514,6 @@ window.accountingApp = function() {
       await this.loadLedgerMap(this.bulanAktif);  // ✅ BUG-5: load dulu sebelum COA
       await this.loadCOA();
       await this.loadJournal(this.bulanAktif);
-
-      // ✅ Force migrate 4-digit → 3-digit di database (satu kali saat init)
-      await forceMigrateJournalAcc();
 
       // 4. Hitung Saldo & Muat Dashboard
       await this.loadDashboard();
@@ -549,7 +546,12 @@ window.accountingApp = function() {
         }
       });
 
-      this.loading = false;
+      } catch (e) {
+        console.error('[INIT-APP] Fatal error:', e);
+        this.showToast('Gagal memuat aplikasi akuntansi: ' + e.message, 'error');
+      } finally {
+        this.loading = false;
+      }
 
       // 7. Render Chart Dashboard setelah DOM selesai
       this.$nextTick(() => {
