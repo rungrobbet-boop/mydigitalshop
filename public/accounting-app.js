@@ -1143,11 +1143,17 @@ const _getAccNameById = (code) => {
   // Konversi kode akun 4-digit (Firebase) → 3-digit (tampilan UI)
   const codeMap4to3 = {
     '101': '101', '102': '102', '103': '103', '105': '105', '106': '106',
+    '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
     '201': '201', '202': '202',
+    '2001': '201', '2002': '202',
     '301': '301', '302': '303', '303': '302',
+    '3001': '301', '3002': '303', '3003': '302',
     '401': '401', '402': '402',
+    '4001': '401', '4002': '402',
     '501': '501',
-    '601': '601', '602': '602', '603': '603', '604': '604', '605': '605', '606': '606'
+    '5001': '501',
+    '601': '601', '602': '602', '603': '603', '604': '604', '605': '605', '606': '606',
+    '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
   };
   const displayCode = codeMap4to3[String(code)] || String(code);
   const map = {
@@ -1853,17 +1859,17 @@ this.jurnalList.forEach(j => {
 
       if (revPOS === 0 && getAccBal('401') > 0) revPOS = getAccBal('401');
       if (revCatering === 0 && getAccBal('402') > 0) revCatering = getAccBal('402');
-      if (hpp === 0 && getAccBal('501') > 0) hpp = Math.max(0, getAccBal('501'));
-      if (gaji === 0 && getAccBal('601') > 0) gaji = Math.max(0, getAccBal('601'));
-      if (sewa === 0 && getAccBal('602') > 0) sewa = Math.max(0, getAccBal('602'));
-      if (listrik === 0 && getAccBal('603') > 0) listrik = Math.max(0, getAccBal('603'));
-      if (marketing === 0 && getAccBal('604') > 0) marketing = Math.max(0, getAccBal('604'));
-      if (operasional === 0 && getAccBal('605') > 0) operasional = Math.max(0, getAccBal('605'));
+      if (hpp === 0 && getAccBal('501') > 0) hpp = getAccBal('501');
+      if (gaji === 0 && getAccBal('601') > 0) gaji = getAccBal('601');
+      if (sewa === 0 && getAccBal('602') > 0) sewa = getAccBal('602');
+      if (listrik === 0 && getAccBal('603') > 0) listrik = getAccBal('603');
+      if (marketing === 0 && getAccBal('604') > 0) marketing = getAccBal('604');
+      if (operasional === 0 && getAccBal('605') > 0) operasional = getAccBal('605');
 
-      const totalPendapatan = Math.max(0, revPOS + revCatering);
-      const hppFinal = Math.max(0, hpp);
+      const totalPendapatan = revPOS + revCatering;
+      const hppFinal = hpp;
       const labaKotor = totalPendapatan - hppFinal;
-      const totalBeban = Math.max(0, gaji + sewa + listrik + marketing + operasional);
+      const totalBeban = gaji + sewa + listrik + marketing + operasional;
       const labaBersih = labaKotor - totalBeban;
 
       this.laporanData.pl = {
