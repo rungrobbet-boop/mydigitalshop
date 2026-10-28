@@ -6804,14 +6804,14 @@ git push -u origin main</pre>
             })
             .catch(() => {});
           fetch('/inventory/recipes')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error('Endpoint /inventory/recipes tidak tersedia'); return r.json(); })
             .then(res => {
               if (res && res.success && res.data && typeof res.data === 'object') {
                 this.menuRecipes = res.data;
                 try { localStorage.setItem("pos_menu_recipes", JSON.stringify(res.data)); } catch (e) {}
               }
             })
-            .catch(() => {});
+            .catch(() => { console.warn('[RECIPES] Endpoint /inventory/recipes tidak tersedia, diabaikan.'); });
 
           // Fetch fallback dari server / Cloudflare Pages API endpoint jika tersedia
           fetch('/menu/categories')
@@ -7104,6 +7104,10 @@ git push -u origin main</pre>
           try {
             const fbUrl = (window.FirebaseBridge?.getConfig?.()?.databaseURL || '').replace(/\/$/, '');
             const res = await fetch(`${fbUrl}/recipes.json`);
+            if (!res.ok) {
+              console.warn('[RECIPES] Endpoint recipes tidak tersedia (status ' + res.status + '), diabaikan.');
+              return;
+            }
             const data = await res.json();
             if (data && typeof data === 'object') {
               const list = Object.entries(data || {}).map(([menuId, r]) => ({
