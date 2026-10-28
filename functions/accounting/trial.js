@@ -195,11 +195,122 @@ export async function onRequest(context) {
         })
       });
 
+      // =======================================================================
+      // JURNAL PENUTUP (Closing Entries)
+      // Pindahkan laba bersih ke Laba Ditahan (302), reset Pendapatan (4xx) & Beban (6xx) ke 0
+      // =======================================================================
+      const pendapatanPerAkun = {};
+      let hppSaldo = 0;
+      const bebanPerAkun = {};
+
+      if (ledgers && typeof ledgers === 'object') {
+        for (const [accCode, accData] of Object.entries(ledgers)) {
+          const code = String(accCode);
+          if (!accData || typeof accData !== 'object') continue;
+          const closing = Number(accData.closing || 0);
+          if (closing === 0) continue;
+
+          if (code.startsWith('4')) {
+            pendapatanPerAkun[code] = closing;
+          } else if (code === '501') {
+            hppSaldo = closing;
+          } else if (code.startsWith('6')) {
+            bebanPerAkun[code] = closing;
+          }
+        }
+      }
+
+      const totalPendapatan = Object.values(pendapatanPerAkun).reduce((a, b) => a + b, 0);
+      const totalBeban = Object.values(bebanPerAkun).reduce((a, b) => a + b, 0);
+      const totalHppBeban = hppSaldo + totalBeban;
+      const labaBersih = totalPendapatan - totalHppBeban;
+
+      const closingEntries = [];
+      const entryId = 'CLOSING-' + bulan + '-' + Date.now();
+
+      // 1. Pendapatan (4xx): Debit Pendapatan, Kredit Laba Ditahan (302)
+      for (const [accCode, saldo] of Object.entries(pendapatanPerAkun)) {
+        if (saldo > 0) {
+          closingEntries.push({
+            id: entryId + '-REV-' + accCode,
+            date: bulan + '-31',
+            timestamp: new Date(bulan + '-31T23:59:59').getTime(),
+            desc: 'Penutup Pendapatan ' + accCode,
+            lines: [
+              { acc: accCode, debit: saldo, credit: 0 },
+              { acc: '302', debit: 0, credit: saldo }
+            ]
+          });
+        }
+      }
+
+      // 2. HPP (501): Debit Laba Ditahan (302), Kredit HPP
+      if (hppSaldo > 0) {
+        closingEntries.push({
+          id: entryId + '-HPP-501',
+          date: bulan + '-31',
+          timestamp: new Date(bulan + '-31T23:59:59').getTime(),
+          desc: 'Penutup HPP 501',
+          lines: [
+            { acc: '302', debit: hppSaldo, credit: 0 },
+            { acc: '501', debit: 0, credit: hppSaldo }
+          ]
+        });
+      }
+
+      // 3. Beban (6xx): Debit Laba Ditahan (302), Kredit Beban
+      for (const [accCode, saldo] of Object.entries(bebanPerAkun)) {
+        if (saldo > 0) {
+          closingEntries.push({
+            id: entryId + '-EXP-' + accCode,
+            date: bulan + '-31',
+            timestamp: new Date(bulan + '-31T23:59:59').getTime(),
+            desc: 'Penutup Beban ' + accCode,
+            lines: [
+              { acc: '302', debit: saldo, credit: 0 },
+              { acc: accCode, debit: 0, credit: saldo }
+            ]
+          });
+        }
+      }
+
+      // Simpan jurnal penutup ke RTDB /accounting/journal/{bulan}
+      for (const ce of closingEntries) {
+        await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(ce.id)}.json${authParam}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: ce.id,
+            date: ce.date,
+            timestamp: ce.timestamp,
+            desc: ce.desc,
+            status: 'approved',
+            lines: ce.lines,
+            totalDebit: ce.lines.reduce((s, l) => s + l.debit, 0),
+            totalCredit: ce.lines.reduce((s, l) => s + l.credit, 0)
+          })
+        });
+      }
+
+      // Sinkronisasi Ledger via rebuild-ledger function
+      try {
+        const host = new URL(request.url).host;
+        await fetch(`https://${host}/accounting/rebuild-ledger`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bulan })
+        });
+      } catch (e) {
+        console.warn('[CLOSE-PERIOD] Rebuild ledger gagal:', e);
+      }
+
       return jsonResponse({
         success: true,
-        message: `Periode ${bulan} berhasil ditutup`,
+        message: `Periode ${bulan} berhasil ditutup. ${closingEntries.length} jurnal penutup dibuat.`,
         bulan,
-        closedAt: Date.now()
+        closedAt: Date.now(),
+        closingEntries: closingEntries.length,
+        labaBersih: labaBersih
       });
     }
 

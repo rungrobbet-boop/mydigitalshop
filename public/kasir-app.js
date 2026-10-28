@@ -3433,6 +3433,10 @@ async loadMoreProducts() {
           this.receiptWAPhone = ''; // ✅ FEATURE-3: reset field WA tiap struk baru
           this.receiptWaAuto = false; // FASE 5: reset mode auto-populate (struk kasir walk-in)
         }
+        // ✅ Refresh daftar jurnal agar transaksi barusan muncul di tab Jurnal Umum (Kasir)
+        if (typeof this.loadJournalListForKasir === 'function') {
+          await this.loadJournalListForKasir();
+        }
         // ✅ FIX BUG-DOUBLE: Reset guard agar transaksi berikutnya bisa diproses
         this._submittingTx = false;
         },

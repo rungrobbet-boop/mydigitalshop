@@ -99,7 +99,7 @@ export async function onRequest(context) {
     let skipped = 0;
 
     for (const { id, bulan, entry } of allEntries) {
-      if (!entry || entry.status !== 'approved') {
+      if (!entry || (entry.status !== 'approved' && entry.status !== 'posted')) {
         skipped++;
         continue;
       }
