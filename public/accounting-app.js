@@ -239,6 +239,9 @@ window.accountingApp = function() {
     toastType: 'success',
     toastVisible: false,
 
+    // Status migrasi 4-digit → 3-digit
+    isLoadingMigrasi: false,
+
     // Real Summary Metrics dari Server / Firebase
     summary: {
       totalAset: 0,
@@ -3730,6 +3733,79 @@ this.jurnalList.forEach(j => {
         this.loadTrialPreview();
       }
     },
+
+    // ========================================================================
+    // MIGRASI 4-DIGIT → 3-DIGIT (Manual, tidak memblokir load)
+    // ========================================================================
+    async manualMigrateJournalAcc() {
+      if (!confirm('Migrasi semua kode akun 4-digit menjadi 3-digit di database? Proses ini mungkin memakan waktu.')) return;
+
+      this.isLoadingMigrasi = true;
+      try {
+        const bulan = this.bulanAktif || new Date().toISOString().slice(0, 7);
+        const res = await fetch(`/accounting/journal/${encodeURIComponent(bulan)}`);
+        if (!res.ok) throw new Error('Gagal fetch jurnal: ' + res.status);
+        const json = await res.json();
+
+        if (!json.success || !Array.isArray(json.data)) {
+          throw new Error('Data jurnal tidak valid atau kosong');
+        }
+
+        const map = {
+          '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
+          '2001': '201', '2002': '202',
+          '3001': '301', '3002': '303', '3003': '302',
+          '4001': '401', '4002': '402',
+          '5001': '501',
+          '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
+        };
+
+        let migrated = 0;
+        let skipped = 0;
+
+        for (const j of json.data) {
+          if (!j || !Array.isArray(j.lines)) {
+            skipped++;
+            continue;
+          }
+
+          let modified = false;
+          const newLines = j.lines.map(line => {
+            const rawAcc = String(line.acc || line.code || '').trim();
+            const newAcc = map[rawAcc] || rawAcc;
+            if (rawAcc !== newAcc) {
+              modified = true;
+              return { ...line, acc: newAcc };
+            }
+            return line;
+          });
+
+          if (modified) {
+            const updateRes = await fetch(`/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(j.id || j.noEntry || j.ref || '')}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...j, lines: newLines })
+            });
+            if (updateRes.ok) {
+              migrated++;
+            } else {
+              skipped++;
+            }
+          } else {
+            skipped++;
+          }
+        }
+
+        alert(`Berhasil memigrasi ${migrated} jurnal dari 4-digit ke 3-digit. ${skipped} dilewati. Silakan klik Rebuild Ledger untuk menyegarkan saldo.`);
+        console.log('[MANUAL-MIGRATE] Selesai. Migrasi:', migrated, '| Dilewati:', skipped);
+      } catch (e) {
+        console.error('[MANUAL-MIGRATE] Error:', e);
+        alert('Gagal migrasi: ' + e.message);
+      } finally {
+        this.isLoadingMigrasi = false;
+      }
+    },
+
 
     // ========================================================================
     // TRIAL / LIVE MANAGEMENT

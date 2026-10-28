@@ -2142,7 +2142,25 @@
           </div>
         </div>
 
-        <!-- Info Terakhir -->
+        <!-- TOMBOL MIGRASI 4-DIGIT -->
+        <div class="p-6 rounded-2xl bg-white border-2 border-stone-500 hover:border-stone-700 transition shadow-xs">
+          <div class="w-12 h-12 rounded-xl bg-stone-600 text-white flex items-center justify-center text-xl mb-4">
+            <i class="fa-solid fa-exchange-alt"></i>
+          </div>
+          <h4 class="font-extrabold text-lg text-stone-900 mb-2">Migrasi Jurnal 4-Digit</h4>
+          <p class="text-xs text-stone-500 mb-4 leading-relaxed">
+            Ubah semua kode akun 4-digit (4001, 1001, 5001, dst.) di jurnal bulan aktif menjadi 3-digit (401, 101, 501, dst.) agar kompatibel dengan sistem.
+          </p>
+          <button
+            @click="manualMigrateJournalAcc()"
+            :disabled="isLoadingMigrasi"
+            class="w-full py-3 rounded-xl bg-stone-600 hover:bg-stone-700 text-white font-bold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+            <i class="fa-solid fa-exchange-alt mr-2"></i>
+            <span x-show="!isLoadingMigrasi">Migrasi Jurnal 4-Digit</span>
+            <span x-show="isLoadingMigrasi">Memproses...</span>
+          </button>
+        </div>
+      </div>
         <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-600 leading-relaxed shadow-xs">
           <p><i class="fa-solid fa-circle-info text-stone-400 mr-1"></i> <strong>Info:</strong></p>
           <ul class="list-disc ml-6 mt-2 space-y-1">
