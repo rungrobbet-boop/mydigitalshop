@@ -54,7 +54,9 @@ function jsonResponse(body, status = 200) {
  * lalu menyimpan kembali ke RTDB.
  */
 async function runMigrateAccounts(dbUrl, auth, targetBulan) {
-  const journalUrl = `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`;
+  const journalUrl = targetBulan
+    ? `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`
+    : `${dbUrl}/accounting/journal.json${auth}`;
   const res = await fetch(journalUrl);
   const journalsData = await res.json();
 
@@ -62,7 +64,11 @@ async function runMigrateAccounts(dbUrl, auth, targetBulan) {
     return { success: false, error: 'Tidak ada jurnal ditemukan', migrated: 0, skipped: 0 };
   }
 
-  const allEntries = Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }));
+  const allEntries = targetBulan
+    ? Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }))
+    : Object.entries(journalsData).flatMap(([bulan, monthData]) =>
+        Object.entries(monthData || {}).map(([id, v]) => ({ id, bulan, entry: v }))
+      );
 
   let migrated = 0;
   let skipped = 0;

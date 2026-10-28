@@ -2664,7 +2664,7 @@ this.jurnalList.forEach(j => {
       doc.text('II. HARGA POKOK PENJUALAN (HPP)', 15, y); y += 6;
       doc.setFont('helvetica', 'normal');
       doc.text('Harga Pokok Penjualan Bahan Baku', 20, y);
-      doc.text('(' + formatRupiah(pl.hpp) + ')', 195, y, { align: 'right' }); y += 6;
+      doc.text(formatRupiah(pl.hpp), 195, y, { align: 'right' }); y += 6;
 
       doc.setFont('helvetica', 'bold');
       doc.text('LABA KOTOR', 15, y);
@@ -2680,7 +2680,7 @@ this.jurnalList.forEach(j => {
 
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL BEBAN OPERASIONAL', 20, y);
-      doc.text('(' + formatRupiah(pl.totalBeban) + ')', 195, y, { align: 'right' }); y += 8;
+      doc.text(formatRupiah(pl.totalBeban), 195, y, { align: 'right' }); y += 8;
 
       doc.setFillColor(240, 253, 244);
       doc.rect(15, y - 4, 180, 8, 'F');
@@ -3307,14 +3307,14 @@ this.jurnalList.forEach(j => {
           ['Pendapatan Penjualan POS Kasir', n(pl.pendapatanPOS)],
           ['Pendapatan Pesanan Catering', n(pl.pendapatanCatering)],
           ['TOTAL PENDAPATAN', n(pl.totalPendapatan)],
-          ['Harga Pokok Penjualan (HPP)', -n(pl.hpp)],
+          ['Harga Pokok Penjualan (HPP)', n(pl.hpp)],
           ['LABA KOTOR', n(pl.labaKotor)],
-          ['Beban Gaji Karyawan', -n(pl.bebanGaji)],
-          ['Beban Sewa Tempat & Outlet', -n(pl.bebanSewa)],
-          ['Beban Listrik, Air & Gas', -n(pl.bebanListrik)],
-          ['Beban Marketing & Iklan', -n(pl.bebanMarketing)],
-          ['Beban Operasional & Kurir', -n(pl.bebanOperasional)],
-          ['TOTAL BEBAN OPERASIONAL', -n(pl.totalBeban)],
+          ['Beban Gaji Karyawan', n(pl.bebanGaji)],
+          ['Beban Sewa Tempat & Outlet', n(pl.bebanSewa)],
+          ['Beban Listrik, Air & Gas', n(pl.bebanListrik)],
+          ['Beban Marketing & Iklan', n(pl.bebanMarketing)],
+          ['Beban Operasional & Kurir', n(pl.bebanOperasional)],
+          ['TOTAL BEBAN OPERASIONAL', n(pl.totalBeban)],
           ['LABA BERSIH (NET PROFIT)', n(pl.labaBersih)]
         ]
       };
