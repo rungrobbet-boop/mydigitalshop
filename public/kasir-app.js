@@ -8615,17 +8615,12 @@ async loadMoreProducts() {
           6: { cellWidth: 30 },
           7: { cellWidth: 60 }
         },
-        didDrawCell: (data) => {
-          // Warnai baris berdasarkan tipe perubahan
-          if (data.section === 'body') {
-            const changeType = (data.row.raw[2] || '').toString();
-            const diff = (data.row.raw[5] || '').toString();
-            const isRestock = changeType.includes('Restock') || diff.startsWith('+');
-            if (isRestock) {
-              data.cell.styles.textColor = [34, 139, 34]; // hijau
-            } else {
-              data.cell.styles.textColor = [185, 28, 28]; // merah
-            }
+        didParseCell: (data) => {
+          // Warnai kolom Selisih (index 5)
+          if (data.section === 'body' && data.column.index === 5) {
+            const val = String(data.cell.raw || '');
+            if (val.startsWith('+')) data.cell.styles.textColor = [22, 163, 74]; // Hijau
+            else if (val.startsWith('-')) data.cell.styles.textColor = [220, 38, 38]; // Merah
           }
         }
       });
@@ -12813,10 +12808,15 @@ async loadMoreProducts() {
               // Log inventori pengembalian stok karena void transaksi
               try {
                 const itemId = Array.isArray(rawItem) ? rawItem[0] : (rawItem.id || rawItem.menuId);
-                const foundItem = this.inventoryList.find(i => i.id === itemId)
-                  || this.menuList.find(m => m.id === itemId)
-                  || this.menuList.find(m => m.inventoryId === itemId);
-                const itemName = foundItem ? foundItem.name : (Array.isArray(rawItem) ? (rawItem[2] || 'Produk Dihapus') : (rawItem.name || 'Produk Dihapus'));
+                let itemName = 'Produk Dihapus'; // Fallback default
+                if (itemId) {
+                  const foundItem = this.inventoryList.find(i => i.id === itemId)
+                    || this.menuList.find(m => m.id === itemId)
+                    || this.menuList.find(m => m.inventoryId === itemId);
+                  if (foundItem && foundItem.name) itemName = foundItem.name;
+                  else if (!Array.isArray(rawItem) && rawItem.name) itemName = rawItem.name;
+                  else if (!Array.isArray(rawItem) && rawItem.menuName) itemName = rawItem.menuName;
+                }
                 const unit = (current && current.unit) || 'pcs';
                 this.addInventoryLog(
                   itemName,
@@ -12885,7 +12885,25 @@ async loadMoreProducts() {
         const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
         const kasAcc = isBank ? '1002' : '1001';
         const bulan = dateStr.slice(0, 7);
-        const hppAmount = Number(existingData.totalHpp) || 0;
+        // Cek apakah transaksi asli memiliki jurnal HPP di database
+        let hasHppJournal = false;
+        let hppAmountFromJournal = 0;
+        try {
+          const journalRes = await fetch(`/accounting/journal/${bulan}`);
+          if (journalRes.ok) {
+            const journalJson = await journalRes.json();
+            if (journalJson && journalJson.success && Array.isArray(journalJson.data)) {
+              const hppJournal = journalJson.data.find(j => (j.ref || '') === txId && (j.lines || []).some(l => l.acc === '501'));
+              if (hppJournal) {
+                hasHppJournal = true;
+                const hppLine = hppJournal.lines.find(l => l.acc === '501');
+                if (hppLine) hppAmountFromJournal = Number(hppLine.credit || 0) || Number(hppLine.debit || 0);
+              }
+            }
+          }
+        } catch (e) { console.warn('[VOID] Gagal cek jurnal HPP asli:', e); }
+
+        const hppAmount = hppAmountFromJournal || Number(existingData.totalHpp) || 0;
 
         if (total > 0) {
           try {
@@ -12894,9 +12912,12 @@ async loadMoreProducts() {
               { acc: kasAcc, debit: 0, credit: total }
             ];
             // Jurnal reversal HPP: Debit 105 (Persediaan), Kredit 501 (HPP)
-            if (hppAmount > 0) {
+            // Hanya jika transaksi asli benar-benar memiliki jurnal HPP di database
+            if (hasHppJournal && hppAmount > 0) {
               lines.push({ acc: '105', debit: hppAmount, credit: 0 });
               lines.push({ acc: '501', debit: 0, credit: hppAmount });
+            } else if (hppAmount > 0) {
+              console.log(`[VOID] Transaksi lama tidak punya jurnal HPP asli, melewati reversal HPP.`);
             }
             await fetch(`/accounting/journal/${bulan}`, {
               method: 'POST',
