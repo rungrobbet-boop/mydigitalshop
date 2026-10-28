@@ -33,7 +33,7 @@ export async function onRequest(context) {
     } = notification;
 
     const serverKey = env.MIDTRANS_SERVER_KEY || "YOUR_MIDTRANS_SERVER_KEY_HERE";
-    const dbUrl = env.FIREBASE_DATABASE_URL || "";
+    const dbUrl = (env.FIREBASE_DATABASE_URL || env.VITE_FIREBASE_DATABASE_URL || "");
     const dbSecret = env.FIREBASE_DATABASE_SECRET || "";
 
     // 1. Verifikasi Keamanan SHA-512 Signature Midtrans

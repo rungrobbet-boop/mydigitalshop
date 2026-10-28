@@ -29,7 +29,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
-  const dbUrl = env.FIREBASE_DATABASE_URL || "";
+  const dbUrl = (env.FIREBASE_DATABASE_URL || env.VITE_FIREBASE_DATABASE_URL || "");
 
   // Path segments: contoh params.path = ["inv1", "log_1790369"]
   const pathSegments = Array.isArray(params.path) ? params.path : [];

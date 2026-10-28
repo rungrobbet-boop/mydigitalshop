@@ -27,7 +27,7 @@ export async function onRequest(context) {
   }
 
   try {
-    const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
+    const dbUrl = (env.FIREBASE_DATABASE_URL || env.VITE_FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
     const apiKey = env.FIREBASE_API_KEY || "";
 
     if (!dbUrl) {
