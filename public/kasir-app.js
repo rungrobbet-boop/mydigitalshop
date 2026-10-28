@@ -8560,6 +8560,84 @@ async loadMoreProducts() {
     }
   },
 
+  // ===== FITUR EXPORT PDF LOG RIWAYAT INVENTORY =====
+  async exportInventoryLogsPDF() {
+    try {
+      const { jsPDF } = window.jspdf || {};
+      if (!jsPDF) {
+        this.showToast('Pustaka jsPDF belum dimuat', 'error');
+        return;
+      }
+      const logs = Array.isArray(this.inventoryLogs) ? this.inventoryLogs : [];
+      if (logs.length === 0) {
+        this.showToast('Tidak ada log untuk diekspor', 'notify');
+        return;
+      }
+
+      const now = new Date();
+      const tanggalFile = now.toISOString().slice(0, 10);
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Header judul
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.text('Log Riwayat Perubahan Stok Inventori', 14, 14);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text('Tanggal export: ' + now.toLocaleString('id-ID'), 14, 22);
+
+      const headers = ['Waktu', 'Item', 'Tipe', 'Stok Awal', 'Stok Akhir', 'Selisih', 'Operator', 'Catatan'];
+      const rows = logs.map(log => [
+        log.time || '-',
+        log.itemName || '-',
+        log.changeType || '-',
+        String(log.oldStock || 0),
+        String(log.newStock || 0),
+        log.diff || '-',
+        log.user || '-',
+        (log.note || '-').substring(0, 40)
+      ]);
+
+      doc.autoTable({
+        startY: 30,
+        head: [headers],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: [46, 125, 50], textColor: 255 },
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 22 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 60 }
+        },
+        didDrawCell: (data) => {
+          // Warnai baris berdasarkan tipe perubahan
+          if (data.section === 'body') {
+            const changeType = (data.row.raw[2] || '').toString();
+            const diff = (data.row.raw[5] || '').toString();
+            const isRestock = changeType.includes('Restock') || diff.startsWith('+');
+            if (isRestock) {
+              data.cell.styles.textColor = [34, 139, 34]; // hijau
+            } else {
+              data.cell.styles.textColor = [185, 28, 28]; // merah
+            }
+          }
+        }
+      });
+
+      doc.save('Log_Inventory_' + tanggalFile + '.pdf');
+      this.showToast('PDF log inventory berhasil diekspor', 'success');
+    } catch (e) {
+      console.error('[EXPORT-PDF] Gagal:', e);
+      this.showToast('Gagal ekspor PDF: ' + (e.message || e), 'error');
+    }
+  },
+
   // ===== FITUR GENERATE JURNAL SALDO AWAL =====
   openGenerateSaldoAwalModal() {
     this.genSaldoForm = { pin: '', password: '', keyword: '' };
@@ -12734,9 +12812,11 @@ async loadMoreProducts() {
 
               // Log inventori pengembalian stok karena void transaksi
               try {
-                const itemName = Array.isArray(rawItem)
-                  ? (rawItem[2] || itemId)
-                  : (rawItem.name || itemId);
+                const itemId = Array.isArray(rawItem) ? rawItem[0] : (rawItem.id || rawItem.menuId);
+                const foundItem = this.inventoryList.find(i => i.id === itemId)
+                  || this.menuList.find(m => m.id === itemId)
+                  || this.menuList.find(m => m.inventoryId === itemId);
+                const itemName = foundItem ? foundItem.name : (Array.isArray(rawItem) ? rawItem[0] : (rawItem.name || itemId));
                 const unit = (current && current.unit) || 'pcs';
                 this.addInventoryLog(
                   itemName,
@@ -12805,9 +12885,19 @@ async loadMoreProducts() {
         const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
         const kasAcc = isBank ? '1002' : '1001';
         const bulan = dateStr.slice(0, 7);
+        const hppAmount = Number(existingData.totalHpp) || 0;
 
         if (total > 0) {
           try {
+            const lines = [
+              { acc: '4001', debit: total, credit: 0 },
+              { acc: kasAcc, debit: 0, credit: total }
+            ];
+            // Jurnal reversal HPP: Debit 105 (Persediaan), Kredit 501 (HPP)
+            if (hppAmount > 0) {
+              lines.push({ acc: '105', debit: hppAmount, credit: 0 });
+              lines.push({ acc: '501', debit: 0, credit: hppAmount });
+            }
             await fetch(`/accounting/journal/${bulan}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -12818,14 +12908,23 @@ async loadMoreProducts() {
                 ref: `VOID-${txId}`,
                 status: 'approved',
                 createdBy: this.kasirInfo?.username || 'kasir',
-                lines: [
-                  { acc: '4001', debit: total, credit: 0 },
-                  { acc: kasAcc, debit: 0, credit: total }
-                ]
+                lines: lines
               })
             });
           } catch (e) { console.warn('[VOID] Journal reversal note:', e); }
         }
+        // 8.5. Paksa refresh data akuntansi agar Laporan Kasir sinkron setelah void
+        this.accountingSummaryLastFetch = 0;
+        if (typeof this.loadAccountingSummary === 'function') {
+          await this.loadAccountingSummary(true);
+        }
+        if (typeof this.loadLaporanHariIni === 'function') {
+          await this.loadLaporanHariIni();
+        }
+        if (typeof this.loadCOAListFromBackend === 'function') {
+          await this.loadCOAListFromBackend();
+        }
+
       } catch (err) {
         console.error('[VOID] Error:', err);
         this.showToast(`Gagal void: ${err.message}`, 'error');

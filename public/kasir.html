@@ -5898,9 +5898,15 @@
       <!-- Footer Modal Log -->
       <div class="flex items-center justify-between pt-2">
         <span class="text-xs text-stone-400 font-mono" x-text="'Total Record Log: ' + (inventoryLogs ? inventoryLogs.length : 0)"></span>
-        <button 
-          type="button" 
-          @click="showInventoryLogsModal = false" 
+        <button
+          type="button"
+          @click="exportInventoryLogsPDF()"
+          class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs transition cursor-pointer">
+          <i class="fa-solid fa-file-pdf mr-2"></i>Export PDF
+        </button>
+        <button
+          type="button"
+          @click="showInventoryLogsModal = false"
           class="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-xs transition cursor-pointer">
           Tutup Riwayat
         </button>
