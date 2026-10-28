@@ -6880,6 +6880,22 @@ git push -u origin main</pre>
                     this.splashLogoIcon = this.siteConfig.logoIcon || this.splashLogoIcon;
                     this.splashLogoBg = this.siteConfig.logoBgColor || this.splashLogoBg;
                     this.$nextTick(() => this.updateSplashLogo());
+
+                    // ✅ Update elemen branding di halaman Landing Page secara langsung
+                    if (liveConfig.brandName) {
+                      const brandName = String(liveConfig.brandName).trim();
+                      document.querySelectorAll('[data-brand-name], .brand-name, #brand-name, .toko-nama, .store-name, h1.brand-title, .navbar-brand').forEach(el => {
+                        el.textContent = brandName;
+                      });
+                      // Update <title> tab browser
+                      document.title = brandName + ' - Toko Bangunan';
+                    }
+                    if (liveConfig.logoUrl || liveConfig.logoImage) {
+                      const logoUrl = liveConfig.logoUrl || liveConfig.logoImage;
+                      document.querySelectorAll('img[data-brand-logo], .brand-logo img, #logo-img, .navbar-logo img').forEach(el => {
+                        el.src = logoUrl;
+                      });
+                    }
                     if (liveConfig.cateringPackages) {
                       this.cateringPackages = liveConfig.cateringPackages;
                     }

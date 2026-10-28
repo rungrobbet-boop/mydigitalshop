@@ -1159,24 +1159,24 @@ window.accountingApp = function() {
         // Normalisasi struktur jurnal jika diperlukan
         // Helper: mapping kode akun → nama
 const _getAccNameById = (code) => {
+  // Konversi kode akun 4-digit (Firebase) → 3-digit (tampilan UI)
+  const codeMap4to3 = {
+    '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
+    '2001': '201', '2002': '202',
+    '3001': '301', '3002': '303', '3003': '302',
+    '4001': '401', '4002': '402',
+    '5001': '501',
+    '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
+  };
+  const displayCode = codeMap4to3[String(code)] || String(code);
   const map = {
-    '1001': 'Kas di Tangan', '1002': 'Bank BCA', '1003': 'Piutang Usaha',
-    '1004': 'Persediaan Bahan Baku', '1005': 'Peralatan & Mesin Dapur',
-    '2001': 'Hutang Dagang / Supplier', '2002': 'Hutang Beban & Operasional',
-    '3001': 'Modal Pemilik', '3002': 'Laba Ditahan', '3003': 'Prive Pemilik',
-    '4001': 'Pendapatan Penjualan POS', '4002': 'Pendapatan Pesanan Catering',
-    '5001': 'Harga Pokok Penjualan (HPP)',
-    '6001': 'Beban Gaji Karyawan', '6002': 'Beban Sewa Tempat & Outlet',
-    '6003': 'Beban Listrik, Air & Gas', '6004': 'Beban Marketing & Iklan',
-    '6005': 'Beban Operasional & Kurir', '6006': 'Beban Penyusutan',
-    // Legacy 3-digit
     '101':'Kas di Tangan','102':'Bank','103':'Piutang Usaha','105':'Persediaan Bahan Baku',
     '201':'Hutang Supplier','301':'Modal Pemilik','302':'Prive Pemilik',
     '401':'Pendapatan Penjualan','402':'Pendapatan Catering','501':'HPP',
     '601':'Beban Gaji','602':'Beban Sewa','603':'Beban Listrik & Air',
     '604':'Beban Marketing','605':'Beban Operasional (Kurir/Ekspedisi/Lainnya)','606':'Beban Penyusutan'
   };
-  return map[String(code)] || ('Akun ' + code);
+  return map[displayCode] || ('Akun ' + displayCode);
 };
 
 this.jurnalList.forEach(j => {
