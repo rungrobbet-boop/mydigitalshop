@@ -9920,13 +9920,30 @@ git push -u origin main</pre>
                         const bridge = window.FirebaseBridge;
                         if (bridge && !bridge.isDemo()) {
                           try {
-                            const { getDatabase, ref, update } = await window.__firebaseDbModules || {};
+                            // Ambil modul Firebase DB dari berbagai sumber dengan fallback
+                            let getDatabase = null, ref = null, update = null;
+                            const dbModules = window.__firebaseDbModules || {};
+                            if (dbModules.getDatabase && dbModules.ref && dbModules.update) {
+                              getDatabase = dbModules.getDatabase;
+                              ref = dbModules.ref;
+                              update = dbModules.update;
+                            } else if (window.firebase && window.firebase.database) {
+                              // Fallback: compat SDK via window.firebase
+                              const fbDb = window.firebase.database();
+                              getDatabase = () => fbDb;
+                              ref = (db, path) => fbDb.ref(path);
+                              update = (dbRef, payload) => dbRef.update(payload);
+                            }
+
                             if (getDatabase && ref && update) {
                               const database = getDatabase();
                               if (database) {
                                 for (const u of updates) {
                                   try {
-                                    await update(ref(database, 'inventory/' + u.id), {
+                                    const cleanId = String(u.id).replace(/^inv_/, '');
+                                    const rtdbId = cleanId || u.id;
+                                    console.log(`[BULK-WRITE] Mencoba update RTDB untuk ID: ${rtdbId} dengan harga: ${u.purchasePrice}`);
+                                    await update(ref(database, 'inventory/' + rtdbId), {
                                       purchasePrice: u.purchasePrice,
                                       supplier: u.supplier || '',
                                       category: u.category || '',
@@ -9934,10 +9951,11 @@ git push -u origin main</pre>
                                       isCredit: u.isCredit,
                                       updatedAt: new Date().toISOString()
                                     });
+                                    console.log(`[BULK-WRITE] ✅ Sukses update RTDB untuk ${rtdbId}`);
                                     rtdbSuccess++;
                                   } catch (e) {
                                     rtdbFail++;
-                                    console.error('[UPDATE RTDB] Gagal untuk', u.id, e);
+                                    console.error(`[BULK-WRITE] ❌ GAGAL update RTDB untuk ID ${u.id}:`, e);
                                   }
                                 }
                               }
