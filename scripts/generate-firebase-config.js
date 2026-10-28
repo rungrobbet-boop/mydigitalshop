@@ -140,6 +140,10 @@ export function getFirebaseConfig() {
   return { ...firebaseConfig };
 }
 
+// Export rtdb instance langsung untuk modul yang butuh akses RTDB
+const _rtdbInstance = initFirebase();
+export const rtdb = _rtdbInstance ? _rtdbInstance.rtdb : null;
+
 export const IS_DEMO_MODE = ${isDemoMode};
 `;
 

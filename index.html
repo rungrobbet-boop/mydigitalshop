@@ -5907,6 +5907,13 @@ git push -u origin main</pre>
   <script type="module" src="/src/main.js"></script>
 
   <!-- ALPINE.JS APPLICATION COMPONENT -->
+  <script type="module">
+    import { rtdb } from '/public/firebase-config.js';
+    import { ref, update } from 'firebase/database';
+    window.__rtdbModules = { rtdb, ref, update };
+    console.log('[RTDB-MODULES] Firebase Modular SDK RTDB siap:', !!rtdb);
+  </script>
+
   <script>
     // Fungsi parser CSV yang kuat - sama persis di index.html dan kasir-app.js
     // Handles quoted strings, koma di dalam teks, BOM, dan validasi jumlah kolom
@@ -6741,7 +6748,6 @@ git push -u origin main</pre>
           this.applyRtoRestrictions();
 
           this.refreshAvailablePlatforms();
-          this.loadRecipes();
 
           // Pastikan brandWords selalu valid dan sinkron
           if (!this.siteConfig.brandWords || !Array.isArray(this.siteConfig.brandWords) || this.siteConfig.brandWords.length === 0) {
@@ -6803,18 +6809,8 @@ git push -u origin main</pre>
               }
             })
             .catch(() => {});
-          fetch('/inventory/recipes')
-            .then(r => { if (!r.ok) throw new Error('Endpoint /inventory/recipes tidak tersedia'); return r.json(); })
-            .then(res => {
-              if (res && res.success && res.data && typeof res.data === 'object') {
-                this.menuRecipes = res.data;
-                try { localStorage.setItem("pos_menu_recipes", JSON.stringify(res.data)); } catch (e) {}
-              }
-            })
-            .catch(() => { console.warn('[RECIPES] Endpoint /inventory/recipes tidak tersedia, diabaikan.'); });
-
-          // Fetch fallback dari server / Cloudflare Pages API endpoint jika tersedia
-          fetch('/menu/categories')
+            // Fetch fallback dari server / Cloudflare Pages API endpoint jika tersedia
+            fetch('/menu/categories')
             .then(r => r.json())
             .then(res => {
               if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
@@ -7100,25 +7096,6 @@ git push -u origin main</pre>
           return null;
         },
 
-        async loadRecipes() {
-          try {
-            const fbUrl = (window.FirebaseBridge?.getConfig?.()?.databaseURL || '').replace(/\/$/, '');
-            const res = await fetch(`${fbUrl}/recipes.json`);
-            if (!res.ok) {
-              console.warn('[RECIPES] Endpoint recipes tidak tersedia (status ' + res.status + '), diabaikan.');
-              return;
-            }
-            const data = await res.json();
-            if (data && typeof data === 'object') {
-              const list = Object.entries(data || {}).map(([menuId, r]) => ({
-                ...(r || {}),
-                menuId: (r && r.menuId) ? r.menuId : menuId
-              })).filter(r => r && Array.isArray(r.ingredients));
-              this.recipesList = list;
-              console.log('[RECIPES] Loaded:', list.length, list.map(r => r.menuId));
-            }
-          } catch (e) { console.warn('[RECIPES] Fetch error:', e); }
-        },
 
         getInventoryStockForMenu(menuItem) {
           if (!menuItem) return null;
@@ -9917,51 +9894,37 @@ git push -u origin main</pre>
                         // 2. Sync ke RTDB /inventory/{id} via FirebaseBridge (if db available)
                         let rtdbSuccess = 0;
                         let rtdbFail = 0;
-                        const bridge = window.FirebaseBridge;
-                        if (bridge && !bridge.isDemo()) {
+                        const rtdbMods = window.__rtdbModules;
+                        if (rtdbMods && rtdbMods.rtdb && rtdbMods.ref && rtdbMods.update) {
                           try {
-                            // Ambil modul Firebase DB dari berbagai sumber dengan fallback
-                            let getDatabase = null, ref = null, update = null;
-                            const dbModules = window.__firebaseDbModules || {};
-                            if (dbModules.getDatabase && dbModules.ref && dbModules.update) {
-                              getDatabase = dbModules.getDatabase;
-                              ref = dbModules.ref;
-                              update = dbModules.update;
-                            } else if (window.firebase && window.firebase.database) {
-                              // Fallback: compat SDK via window.firebase
-                              const fbDb = window.firebase.database();
-                              getDatabase = () => fbDb;
-                              ref = (db, path) => fbDb.ref(path);
-                              update = (dbRef, payload) => dbRef.update(payload);
-                            }
-
-                            if (getDatabase && ref && update) {
-                              const database = getDatabase();
-                              if (database) {
-                                for (const u of updates) {
-                                  try {
-                                    const cleanId = String(u.id).replace(/^inv_/, '');
-                                    const rtdbId = cleanId || u.id;
-                                    console.log(`[BULK-WRITE] Mencoba update RTDB untuk ID: ${rtdbId} dengan harga: ${u.purchasePrice}`);
-                                    await update(ref(database, 'inventory/' + rtdbId), {
-                                      purchasePrice: u.purchasePrice,
-                                      supplier: u.supplier || '',
-                                      category: u.category || '',
-                                      categoryId: u.category || '',
-                                      isCredit: u.isCredit,
-                                      updatedAt: new Date().toISOString()
-                                    });
-                                    console.log(`[BULK-WRITE] ✅ Sukses update RTDB untuk ${rtdbId}`);
-                                    rtdbSuccess++;
-                                  } catch (e) {
-                                    rtdbFail++;
-                                    console.error(`[BULK-WRITE] ❌ GAGAL update RTDB untuk ID ${u.id}:`, e);
-                                  }
+                            const { rtdb: database, ref, update } = rtdbMods;
+                            if (database) {
+                              for (const u of updates) {
+                                try {
+                                  console.log(`[BULK-WRITE] Mencoba update RTDB untuk ID: ${u.id} dengan harga: ${u.purchasePrice}`);
+                                  await update(ref(database, 'inventory/' + u.id), {
+                                    purchasePrice: u.purchasePrice,
+                                    supplier: u.supplier || '',
+                                    category: u.category || '',
+                                    categoryId: u.category || '',
+                                    isCredit: u.isCredit,
+                                    updatedAt: new Date().toISOString()
+                                  });
+                                  console.log(`[BULK-WRITE] ✅ Sukses update RTDB untuk ${u.id}`);
+                                  rtdbSuccess++;
+                                } catch (e) {
+                                  rtdbFail++;
+                                  console.error(`[BULK-WRITE] ❌ GAGAL update RTDB untuk ID ${u.id}:`, e);
                                 }
                               }
                             }
-                            // ✅ Juga sinkronkan costPerUnit ke stock_batches di RTDB agar FIFO baca harga beli baru
-                            if (updates.length > 0 && bridge && !bridge.isDemo()) {
+                          } catch (e) {
+                          console.warn('[RTDB] Sync ke RTDB dilewati:', e);
+                          }
+
+                          const bridge = window.FirebaseBridge;
+                          // ✅ Juga sinkronkan costPerUnit ke stock_batches di RTDB agar FIFO baca harga beli baru
+                          if (updates.length > 0 && bridge && !bridge.isDemo()) {
                               try {
                                 const { getDatabase, ref, get, set } = await window.__firebaseDbModules || {};
                                 if (getDatabase && ref && get && set) {
