@@ -1794,15 +1794,35 @@ this.jurnalList.forEach(j => {
 
       // Hitung mutasi dari jurnal
       this.jurnalList.forEach(j => {
+        // Struktur baru: j.lines = [{acc, debit, credit}, ...]
+        if (Array.isArray(j.lines)) {
+          j.lines.forEach(l => {
+            const acc = String(l.acc || l.code || '').trim();
+            const ld = Number(l.debit) || 0;
+            const lc = Number(l.credit) || 0;
+            if (!acc) return;
+            // Pendapatan (Kredit menambah, Debit mengurangi)
+            if (acc === '401') revPOS += lc - ld;
+            if (acc === '402') revCatering += lc - ld;
+            // HPP (Debit menambah, Kredit mengurangi)
+            if (acc === '501') hpp += ld - lc;
+            // Beban Operasional (Debit menambah, Kredit mengurangi)
+            if (acc === '601') gaji += ld - lc;
+            if (acc === '602') sewa += ld - lc;
+            if (acc === '603') listrik += ld - lc;
+            if (acc === '604') marketing += ld - lc;
+            if (acc === '605') operasional += ld - lc;
+          });
+          return;
+        }
+
+        // Struktur lama: debitCode/creditCode + debitAmount/creditAmount
         const dAmt = Number(j.debitAmount) || 0;
         const cAmt = Number(j.creditAmount) || 0;
 
         // Pendapatan (Kredit menambah, Debit mengurangi)
-        if (j.creditCode === '401' || j.creditCode === '401') revPOS += cAmt;
-        if (j.debitCode === '401' || j.debitCode === '401') revPOS -= dAmt;
-
-        if (j.creditCode === '402' || j.creditCode === '402') revCatering += cAmt;
-        if (j.debitCode === '402' || j.debitCode === '402') revCatering -= dAmt;
+        if (j.creditCode === '401' || j.debitCode === '401') revPOS += cAmt - dAmt;
+        if (j.creditCode === '402' || j.debitCode === '402') revCatering += cAmt - dAmt;
 
         // HPP (Debit menambah, Kredit mengurangi)
         if (j.debitCode === '501' || j.debitCode === '501') hpp += dAmt;

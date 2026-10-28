@@ -10059,26 +10059,16 @@ async loadMoreProducts() {
       }
 
       // ============================================================
-      // 3. Legacy mapping 3-digit → 4-digit
-      //    (COA list biasanya 3-digit, ledger 4-digit)
+      // 3. Ledger sudah standar 3-digit (101, 105, 401, 501, dst.)
+      //    Tidak perlu legacy mapping ke 4-digit lagi.
       // ============================================================
-      const legacyMap = {
-        '101': '1001', '102': '1002', '103': '1003',
-        '105': '1004', '111': '1005',
-        '201': '2001', '202': '2002',
-        '301': '3001', '302': '3003', '303': '3002',
-        '401': '4001', '402': '4002',
-        '501': '5001',
-        '601': '6001', '602': '6002', '603': '6003',
-        '604': '6004', '605': '6005', '606': '6006'
-      };
 
       // ============================================================
       // 4. Merge saldo ke COA list
       // ============================================================
       list.forEach(item => {
         const rawCode = String(item.code || '').trim();
-        const canonCode = legacyMap[rawCode] || rawCode;
+        const canonCode = rawCode; // ledger sudah 3-digit, langsung cocok
 
         // Kalau saldo dari backend COA kosong/0, override dengan ledger
         if (item.saldo === null || item.saldo === undefined || Number(item.saldo) === 0) {

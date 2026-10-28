@@ -48,6 +48,62 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+/**
+ * Migrasi 4-digit → 3-digit langsung ke RTDB (internal, dipanggil oleh rebuild)
+ * Membaca seluruh jurnal di /accounting/journal/{bulan}, mengubah acc 4-digit ke 3-digit,
+ * lalu menyimpan kembali ke RTDB.
+ */
+async function runMigrateAccounts(dbUrl, auth, targetBulan) {
+  const journalUrl = `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`;
+  const res = await fetch(journalUrl);
+  const journalsData = await res.json();
+
+  if (!journalsData || typeof journalsData !== 'object') {
+    return { success: false, error: 'Tidak ada jurnal ditemukan', migrated: 0, skipped: 0 };
+  }
+
+  const allEntries = Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }));
+
+  let migrated = 0;
+  let skipped = 0;
+
+  for (const { id, bulan, entry } of allEntries) {
+    if (!entry || !Array.isArray(entry.lines)) {
+      skipped++;
+      continue;
+    }
+
+    let changed = false;
+    const newLines = entry.lines.map(line => {
+      const rawAcc = String(line.acc || line.code || '').trim();
+      const newAcc = normalizeAcc(rawAcc);
+      if (rawAcc !== newAcc) {
+        changed = true;
+        return { ...line, acc: newAcc };
+      }
+      return line;
+    });
+
+    if (changed) {
+      await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(id)}.json${auth}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...entry, lines: newLines })
+      });
+      migrated++;
+    } else {
+      skipped++;
+    }
+  }
+
+  return {
+    success: true,
+    message: `Migrasi selesai. ${migrated} jurnal dimigrasi, ${skipped} dilewati.`,
+    migrated,
+    skipped
+  };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const method = request.method.toUpperCase();
@@ -140,14 +196,9 @@ export async function onRequest(context) {
   // Auto-migrate 4-digit → 3-digit before rebuild (for the target month only)
   if (targetBulan) {
     try {
-      const migrateRes = await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'migrate-accounts', bulan: targetBulan })
-      });
-      const migrateJson = await migrateRes.json();
-      if (migrateJson?.success) {
-        console.log(`[REBUILD-LEDGER] Auto-migrate: ${migrateJson.message}`);
+      const migrateResult = await runMigrateAccounts(dbUrl, auth, targetBulan);
+      if (migrateResult.success) {
+        console.log(`[REBUILD-LEDGER] Auto-migrate: ${migrateResult.message}`);
       }
     } catch (e) {
       console.warn('[REBUILD-LEDGER] Auto-migrate skipped:', e.message);
