@@ -1833,23 +1833,24 @@ this.jurnalList.forEach(j => {
 
       if (revPOS === 0 && getAccBal('401') > 0) revPOS = getAccBal('401');
       if (revCatering === 0 && getAccBal('402') > 0) revCatering = getAccBal('402');
-      if (hpp === 0 && getAccBal('501') > 0) hpp = getAccBal('501');
-      if (gaji === 0 && getAccBal('601') > 0) gaji = getAccBal('601');
-      if (sewa === 0 && getAccBal('602') > 0) sewa = getAccBal('602');
-      if (listrik === 0 && getAccBal('603') > 0) listrik = getAccBal('603');
-      if (marketing === 0 && getAccBal('604') > 0) marketing = getAccBal('604');
-      if (operasional === 0 && getAccBal('605') > 0) operasional = getAccBal('605');
+      if (hpp === 0 && getAccBal('501') > 0) hpp = Math.max(0, getAccBal('501'));
+      if (gaji === 0 && getAccBal('601') > 0) gaji = Math.max(0, getAccBal('601'));
+      if (sewa === 0 && getAccBal('602') > 0) sewa = Math.max(0, getAccBal('602'));
+      if (listrik === 0 && getAccBal('603') > 0) listrik = Math.max(0, getAccBal('603'));
+      if (marketing === 0 && getAccBal('604') > 0) marketing = Math.max(0, getAccBal('604'));
+      if (operasional === 0 && getAccBal('605') > 0) operasional = Math.max(0, getAccBal('605'));
 
-      const totalPendapatan = revPOS + revCatering;
-      const labaKotor = totalPendapatan - hpp;
-      const totalBeban = gaji + sewa + listrik + marketing + operasional;
+      const totalPendapatan = Math.max(0, revPOS + revCatering);
+      const hppFinal = Math.max(0, hpp);
+      const labaKotor = totalPendapatan - hppFinal;
+      const totalBeban = Math.max(0, gaji + sewa + listrik + marketing + operasional);
       const labaBersih = labaKotor - totalBeban;
 
       this.laporanData.pl = {
         pendapatanPOS: revPOS,
         pendapatanCatering: revCatering,
         totalPendapatan,
-        hpp,
+        hpp: hppFinal,
         labaKotor,
         bebanGaji: gaji,
         bebanSewa: sewa,
@@ -1955,15 +1956,11 @@ this.jurnalList.forEach(j => {
       const peralatan = getBal('106') || getBal('106') || 0;
       const totalAsetTetap = peralatan;
       
-      // ✅ FIX: Total Aset HARUS = Aset Lancar + Aset Tetap
-      // JANGAN pakai summary.totalAset kalau tidak match
+      // ✅ Total Aset = Aset Lancar + Aset Tetap (computed dari COA list)
       const totalAsetComputed = totalAsetLancar + totalAsetTetap;
-      const summaryTotalAset = Number(this.summary?.totalAset);
-      const totalAset = (!isNaN(summaryTotalAset) && Math.abs(summaryTotalAset - totalAsetComputed) < 100)
-        ? summaryTotalAset
-        : totalAsetComputed;  // Prioritas komputasi kalau beda
+      const totalAset = totalAsetComputed;
 
-      // ✅ FIX: Kewajiban & Ekuitas dari COA list
+      // ✅ Kewajiban & Ekuitas dari COA list
       const hutangSupplier = getBal('201') || getBal('201') || 0;
       const hutangBeban = getBal('202') || 0;
       const totalKewajiban = hutangSupplier + hutangBeban;
@@ -1972,8 +1969,8 @@ this.jurnalList.forEach(j => {
       const labaDitahan = getBal('302') || getBal('302') || 0;
       const labaBerjalan = Number(this.laporanData.pl.labaBersih) || 0;
       const prive = getBal('303') || 0;
-      
-      // ✅ FIX: Ekuitas = Modal + Laba Ditahan + Laba Berjalan - Prive
+
+      // ✅ Ekuitas = Modal + Laba Ditahan + Laba Berjalan - Prive
       const totalEkuitas = modalPemilik + labaDitahan + labaBerjalan - prive;
       const totalKewajibanEkuitas = totalKewajiban + totalEkuitas;
 

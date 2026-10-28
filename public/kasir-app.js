@@ -12883,7 +12883,7 @@ async loadMoreProducts() {
         const total = Number(existingData.tot || existingData.total || 0);
         const pm = String(existingData.pm || existingData.paymentMethod || 'cash').toLowerCase();
         const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank') || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
-        const kasAcc = isBank ? '1002' : '1001';
+        const kasAcc = isBank ? '102' : '101';
         const bulan = dateStr.slice(0, 7);
         // Cek apakah transaksi asli memiliki jurnal HPP di database
         let hasHppJournal = false;

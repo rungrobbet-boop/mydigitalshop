@@ -137,6 +137,23 @@ export async function onRequest(context) {
   // =======================================================================
   // ACTION: REBUILD (default)
   // =======================================================================
+  // Auto-migrate 4-digit → 3-digit before rebuild (for the target month only)
+  if (targetBulan) {
+    try {
+      const migrateRes = await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'migrate-accounts', bulan: targetBulan })
+      });
+      const migrateJson = await migrateRes.json();
+      if (migrateJson?.success) {
+        console.log(`[REBUILD-LEDGER] Auto-migrate: ${migrateJson.message}`);
+      }
+    } catch (e) {
+      console.warn('[REBUILD-LEDGER] Auto-migrate skipped:', e.message);
+    }
+  }
+
   try {
     console.log(`[REBUILD-LEDGER] Start rebuild for bulan: ${targetBulan || 'ALL'}`);
 
