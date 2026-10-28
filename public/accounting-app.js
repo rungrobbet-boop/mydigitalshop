@@ -47,6 +47,23 @@ const DEFAULT_COA = [
 // Semua konfigurasi akun di seluruh sistem sekarang standar 3 digit — tidak ada konversi ke 4 digit.
 const CODE_MAP = {};
 
+/**
+ * Konversi kode akun 4-digit → 3-digit (untuk kompatibilitas data lama di Firebase)
+ */
+function normalizeAcc(acc) {
+  const clean = String(acc || '').trim();
+  if (!clean) return '';
+  const map4to3 = {
+    '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
+    '2001': '201', '2002': '202',
+    '3001': '301', '3002': '303', '3003': '302',
+    '4001': '401', '4002': '402',
+    '5001': '501',
+    '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
+  };
+  return map4to3[clean] || clean;
+}
+
 // Tidak ada dummy journals (array kosong murni)
 const DEFAULT_JOURNALS = [];
 
@@ -497,6 +514,9 @@ window.accountingApp = function() {
       await this.loadLedgerMap(this.bulanAktif);  // ✅ BUG-5: load dulu sebelum COA
       await this.loadCOA();
       await this.loadJournal(this.bulanAktif);
+
+      // ✅ Force migrate 4-digit → 3-digit di database (satu kali saat init)
+      await forceMigrateJournalAcc();
 
       // 4. Hitung Saldo & Muat Dashboard
       await this.loadDashboard();
@@ -1164,6 +1184,80 @@ const _getAccNameById = (code) => {
     '604':'Beban Marketing','605':'Beban Operasional (Kurir/Ekspedisi/Lainnya)','606':'Beban Penyusutan'
   };
   return map[displayCode] || ('Akun ' + displayCode);
+};
+
+/**
+ * ✅ FORCE MIGRATE 4-DIGIT → 3-DIGIT (frontend, browser)
+ * Membaca semua jurnal dari RTDB /accounting/journal, mengubah acc 4-digit ke 3-digit,
+ * dan menyimpan kembali ke Firebase. Dipanggil sekali saat aplikasi dimuat.
+ */
+async function forceMigrateJournalAcc() {
+  try {
+    let fbUrl = (window.accountingApp && window.accountingApp._fbConfig?.databaseURL) || '';
+    if (!fbUrl && typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname || '';
+      if (host.includes('mydigitalshop')) {
+        fbUrl = 'https://mydigitalshop-app-default-rtdb.asia-southeast1.firebasedatabase.app';
+      } else if (host.includes('dapurkulinerviral')) {
+        fbUrl = 'https://dapurkulinerviral-default-rtdb.asia-southeast1.firebasedatabase.app';
+      }
+    }
+    if (!fbUrl) {
+      console.warn('[FORCE-MIGRATE] Tidak ada Firebase DB URL, dilewati.');
+      return;
+    }
+
+    // Ambil semua jurnal dari semua bulan
+    const res = await fetch(`${fbUrl.replace(/\/$/, '')}/accounting/journal.json`);
+    if (!res.ok) {
+      console.warn('[FORCE-MIGRATE] Gagal fetch jurnal:', res.status);
+      return;
+    }
+    const journalsData = await res.json();
+    if (!journalsData || typeof journalsData !== 'object') {
+      console.log('[FORCE-MIGRATE] Tidak ada jurnal di database.');
+      return;
+    }
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const [bulan, monthData] of Object.entries(journalsData)) {
+      if (!monthData || typeof monthData !== 'object') continue;
+      for (const [id, entry] of Object.entries(monthData)) {
+        if (!entry || !Array.isArray(entry.lines)) {
+          skipped++;
+          continue;
+        }
+
+        let changed = false;
+        const newLines = entry.lines.map(line => {
+          const rawAcc = String(line.acc || line.code || '').trim();
+          const newAcc = normalizeAcc(rawAcc);
+          if (rawAcc !== newAcc) {
+            changed = true;
+            return { ...line, acc: newAcc };
+          }
+          return line;
+        });
+
+        if (changed) {
+          await fetch(`${fbUrl.replace(/\/$/, '')}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(id)}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...entry, lines: newLines })
+          });
+          migrated++;
+        } else {
+          skipped++;
+        }
+      }
+    }
+
+    console.log(`[FORCE-MIGRATE] Selesai. ${migrated} jurnal dimigrasi, ${skipped} dilewati.`);
+  } catch (e) {
+    console.error('[FORCE-MIGRATE] Error:', e);
+  }
 };
 
 this.jurnalList.forEach(j => {
