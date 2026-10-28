@@ -12,29 +12,16 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-const ACC_MAP_TO_4DIGIT = {
-  // Aset
-  '101':'1001',  '102':'1002',  '103':'1003',  '105':'1004',  '106':'1005',
-  // Kewajiban
-  '201':'2001',  '202':'2002',
-  // Ekuitas
-  '301':'3001',  '302':'3003',  '303':'3002',
-  // Pendapatan
-  '401':'4001',  '402':'4002',
-  // HPP
-  '501':'5001',
-  // Beban
-  '601':'6001',  '602':'6002',  '603':'6003',
-  '604':'6004',  '605':'6005',  '606':'6006'
-};
-
+// Sistem akuntansi menggunakan KODE 3 DIGIT (101, 105, 201, 301, 401, 501, 601)
+// Semua konfigurasi akun di seluruh sistem sekarang standar 3 digit.
 function normalizeAcc(acc) {
   const clean = String(acc || '').trim();
   if (!clean) return '';
-  return ACC_MAP_TO_4DIGIT[clean] || clean;
+  // Tidak ada konversi ke 4 digit — gunakan kode asli (3 digit)
+  return clean;
 }
 
 function isKreditNormal(acc) {

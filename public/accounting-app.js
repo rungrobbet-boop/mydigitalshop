@@ -23,48 +23,29 @@ let _accountingChartInstance = null;
 // DEFINISI STRUKTUR STANDAR BAGAN AKUN (COA) RESTO & CATERING (SEMUA SALDO AWAL 0)
 // ============================================================================
 const DEFAULT_COA = [
-  { code: '1001', name: 'Kas di Tangan (Cash on Hand)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '1002', name: 'Kas di Bank (BCA Operasional)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '1003', name: 'Piutang Usaha / Catering', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '1004', name: 'Persediaan Bahan Baku (Stok)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '1005', name: 'Peralatan & Mesin Dapur', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '2001', name: 'Hutang Dagang / Supplier', type: 'Kewajiban', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '2002', name: 'Hutang Beban & Operasional', type: 'Kewajiban', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '3001', name: 'Modal Pemilik', type: 'Ekuitas', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '3002', name: 'Laba Ditahan', type: 'Ekuitas', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '3003', name: 'Prive Pemilik', type: 'Ekuitas', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '4001', name: 'Pendapatan Penjualan POS', type: 'Pendapatan', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '4002', name: 'Pendapatan Pesanan Catering', type: 'Pendapatan', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
-  { code: '5001', name: 'Harga Pokok Penjualan (HPP)', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '6001', name: 'Beban Gaji Karyawan', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '6002', name: 'Beban Sewa Tempat & Outlet', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '6003', name: 'Beban Listrik, Air & Gas', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-  { code: '6004', name: 'Beban Marketing & Iklan', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
-    { code: '6005', name: 'Beban Operasional (Kurir/Ekspedisi/Lainnya)', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 }
+  { code: '101', name: 'Kas di Tangan (Cash on Hand)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '102', name: 'Kas di Bank (BCA Operasional)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '103', name: 'Piutang Usaha / Catering', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '105', name: 'Persediaan Bahan Baku (Stok)', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '106', name: 'Peralatan & Mesin Dapur', type: 'Aset', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '201', name: 'Hutang Dagang / Supplier', type: 'Kewajiban', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '202', name: 'Hutang Beban & Operasional', type: 'Kewajiban', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '301', name: 'Modal Pemilik', type: 'Ekuitas', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '302', name: 'Laba Ditahan', type: 'Ekuitas', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '303', name: 'Prive Pemilik', type: 'Ekuitas', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '401', name: 'Pendapatan Penjualan POS', type: 'Pendapatan', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '402', name: 'Pendapatan Pesanan Catering', type: 'Pendapatan', normalBalance: 'Kredit', initialBalance: 0, currentBalance: 0 },
+  { code: '501', name: 'Harga Pokok Penjualan (HPP)', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '601', name: 'Beban Gaji Karyawan', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '602', name: 'Beban Sewa Tempat & Outlet', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '603', name: 'Beban Listrik, Air & Gas', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '604', name: 'Beban Marketing & Iklan', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 },
+  { code: '605', name: 'Beban Operasional (Kurir/Ekspedisi/Lainnya)', type: 'Beban', normalBalance: 'Debit', initialBalance: 0, currentBalance: 0 }
 ];
 
-// Mapping alias akun 3-digit (POS Kasir) dan 4-digit (Akuntansi)
-const CODE_MAP = {
-  '101': '1001', '1001': '101',
-  '102': '1002', '1002': '102',
-  '103': '1003', '1003': '103',
-  '105': '1004', '1004': '105',
-  '106': '1005', '1005': '106',
-  '201': '2001', '2001': '201',
-  '202': '2002', '2002': '202',
-  '301': '3001', '3001': '301',
-  '302': '3003', '3003': '302',
-  '303': '3002', '3002': '303',
-  '401': '4001', '4001': '401',
-  '402': '4002', '4002': '402',
-  '501': '5001', '5001': '501',
-  '601': '6001', '6001': '601',
-  '602': '6002', '6002': '602',
-  '603': '6003', '6003': '603',
-  '604': '6004', '6004': '604',
-  '605': '6005', '6005': '605',
-  '606': '6006', '6006': '606'
-};
+// Sistem akuntansi menggunakan KODE 3 DIGIT (101, 105, 201, 301, 401, 501, 601)
+// Semua konfigurasi akun di seluruh sistem sekarang standar 3 digit — tidak ada konversi ke 4 digit.
+const CODE_MAP = {};
 
 // Tidak ada dummy journals (array kosong murni)
 const DEFAULT_JOURNALS = [];
@@ -174,7 +155,7 @@ window.accountingApp = function() {
         jurnalSearch: '',
     journalFilterDate: '',  // ✅ Batch B: filter tanggal Jurnal Umum (YYYY-MM-DD)
     ledgerFilterDate: '',   // ✅ Batch B: filter tanggal Ledger (YYYY-MM-DD)
-    ledgerAkun: '1001',
+    ledgerAkun: '101',
     _ledgerMapByMonth: {},  // ✅ BUG-5: cache closing per akun dari /accounting/ledger
 
     // Trial/Live State
@@ -334,8 +315,8 @@ window.accountingApp = function() {
     manualJournalForm: {
       date: new Date().toISOString().split('T')[0],
       desc: '',
-      debitAccount: '6001',
-      creditAccount: '1001',
+      debitAccount: '601',
+      creditAccount: '101',
       amount: 0,
       ref: '',
       proofImage: ''
@@ -1034,7 +1015,7 @@ window.accountingApp = function() {
       const ledgerMap = {};
       for (const [code, val] of Object.entries(rawLedgerMap)) {
         ledgerMap[code] = val;
-        const alias = CODE_MAP[code];   // CODE_MAP sudah bidirectional: '1001'→'101', '101'→'1001'
+        const alias = CODE_MAP[code];   // CODE_MAP sudah bidirectional: '101'→'101', '101'→'101'
         if (alias) ledgerMap[alias] = val;
       }
       const hasLedgerData = Object.keys(rawLedgerMap).length > 0;
@@ -1161,12 +1142,12 @@ window.accountingApp = function() {
 const _getAccNameById = (code) => {
   // Konversi kode akun 4-digit (Firebase) → 3-digit (tampilan UI)
   const codeMap4to3 = {
-    '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
-    '2001': '201', '2002': '202',
-    '3001': '301', '3002': '303', '3003': '302',
-    '4001': '401', '4002': '402',
-    '5001': '501',
-    '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
+    '101': '101', '102': '102', '103': '103', '105': '105', '106': '106',
+    '201': '201', '202': '202',
+    '301': '301', '302': '303', '303': '302',
+    '401': '401', '402': '402',
+    '501': '501',
+    '601': '601', '602': '602', '603': '603', '604': '604', '605': '605', '606': '606'
   };
   const displayCode = codeMap4to3[String(code)] || String(code);
   const map = {
@@ -1326,8 +1307,8 @@ this.jurnalList.forEach(j => {
       this.manualJournalForm = {
         date: new Date().toISOString().split('T')[0],
         desc: '',
-        debitAccount: '6001',
-        creditAccount: '1001',
+        debitAccount: '601',
+        creditAccount: '101',
         amount: 0,
         ref: '',
         proofImage: ''
@@ -1387,7 +1368,7 @@ this.jurnalList.forEach(j => {
         const sD = document.querySelector('select[data-role="debit-select"]');
         const sK = document.querySelector('select[data-role="kredit-select"]');
         const norm = (c) => {
-          const m = { '1001':'101','1002':'102','1003':'103','1004':'105','1005':'111','2001':'201','2002':'202','3001':'301','3002':'303','3003':'302','4001':'401','4002':'402','5001':'501','6001':'601','6002':'602','6003':'603','6004':'604','6005':'605','6006':'606' };
+          const m = { '101':'101','102':'102','103':'103','105':'105','106':'111','201':'201','202':'202','301':'301','302':'303','303':'302','401':'401','402':'402','501':'501','601':'601','602':'602','603':'603','604':'604','605':'605','606':'606' };
           if (!c) return '';
           if (c.length === 4 && m[c]) return m[c];
           return c;
@@ -1408,8 +1389,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Pembayaran Beban Operasional / Perlengkapan Toko',
-            debitAccount: '6005',
-            creditAccount: '1001',
+            debitAccount: '605',
+            creditAccount: '101',
             amount: 0,
             ref: 'OPS-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1419,8 +1400,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Setor Kas Harian Kasir ke Rekening Bank BCA',
-            debitAccount: '1002',
-            creditAccount: '1001',
+            debitAccount: '102',
+            creditAccount: '101',
             amount: 0,
             ref: 'SETOR-BCA-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1430,8 +1411,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Pembelian Bahan Baku Segar Ayam, Daging & Sayur',
-            debitAccount: '5001',
-            creditAccount: '1001',
+            debitAccount: '501',
+            creditAccount: '101',
             amount: 0,
             ref: 'BELI-BAHAN-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1441,8 +1422,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Penarikan Prive untuk Keperluan Pribadi Pemilik',
-            debitAccount: '3003',
-            creditAccount: '1002',
+            debitAccount: '303',
+            creditAccount: '102',
             amount: 0,
             ref: 'PRIVE-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1452,8 +1433,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Penerimaan Pendapatan Pesanan Catering / Event Khusus',
-            debitAccount: '1002',
-            creditAccount: '4002',
+            debitAccount: '102',
+            creditAccount: '402',
             amount: 0,
             ref: 'CAT-EVENT-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1463,8 +1444,8 @@ this.jurnalList.forEach(j => {
           this.manualJournalForm = {
             date: today,
             desc: 'Penyesuaian Selisih Kas Fisik / Stock Opname Bahan',
-            debitAccount: '6005',
-            creditAccount: '1004',
+            debitAccount: '605',
+            creditAccount: '105',
             amount: 0,
             ref: 'ADJ-' + Date.now().toString().slice(-4),
             proofImage: ''
@@ -1503,14 +1484,14 @@ this.jurnalList.forEach(j => {
       let lines = [];
       if (Array.isArray(jrn.lines) && jrn.lines.length > 0) {
         lines = jrn.lines.map(l => ({
-          acc: String(l.acc || '1001'),
+          acc: String(l.acc || '101'),
           debit: Number(l.debit) || 0,
           credit: Number(l.credit) || 0
         }));
       } else {
         lines = [
-          { acc: String(jrn.debitCode || '1001'), debit: Number(jrn.debitAmount) || 0, credit: 0 },
-          { acc: String(jrn.creditCode || '4001'), debit: 0, credit: Number(jrn.creditAmount) || 0 }
+          { acc: String(jrn.debitCode || '101'), debit: Number(jrn.debitAmount) || 0, credit: 0 },
+          { acc: String(jrn.creditCode || '401'), debit: 0, credit: Number(jrn.creditAmount) || 0 }
         ];
       }
 
@@ -1528,7 +1509,7 @@ this.jurnalList.forEach(j => {
     },
 
     addEditJournalLine() {
-      this.editJournalForm.lines.push({ acc: '1001', debit: 0, credit: 0 });
+      this.editJournalForm.lines.push({ acc: '101', debit: 0, credit: 0 });
     },
 
     removeEditJournalLine(idx) {
@@ -1668,7 +1649,7 @@ this.jurnalList.forEach(j => {
      * Memuat buku besar real akun tertentu
      */
     async loadLedger(accCode, bulan) {
-      const targetAcc = accCode || this.ledgerAkun || '1001';
+      const targetAcc = accCode || this.ledgerAkun || '101';
       const targetBulan = bulan || this.bulanAktif;
       this.ledgerAkun = targetAcc;
 
@@ -1699,12 +1680,12 @@ this.jurnalList.forEach(j => {
 
         // ✅ FIX: Normalisasi kode akun 3-digit → 4-digit
         const _ACC_MAP = {
-          '101':'1001','102':'1002','103':'1003','105':'1004','106':'1005',
-          '201':'2001','202':'2002',
-          '301':'3001','302':'3003','303':'3002',
-          '401':'4001','402':'4002',
-          '501':'5001',
-          '601':'6001','602':'6002','603':'6003','604':'6004','605':'6005','606':'6006'
+          '101':'101','102':'102','103':'103','105':'105','106':'106',
+          '201':'201','202':'202',
+          '301':'301','302':'303','303':'302',
+          '401':'401','402':'402',
+          '501':'501',
+          '601':'601','602':'602','603':'603','604':'604','605':'605','606':'606'
         };
         const _normalizeAcc = (acc) => {
           const clean = String(acc || '').trim();
@@ -1817,31 +1798,31 @@ this.jurnalList.forEach(j => {
         const cAmt = Number(j.creditAmount) || 0;
 
         // Pendapatan (Kredit menambah, Debit mengurangi)
-        if (j.creditCode === '4001' || j.creditCode === '401') revPOS += cAmt;
-        if (j.debitCode === '4001' || j.debitCode === '401') revPOS -= dAmt;
+        if (j.creditCode === '401' || j.creditCode === '401') revPOS += cAmt;
+        if (j.debitCode === '401' || j.debitCode === '401') revPOS -= dAmt;
 
-        if (j.creditCode === '4002' || j.creditCode === '402') revCatering += cAmt;
-        if (j.debitCode === '4002' || j.debitCode === '402') revCatering -= dAmt;
+        if (j.creditCode === '402' || j.creditCode === '402') revCatering += cAmt;
+        if (j.debitCode === '402' || j.debitCode === '402') revCatering -= dAmt;
 
         // HPP (Debit menambah, Kredit mengurangi)
-        if (j.debitCode === '5001' || j.debitCode === '501') hpp += dAmt;
-        if (j.creditCode === '5001' || j.creditCode === '501') hpp -= cAmt;
+        if (j.debitCode === '501' || j.debitCode === '501') hpp += dAmt;
+        if (j.creditCode === '501' || j.creditCode === '501') hpp -= cAmt;
 
         // Beban Operasional (Debit menambah, Kredit mengurangi)
-        if (j.debitCode === '6001' || j.debitCode === '601') gaji += dAmt;
-        if (j.creditCode === '6001' || j.creditCode === '601') gaji -= cAmt;
+        if (j.debitCode === '601' || j.debitCode === '601') gaji += dAmt;
+        if (j.creditCode === '601' || j.creditCode === '601') gaji -= cAmt;
 
-        if (j.debitCode === '6002' || j.debitCode === '602') sewa += dAmt;
-        if (j.creditCode === '6002' || j.creditCode === '602') sewa -= cAmt;
+        if (j.debitCode === '602' || j.debitCode === '602') sewa += dAmt;
+        if (j.creditCode === '602' || j.creditCode === '602') sewa -= cAmt;
 
-        if (j.debitCode === '6003' || j.debitCode === '603') listrik += dAmt;
-        if (j.creditCode === '6003' || j.creditCode === '603') listrik -= cAmt;
+        if (j.debitCode === '603' || j.debitCode === '603') listrik += dAmt;
+        if (j.creditCode === '603' || j.creditCode === '603') listrik -= cAmt;
 
-        if (j.debitCode === '6004' || j.debitCode === '604') marketing += dAmt;
-        if (j.creditCode === '6004' || j.creditCode === '604') marketing -= cAmt;
+        if (j.debitCode === '604' || j.debitCode === '604') marketing += dAmt;
+        if (j.creditCode === '604' || j.creditCode === '604') marketing -= cAmt;
 
-        if (j.debitCode === '6005' || j.debitCode === '605') operasional += dAmt;
-        if (j.creditCode === '6005' || j.creditCode === '605') operasional -= cAmt;
+        if (j.debitCode === '605' || j.debitCode === '605') operasional += dAmt;
+        if (j.creditCode === '605' || j.creditCode === '605') operasional -= cAmt;
       });
 
       // Tambahkan saldo dari COA jika belum terangkum
@@ -1850,14 +1831,14 @@ this.jurnalList.forEach(j => {
         return found ? Number(found.currentBalance) || 0 : 0;
       };
 
-      if (revPOS === 0 && getAccBal('4001') > 0) revPOS = getAccBal('4001');
-      if (revCatering === 0 && getAccBal('4002') > 0) revCatering = getAccBal('4002');
-      if (hpp === 0 && getAccBal('5001') > 0) hpp = getAccBal('5001');
-      if (gaji === 0 && getAccBal('6001') > 0) gaji = getAccBal('6001');
-      if (sewa === 0 && getAccBal('6002') > 0) sewa = getAccBal('6002');
-      if (listrik === 0 && getAccBal('6003') > 0) listrik = getAccBal('6003');
-      if (marketing === 0 && getAccBal('6004') > 0) marketing = getAccBal('6004');
-      if (operasional === 0 && getAccBal('6005') > 0) operasional = getAccBal('6005');
+      if (revPOS === 0 && getAccBal('401') > 0) revPOS = getAccBal('401');
+      if (revCatering === 0 && getAccBal('402') > 0) revCatering = getAccBal('402');
+      if (hpp === 0 && getAccBal('501') > 0) hpp = getAccBal('501');
+      if (gaji === 0 && getAccBal('601') > 0) gaji = getAccBal('601');
+      if (sewa === 0 && getAccBal('602') > 0) sewa = getAccBal('602');
+      if (listrik === 0 && getAccBal('603') > 0) listrik = getAccBal('603');
+      if (marketing === 0 && getAccBal('604') > 0) marketing = getAccBal('604');
+      if (operasional === 0 && getAccBal('605') > 0) operasional = getAccBal('605');
 
       const totalPendapatan = revPOS + revCatering;
       const labaKotor = totalPendapatan - hpp;
@@ -1895,7 +1876,7 @@ this.jurnalList.forEach(j => {
       let setoranModal = 0;
       let prive = 0;
 
-      const isKasOrBank = (code) => code === '1001' || code === '1002' || code === '101' || code === '102';
+      const isKasOrBank = (code) => code === '101' || code === '102' || code === '101' || code === '102';
 
       this.jurnalList.forEach(j => {
         const dAmt = Number(j.debitAmount) || 0;
@@ -1903,25 +1884,25 @@ this.jurnalList.forEach(j => {
 
         // Arus Kas Masuk (DEBIT Kas / Bank)
         if (isKasOrBank(j.debitCode)) {
-          if (j.creditCode === '4001' || j.creditCode === '4002' || j.creditCode === '1003' || j.creditCode === '401' || j.creditCode === '402' || j.creditCode === '103') {
+          if (j.creditCode === '401' || j.creditCode === '402' || j.creditCode === '103' || j.creditCode === '401' || j.creditCode === '402' || j.creditCode === '103') {
             penerimaanPelanggan += dAmt;
-          } else if (j.creditCode === '3001' || j.creditCode === '301') {
+          } else if (j.creditCode === '301' || j.creditCode === '301') {
             setoranModal += dAmt;
           }
         }
 
         // Arus Kas Keluar (KREDIT Kas / Bank)
         if (isKasOrBank(j.creditCode)) {
-          if (j.debitCode === '5001' || j.debitCode === '2001' || j.debitCode === '1004' || j.debitCode === '501' || j.debitCode === '201' || j.debitCode === '105') {
+          if (j.debitCode === '501' || j.debitCode === '201' || j.debitCode === '105' || j.debitCode === '501' || j.debitCode === '201' || j.debitCode === '105') {
             pembayaranSupplier += cAmt;
-          } else if (j.debitCode === '6001' || j.debitCode === '601') {
+          } else if (j.debitCode === '601' || j.debitCode === '601') {
             pembayaranGaji += cAmt;
-          } else if (j.debitCode === '6002' || j.debitCode === '6003' || j.debitCode === '6004' || j.debitCode === '6005' ||
+          } else if (j.debitCode === '602' || j.debitCode === '603' || j.debitCode === '604' || j.debitCode === '605' ||
                      j.debitCode === '602' || j.debitCode === '603' || j.debitCode === '604' || j.debitCode === '605') {
             pembayaranOperasional += cAmt;
-          } else if (j.debitCode === '1005' || j.debitCode === '106') {
+          } else if (j.debitCode === '106' || j.debitCode === '106') {
             pembelianPeralatan += cAmt;
-          } else if (j.debitCode === '3003') {
+          } else if (j.debitCode === '303') {
             prive += cAmt;
           }
         }
@@ -1932,8 +1913,8 @@ this.jurnalList.forEach(j => {
       const kasBersihPendanaan = setoranModal - prive;
       const kenaikanKas = kasBersihOperasi + kasBersihInvestasi + kasBersihPendanaan;
 
-      const kasAwal = ((this.coaList.find(c => c.code === '1001' || c.code === '101') || {}).initialBalance || 0) +
-                      ((this.coaList.find(c => c.code === '1002' || c.code === '102') || {}).initialBalance || 0);
+      const kasAwal = ((this.coaList.find(c => c.code === '101' || c.code === '101') || {}).initialBalance || 0) +
+                      ((this.coaList.find(c => c.code === '102' || c.code === '102') || {}).initialBalance || 0);
       const kasAkhir = kasAwal + kenaikanKas;
 
       this.laporanData.cashFlow = {
@@ -1965,13 +1946,13 @@ this.jurnalList.forEach(j => {
       };
 
       // ✅ FIX BUG-20: Ambil dari COA list DULU (computed dari ledger)
-      const kas = getBal('1001') || getBal('101') || 0;
-      const bank = getBal('1002') || getBal('102') || 0;
-      const piutang = getBal('1003') || getBal('103') || 0;
-      const persediaan = getBal('1004') || getBal('105') || 0;
+      const kas = getBal('101') || getBal('101') || 0;
+      const bank = getBal('102') || getBal('102') || 0;
+      const piutang = getBal('103') || getBal('103') || 0;
+      const persediaan = getBal('105') || getBal('105') || 0;
       const totalAsetLancar = kas + bank + piutang + persediaan;
 
-      const peralatan = getBal('1005') || getBal('106') || 0;
+      const peralatan = getBal('106') || getBal('106') || 0;
       const totalAsetTetap = peralatan;
       
       // ✅ FIX: Total Aset HARUS = Aset Lancar + Aset Tetap
@@ -1983,14 +1964,14 @@ this.jurnalList.forEach(j => {
         : totalAsetComputed;  // Prioritas komputasi kalau beda
 
       // ✅ FIX: Kewajiban & Ekuitas dari COA list
-      const hutangSupplier = getBal('2001') || getBal('201') || 0;
-      const hutangBeban = getBal('2002') || 0;
+      const hutangSupplier = getBal('201') || getBal('201') || 0;
+      const hutangBeban = getBal('202') || 0;
       const totalKewajiban = hutangSupplier + hutangBeban;
 
-      const modalPemilik = getBal('3001') || getBal('301') || 0;
-      const labaDitahan = getBal('3002') || getBal('302') || 0;
+      const modalPemilik = getBal('301') || getBal('301') || 0;
+      const labaDitahan = getBal('302') || getBal('302') || 0;
       const labaBerjalan = Number(this.laporanData.pl.labaBersih) || 0;
-      const prive = getBal('3003') || 0;
+      const prive = getBal('303') || 0;
       
       // ✅ FIX: Ekuitas = Modal + Laba Ditahan + Laba Berjalan - Prive
       const totalEkuitas = modalPemilik + labaDitahan + labaBerjalan - prive;
@@ -2079,10 +2060,10 @@ this.jurnalList.forEach(j => {
         const dateStr = d.toISOString().split('T')[0];
         this.jurnalList.forEach(j => {
           if (j.date === dateStr) {
-            if (j.debitCode === '1001' || j.debitCode === '1002' || j.debitCode === '101' || j.debitCode === '102') {
+            if (j.debitCode === '101' || j.debitCode === '102' || j.debitCode === '101' || j.debitCode === '102') {
               dayInflow += Number(j.debitAmount) || 0;
             }
-            if (j.creditCode === '1001' || j.creditCode === '1002' || j.creditCode === '101' || j.creditCode === '102') {
+            if (j.creditCode === '101' || j.creditCode === '102' || j.creditCode === '101' || j.creditCode === '102') {
               dayOutflow += Number(j.creditAmount) || 0;
             }
           }
@@ -2765,7 +2746,7 @@ this.jurnalList.forEach(j => {
     journalSection(doc, y) {
       const accName = (code, name) => {
         if (name) return String(name);
-        const m = { '1001':'Kas di Tangan','1002':'Kas di Bank','1003':'Piutang Usaha','1004':'Persediaan Bahan Baku','1005':'Peralatan & Mesin Dapur','2001':'Hutang Dagang / Supplier','2002':'Hutang Beban & Operasional','3001':'Modal Pemilik','3002':'Laba Ditahan','3003':'Prive Pemilik','4001':'Pendapatan Penjualan POS','4002':'Pendapatan Pesanan Catering','5001':'Harga Pokok Penjualan (HPP)','6001':'Beban Gaji Karyawan','6002':'Beban Sewa Tempat','6003':'Beban Listrik, Air & Gas','6004':'Beban Marketing & Iklan','6005':'Beban Operasional & Kurir','6006':'Beban Penyusutan' };
+        const m = { '101':'Kas di Tangan','102':'Kas di Bank','103':'Piutang Usaha','105':'Persediaan Bahan Baku','106':'Peralatan & Mesin Dapur','201':'Hutang Dagang / Supplier','202':'Hutang Beban & Operasional','301':'Modal Pemilik','302':'Laba Ditahan','303':'Prive Pemilik','401':'Pendapatan Penjualan POS','402':'Pendapatan Pesanan Catering','501':'Harga Pokok Penjualan (HPP)','601':'Beban Gaji Karyawan','602':'Beban Sewa Tempat','603':'Beban Listrik, Air & Gas','604':'Beban Marketing & Iklan','605':'Beban Operasional & Kurir','606':'Beban Penyusutan' };
         return m[String(code)] || ('Akun ' + code);
       };
       const list = (this.jurnalList || [])
@@ -3374,7 +3355,7 @@ this.jurnalList.forEach(j => {
     _journalRows() {
       const accName = (code, name) => {
         if (name) return String(name);
-        const m = { '1001':'Kas di Tangan','1002':'Kas di Bank','1003':'Piutang Usaha','1004':'Persediaan Bahan Baku','1005':'Peralatan & Mesin Dapur','2001':'Hutang Dagang / Supplier','2002':'Hutang Beban & Operasional','3001':'Modal Pemilik','3002':'Laba Ditahan','3003':'Prive Pemilik','4001':'Pendapatan Penjualan POS','4002':'Pendapatan Pesanan Catering','5001':'Harga Pokok Penjualan (HPP)','6001':'Beban Gaji Karyawan','6002':'Beban Sewa Tempat','6003':'Beban Listrik, Air & Gas','6004':'Beban Marketing & Iklan','6005':'Beban Operasional & Kurir','6006':'Beban Penyusutan' };
+        const m = { '101':'Kas di Tangan','102':'Kas di Bank','103':'Piutang Usaha','105':'Persediaan Bahan Baku','106':'Peralatan & Mesin Dapur','201':'Hutang Dagang / Supplier','202':'Hutang Beban & Operasional','301':'Modal Pemilik','302':'Laba Ditahan','303':'Prive Pemilik','401':'Pendapatan Penjualan POS','402':'Pendapatan Pesanan Catering','501':'Harga Pokok Penjualan (HPP)','601':'Beban Gaji Karyawan','602':'Beban Sewa Tempat','603':'Beban Listrik, Air & Gas','604':'Beban Marketing & Iklan','605':'Beban Operasional & Kurir','606':'Beban Penyusutan' };
         return m[String(code)] || ('Akun ' + code);
       };
       const list = (this.jurnalList || [])
@@ -3502,15 +3483,15 @@ this.jurnalList.forEach(j => {
       if (existing) return;
 
       // Tentukan Akun Debit berdasarkan Metode Pembayaran
-      let debitCode = '1001'; // Kas di Tangan
+      let debitCode = '101'; // Kas di Tangan
       let debitName = 'Kas di Tangan (Cash on Hand)';
 
       if (pm.includes('qris') || pm.includes('bank') || pm.includes('transfer') || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana')) {
-        debitCode = '1002'; // Kas di Bank
+        debitCode = '102'; // Kas di Bank
         debitName = 'Kas di Bank (BCA Operasional)';
       }
 
-      const creditCode = '4001'; // Pendapatan Penjualan POS
+      const creditCode = '401'; // Pendapatan Penjualan POS
       const creditName = 'Pendapatan Penjualan POS';
 
       const entryId = 'J' + Date.now();
@@ -3592,7 +3573,7 @@ this.jurnalList.forEach(j => {
             let target = String(self.manualJournalForm[field] || '');
             const hasOption = Array.from(sel.options).some(o => o.value === target);
             if (!hasOption && target.length === 4) {
-              const map = { '1001':'101','1002':'102','1003':'103','1004':'105','1005':'111','2001':'201','2002':'202','3001':'301','3002':'303','3003':'302','4001':'401','4002':'402','5001':'501','6001':'601','6002':'602','6003':'603','6004':'604','6005':'605','6006':'606' };
+              const map = { '101':'101','102':'102','103':'103','105':'105','106':'111','201':'201','202':'202','301':'301','302':'303','303':'302','401':'401','402':'402','501':'501','601':'601','602':'602','603':'603','604':'604','605':'605','606':'606' };
               if (map[target]) target = map[target];
             }
             sel.value = target;

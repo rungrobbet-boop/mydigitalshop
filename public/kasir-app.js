@@ -12816,7 +12816,7 @@ async loadMoreProducts() {
                 const foundItem = this.inventoryList.find(i => i.id === itemId)
                   || this.menuList.find(m => m.id === itemId)
                   || this.menuList.find(m => m.inventoryId === itemId);
-                const itemName = foundItem ? foundItem.name : (Array.isArray(rawItem) ? rawItem[0] : (rawItem.name || itemId));
+                const itemName = foundItem ? foundItem.name : (Array.isArray(rawItem) ? (rawItem[2] || 'Produk Dihapus') : (rawItem.name || 'Produk Dihapus'));
                 const unit = (current && current.unit) || 'pcs';
                 this.addInventoryLog(
                   itemName,
