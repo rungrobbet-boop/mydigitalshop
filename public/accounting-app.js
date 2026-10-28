@@ -654,15 +654,15 @@ window.accountingApp = function() {
           const revPOS = Number(d.pendapatan?.penjualanPos) || 0;
           const revCatering = Number(d.pendapatan?.penjualanCatering) || 0;
           const totalPendapatan = Number(d.pendapatan?.totalPendapatan) || (revPOS + revCatering);
-          const hpp = Number(d.hpp?.totalHpp) || Number(d.hpp?.bahanBaku) || 0;
-          const labaKotor = Number(d.labaKotor) || (totalPendapatan - hpp);
-          const bebanGaji = Number(d.beban?.gaji) || 0;
-          const bebanSewa = Number(d.beban?.sewa) || 0;
-          const bebanListrik = Number(d.beban?.utilitas) || 0;
-          const bebanMarketing = Number(d.beban?.marketing) || 0;
-          const bebanKurir = Number(d.beban?.kurir) || 0;
-          const bebanPenyusutan = Number(d.beban?.penyusutan) || 0;
-          const totalBeban = Number(d.beban?.totalBeban) || (bebanGaji + bebanSewa + bebanListrik + bebanMarketing + bebanKurir + bebanPenyusutan);
+          const hpp = Math.max(0, Number(d.hpp?.totalHpp) || Number(d.hpp?.bahanBaku) || 0);
+          const labaKotor = Number(d.labaKotor) || Math.max(0, totalPendapatan - hpp);
+          const bebanGaji = Math.max(0, Number(d.beban?.gaji) || 0);
+          const bebanSewa = Math.max(0, Number(d.beban?.sewa) || 0);
+          const bebanListrik = Math.max(0, Number(d.beban?.utilitas) || 0);
+          const bebanMarketing = Math.max(0, Number(d.beban?.marketing) || 0);
+          const bebanKurir = Math.max(0, Number(d.beban?.kurir) || 0);
+          const bebanPenyusutan = Math.max(0, Number(d.beban?.penyusutan) || 0);
+          const totalBeban = Math.max(0, Number(d.beban?.totalBeban) || (bebanGaji + bebanSewa + bebanListrik + bebanMarketing + bebanKurir + bebanPenyusutan));
 
           this.laporanData.pl = {
             pendapatanPOS: revPOS,

@@ -396,7 +396,7 @@ window.kasirApp = () => ({
       (j.lines || []).forEach(l => {
         const acc = String(l.acc || '').trim();
         // Kredit ke Kas = uang keluar
-        if ((acc === '1001' || acc === '101') && Number(l.credit) > 0) {
+        if ((acc === '101' || acc === '101') && Number(l.credit) > 0) {
           pengeluaranTunai += Number(l.credit) || 0;
         }
       });
@@ -5573,8 +5573,8 @@ async loadMoreProducts() {
           const absDiff = Math.abs(diff);
           // diff < 0 → kas kurang → D 6005 Beban Operasional / K 1001 Kas
           // diff > 0 → kas lebih  → D 1001 Kas / K 6005 Beban Operasional (reversal)
-          const debitAcc = diff < 0 ? '6005' : '1001';
-          const creditAcc = diff < 0 ? '1001' : '6005';
+          const debitAcc = diff < 0 ? '605' : '101';
+          const creditAcc = diff < 0 ? '101' : '605';
           const desc = diff < 0
             ? `Selisih kas kurang saat tutup shift ${shiftId}`
             : `Selisih kas lebih saat tutup shift ${shiftId}`;
@@ -6299,7 +6299,7 @@ async loadMoreProducts() {
       status: 'approved',
       timestamp: Date.now(),
       lines: [
-        { acc: '6005', name: 'Beban Operasional & Kerugian Bahan', debit: Number(amount), credit: 0 },
+        { acc: '605', name: 'Beban Operasional & Kerugian Bahan', debit: Number(amount), credit: 0 },
         { acc: '105', name: 'Persediaan Bahan Baku', debit: 0, credit: Number(amount) }
       ]
     };
@@ -9453,25 +9453,25 @@ async loadMoreProducts() {
   getAccountName(accCode) {
   const coa = {
     // 4-digit (primary — kode standar sekarang)
-    '1001': 'Kas di Tangan',
-    '1002': 'Bank BCA',
-    '1003': 'Piutang Usaha',
-    '1004': 'Persediaan Bahan Baku',
-    '1005': 'Peralatan & Mesin Dapur',
-    '2001': 'Hutang Dagang / Supplier',
-    '2002': 'Hutang Beban & Operasional',
-    '3001': 'Modal Pemilik',
-    '3002': 'Laba Ditahan',
-    '3003': 'Prive Pemilik',
-    '4001': 'Pendapatan Penjualan POS',
-    '4002': 'Pendapatan Pesanan Catering',
-    '5001': 'Harga Pokok Penjualan (HPP)',
-    '6001': 'Beban Gaji Karyawan',
-    '6002': 'Beban Sewa Tempat & Outlet',
-    '6003': 'Beban Listrik, Air & Gas',
-    '6004': 'Beban Marketing & Iklan',
-        '6005': 'Beban Operasional (Kurir/Ekspedisi/Lainnya)',
-    '6006': 'Beban Penyusutan',
+    '101': 'Kas di Tangan',
+    '102': 'Bank BCA',
+    '103': 'Piutang Usaha',
+    '105': 'Persediaan Bahan Baku',
+    '106': 'Peralatan & Mesin Dapur',
+    '201': 'Hutang Dagang / Supplier',
+    '202': 'Hutang Beban & Operasional',
+    '301': 'Modal Pemilik',
+    '302': 'Laba Ditahan',
+    '303': 'Prive Pemilik',
+    '401': 'Pendapatan Penjualan POS',
+    '402': 'Pendapatan Pesanan Catering',
+    '501': 'Harga Pokok Penjualan (HPP)',
+    '601': 'Beban Gaji Karyawan',
+    '602': 'Beban Sewa Tempat & Outlet',
+    '603': 'Beban Listrik, Air & Gas',
+    '604': 'Beban Marketing & Iklan',
+        '605': 'Beban Operasional (Kurir/Ekspedisi/Lainnya)',
+    '606': 'Beban Penyusutan',
     // Legacy 3-digit untuk kompatibilitas
     '101': 'Kas di Tangan',
     '102': 'Bank',
