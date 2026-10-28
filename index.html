@@ -5908,10 +5908,11 @@ git push -u origin main</pre>
 
   <!-- ALPINE.JS APPLICATION COMPONENT -->
   <script type="module">
-    import { rtdb } from '/public/firebase-config.js';
+    import { initFirebase } from '/public/firebase-config.js';
     import { ref, update } from 'firebase/database';
-    window.__rtdbModules = { rtdb, ref, update };
-    console.log('[RTDB-MODULES] Firebase Modular SDK RTDB siap:', !!rtdb);
+    const inst = initFirebase();
+    window.__rtdbModules = { rtdb: inst?.rtdb || null, ref, update };
+    console.log('[RTDB-MODULES] Firebase Modular SDK RTDB siap:', !!inst?.rtdb);
   </script>
 
   <script>

@@ -53,7 +53,9 @@
           // jika belum ada, baru inisialisasi dengan initializeApp(cfg).
           const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(cfg);
           app = firebaseApp;
-          firestoreDb = initializeFirestore(app, { experimentalForceLongPolling: true });
+          // getFirestore adalah idempotent: jika sudah ada instance untuk app ini, mengembalikan instance yang sama.
+          // Hindari initializeFirestore() yang error jika sudah dipanggil sebelumnya.
+          firestoreDb = getFirestore(app);
           // RTDB dihubungkan saat databaseURL tersedia
           if (cfg.databaseURL) {
             try { db = getDatabase(app); } catch (_) {}
