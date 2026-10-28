@@ -12908,7 +12908,7 @@ async loadMoreProducts() {
         if (total > 0) {
           try {
             const lines = [
-              { acc: '4001', debit: total, credit: 0 },
+              { acc: '401', debit: total, credit: 0 },
               { acc: kasAcc, debit: 0, credit: total }
             ];
             // Jurnal reversal HPP: Debit 105 (Persediaan), Kredit 501 (HPP)

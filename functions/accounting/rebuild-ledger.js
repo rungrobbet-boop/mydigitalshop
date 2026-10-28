@@ -20,8 +20,16 @@ const CORS_HEADERS = {
 function normalizeAcc(acc) {
   const clean = String(acc || '').trim();
   if (!clean) return '';
-  // Tidak ada konversi ke 4 digit — gunakan kode asli (3 digit)
-  return clean;
+  // Konversi 4 digit → 3 digit agar kompatibel dengan standar 3 digit sistem
+  const map4to3 = {
+    '1001': '101', '1002': '102', '1003': '103', '1004': '105', '1005': '106',
+    '2001': '201', '2002': '202',
+    '3001': '301', '3002': '303', '3003': '302',
+    '4001': '401', '4002': '402',
+    '5001': '501',
+    '6001': '601', '6002': '602', '6003': '603', '6004': '604', '6005': '605', '6006': '606'
+  };
+  return map4to3[clean] || clean;
 }
 
 function isKreditNormal(acc) {
@@ -56,6 +64,7 @@ export async function onRequest(context) {
   const auth = apiKey ? `?auth=${encodeURIComponent(apiKey)}` : '';
 
   const body = await request.json().catch(() => ({}));
+  const action = body.action || 'rebuild';
   const targetBulan = body.bulan || null;  // null = rebuild semua bulan
 
   try {
@@ -183,6 +192,69 @@ export async function onRequest(context) {
       accountCount: Object.values(ledger).reduce((sum, m) => sum + Object.keys(m).length, 0),
       ledgerSnapshot: ledger  // untuk verifikasi
     }, 200);
+
+  }
+
+  // =======================================================================
+  // ACTION: MIGRATE-ACCOUNTS (4 digit → 3 digit)
+  // =======================================================================
+  if (action === 'migrate-accounts') {
+    const journalUrl = targetBulan
+      ? `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`
+      : `${dbUrl}/accounting/journal.json${auth}`;
+
+    const res = await fetch(journalUrl);
+    const journalsData = await res.json();
+
+    if (!journalsData || typeof journalsData !== 'object') {
+      return jsonResponse({ success: false, error: 'Tidak ada jurnal ditemukan' }, 404);
+    }
+
+    const allEntries = targetBulan
+      ? Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }))
+      : Object.entries(journalsData).flatMap(([bulan, monthData]) =>
+          Object.entries(monthData || {}).map(([id, v]) => ({ id, bulan, entry: v }))
+        );
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const { id, bulan, entry } of allEntries) {
+      if (!entry || !Array.isArray(entry.lines)) {
+        skipped++;
+        continue;
+      }
+
+      let changed = false;
+      const newLines = entry.lines.map(line => {
+        const rawAcc = String(line.acc || line.code || '').trim();
+        const newAcc = normalizeAcc(rawAcc);
+        if (rawAcc !== newAcc) {
+          changed = true;
+          return { ...line, acc: newAcc };
+        }
+        return line;
+      });
+
+      if (changed) {
+        await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(id)}.json${auth}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...entry, lines: newLines })
+        });
+        migrated++;
+      } else {
+        skipped++;
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      message: `Migrasi selesai. ${migrated} jurnal dimigrasi, ${skipped} dilewati.`,
+      migrated,
+      skipped
+    });
+  }
 
   } catch (err) {
     console.error('[REBUILD-LEDGER] Error:', err);
