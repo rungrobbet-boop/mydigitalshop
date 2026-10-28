@@ -8494,11 +8494,15 @@ async loadMoreProducts() {
           const snap = await this._fbGet(logsRef);
           const val = snap.val();
           if (val && typeof val === 'object') {
-            this.inventoryLogs = Object.values(val).sort((a, b) => {
+            // Ubah Object RTDB menjadi Array dengan id yang di-set dari kunci
+            this.inventoryLogs = Object.keys(val).map(key => ({
+              ...val[key],
+              id: key
+            })).sort((a, b) => {
               return new Date(b.time || 0) - new Date(a.time || 0);
             });
             console.log('[INV-LOG] Muat ' + this.inventoryLogs.length + ' log dari RTDB');
-            console.log('CEK LOG:', this.inventoryLogs[0]);
+            console.log("CEK ARRAY LOG:", this.inventoryLogs);
             return;
           }
         } catch (rtdbErr) {
