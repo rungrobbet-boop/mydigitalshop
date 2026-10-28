@@ -3,10 +3,11 @@
  * Cloudflare Pages Function — POST /accounting/rebuild-ledger
  * 
  * Rebuild seluruh ledger dari jurnal yang berstatus "approved".
- * - Normalisasi semua kode akun ke 4-digit (fix bug ledger 3-digit vs 4-digit).
+ * - Normalisasi semua kode akun ke 3-digit (fix bug ledger 3-digit vs 4-digit).
  * - Hapus ledger lama, hitung ulang dari jurnal, simpan ke Firebase.
  * 
  * Body: { "bulan": "2026-09" }  (optional — kalau tidak ada, rebuild semua bulan)
+ * Body: { "action": "migrate-accounts", "bulan": "2026-09" }  (migrasi 4 digit ke 3 digit)
  */
 
 const CORS_HEADERS = {
@@ -67,6 +68,75 @@ export async function onRequest(context) {
   const action = body.action || 'rebuild';
   const targetBulan = body.bulan || null;  // null = rebuild semua bulan
 
+  // =======================================================================
+  // ACTION: MIGRATE-ACCOUNTS (4 digit → 3 digit)
+  // =======================================================================
+  if (action === 'migrate-accounts') {
+    try {
+      const journalUrl = targetBulan
+        ? `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`
+        : `${dbUrl}/accounting/journal.json${auth}`;
+
+      const res = await fetch(journalUrl);
+      const journalsData = await res.json();
+
+      if (!journalsData || typeof journalsData !== 'object') {
+        return jsonResponse({ success: false, error: 'Tidak ada jurnal ditemukan' }, 404);
+      }
+
+      const allEntries = targetBulan
+        ? Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }))
+        : Object.entries(journalsData).flatMap(([bulan, monthData]) =>
+            Object.entries(monthData || {}).map(([id, v]) => ({ id, bulan, entry: v }))
+          );
+
+      let migrated = 0;
+      let skipped = 0;
+
+      for (const { id, bulan, entry } of allEntries) {
+        if (!entry || !Array.isArray(entry.lines)) {
+          skipped++;
+          continue;
+        }
+
+        let changed = false;
+        const newLines = entry.lines.map(line => {
+          const rawAcc = String(line.acc || line.code || '').trim();
+          const newAcc = normalizeAcc(rawAcc);
+          if (rawAcc !== newAcc) {
+            changed = true;
+            return { ...line, acc: newAcc };
+          }
+          return line;
+        });
+
+        if (changed) {
+          await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(id)}.json${auth}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...entry, lines: newLines })
+          });
+          migrated++;
+        } else {
+          skipped++;
+        }
+      }
+
+      return jsonResponse({
+        success: true,
+        message: `Migrasi selesai. ${migrated} jurnal dimigrasi, ${skipped} dilewati.`,
+        migrated,
+        skipped
+      });
+    } catch (err) {
+      console.error('[MIGRATE-ACCOUNTS] Error:', err);
+      return jsonResponse({ success: false, error: err.message }, 500);
+    }
+  }
+
+  // =======================================================================
+  // ACTION: REBUILD (default)
+  // =======================================================================
   try {
     console.log(`[REBUILD-LEDGER] Start rebuild for bulan: ${targetBulan || 'ALL'}`);
 
@@ -105,7 +175,7 @@ export async function onRequest(context) {
         continue;
       }
 
-            if (!ledger[bulan]) ledger[bulan] = {};
+      if (!ledger[bulan]) ledger[bulan] = {};
 
       for (const line of entry.lines) {
         const rawAcc = String(line.acc || line.code || '').trim();
@@ -192,69 +262,6 @@ export async function onRequest(context) {
       accountCount: Object.values(ledger).reduce((sum, m) => sum + Object.keys(m).length, 0),
       ledgerSnapshot: ledger  // untuk verifikasi
     }, 200);
-
-  }
-
-  // =======================================================================
-  // ACTION: MIGRATE-ACCOUNTS (4 digit → 3 digit)
-  // =======================================================================
-  if (action === 'migrate-accounts') {
-    const journalUrl = targetBulan
-      ? `${dbUrl}/accounting/journal/${encodeURIComponent(targetBulan)}.json${auth}`
-      : `${dbUrl}/accounting/journal.json${auth}`;
-
-    const res = await fetch(journalUrl);
-    const journalsData = await res.json();
-
-    if (!journalsData || typeof journalsData !== 'object') {
-      return jsonResponse({ success: false, error: 'Tidak ada jurnal ditemukan' }, 404);
-    }
-
-    const allEntries = targetBulan
-      ? Object.entries(journalsData).map(([id, v]) => ({ id, bulan: targetBulan, entry: v }))
-      : Object.entries(journalsData).flatMap(([bulan, monthData]) =>
-          Object.entries(monthData || {}).map(([id, v]) => ({ id, bulan, entry: v }))
-        );
-
-    let migrated = 0;
-    let skipped = 0;
-
-    for (const { id, bulan, entry } of allEntries) {
-      if (!entry || !Array.isArray(entry.lines)) {
-        skipped++;
-        continue;
-      }
-
-      let changed = false;
-      const newLines = entry.lines.map(line => {
-        const rawAcc = String(line.acc || line.code || '').trim();
-        const newAcc = normalizeAcc(rawAcc);
-        if (rawAcc !== newAcc) {
-          changed = true;
-          return { ...line, acc: newAcc };
-        }
-        return line;
-      });
-
-      if (changed) {
-        await fetch(`${dbUrl}/accounting/journal/${encodeURIComponent(bulan)}/${encodeURIComponent(id)}.json${auth}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...entry, lines: newLines })
-        });
-        migrated++;
-      } else {
-        skipped++;
-      }
-    }
-
-    return jsonResponse({
-      success: true,
-      message: `Migrasi selesai. ${migrated} jurnal dimigrasi, ${skipped} dilewati.`,
-      migrated,
-      skipped
-    });
-  }
 
   } catch (err) {
     console.error('[REBUILD-LEDGER] Error:', err);
