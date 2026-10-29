@@ -175,6 +175,10 @@ window.accountingApp = function() {
     activeSoaEntity: '',
     soaTransactions: [],
 
+    // Ledger Rekanan State
+    searchRekanan: '',
+    ledgerRekananTransactions: [],
+
     // Filter & Periode
     bulanAktif: '2026-09',
     tahunAktif: 2026,
@@ -1128,6 +1132,164 @@ window.accountingApp = function() {
     },
 
     // ========================================================================
+    // LEDGER REKANAN (Buku Besar per Customer/Supplier)
+    // ========================================================================
+
+    async loadLedgerRekanan() {
+      const keyword = (this.searchRekanan || '').trim().toLowerCase();
+      const transactions = [];
+
+      // Ambil data jurnal dari backend untuk bulan aktif
+      try {
+        const res = await fetch(`/accounting/journal/${this.bulanAktif}`);
+        if (res.ok) {
+          const json = await res.json();
+          const journals = Array.isArray(json) ? json : (json.journals || json.data || []);
+
+          journals.forEach(j => {
+            const entity = (j.customerName || j.supplierName || j.desc || '').toLowerCase();
+            if (!keyword || entity.includes(keyword)) {
+              // Ambil semua lines dalam jurnal untuk rekanan yang match
+              if (Array.isArray(j.lines)) {
+                j.lines.forEach(l => {
+                  const acc = String(l.acc || l.code || '').trim();
+                  // Hanya tampilkan akun terkait rekanan: 103 (Piutang), 201 (Hutang), 401 (Pendapatan), 501 (HPP), 601 (Beban)
+                  // Atau semua line jika ingin melihat jurnal lengkap
+                  transactions.push({
+                    date: j.date || '',
+                    ref: j.ref || j.noEntry || j.id || '-',
+                    desc: j.desc || j.keterangan || '-',
+                    debit: Number(l.debit) || 0,
+                    credit: Number(l.credit) || 0,
+                    isVoid: j.desc && String(j.desc).toUpperCase().includes('VOID'),
+                    tipe: this._getLedgerTipe(j, l)
+                  });
+                });
+              } else {
+                // Jurnal tanpa lines, tampilkan sebagai satu baris
+                transactions.push({
+                  date: j.date || '',
+                  ref: j.ref || j.noEntry || j.id || '-',
+                  desc: j.desc || j.keterangan || '-',
+                  debit: Number(j.debit) || 0,
+                  credit: Number(j.credit) || 0,
+                  isVoid: j.desc && String(j.desc).toUpperCase().includes('VOID'),
+                  tipe: this._getLedgerTipe(j, j)
+                });
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('[LEDGER-REKANAN] Fetch error:', e);
+      }
+
+      // Urutkan berdasarkan tanggal (terlama ke terbaru)
+      transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Hitung running balance (kumulatif): Saldo = Debit - Kredit
+      let runningBalance = 0;
+      transactions.forEach(t => {
+        runningBalance += t.debit - t.credit;
+        t.runningBalance = runningBalance;
+      });
+
+      this.ledgerRekananTransactions = transactions;
+      console.log(`[LEDGER-REKANAN] ${transactions.length} transaksi untuk "${this.searchRekanan}"`);
+    },
+
+    _getLedgerTipe(j, l) {
+      const desc = String(j.desc || '').toUpperCase();
+      if (desc.includes('VOID')) return 'Void';
+      const pm = String(j.pm || j.paymentMethod || '').toLowerCase();
+      if (pm === 'kredit' || pm === 'piutang' || j.isCredit === true) return 'Kredit';
+      return 'Tunai';
+    },
+
+    downloadLedgerPdf() {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        this.showToast('Library PDF belum siap', 'error');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const entity = this.searchRekanan || '(Semua Rekanan)';
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('BUKU BESAR REKANAN', 105, 20, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(this.siteInfo?.brandName || 'TOKO BANGUNAN', 105, 28, { align: 'center' });
+      doc.text(this.siteInfo?.address || 'Alamat Toko', 105, 33, { align: 'center' });
+      doc.text('Telp: ' + (this.siteInfo?.phone || '-'), 105, 38, { align: 'center' });
+
+      // Info
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Nama Rekanan:', 20, 52);
+      doc.setFont('helvetica', 'normal');
+      doc.text(entity, 60, 52);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Periode:', 20, 58);
+      doc.setFont('helvetica', 'normal');
+      doc.text(this.bulanAktif, 45, 58);
+
+      // Tabel
+      const head = [['Tanggal', 'No. Ref', 'Deskripsi', 'Tipe', 'Debit', 'Kredit', 'Saldo']];
+      const body = this.ledgerRekananTransactions.map(t => [
+        t.date || '-',
+        t.ref || '-',
+        t.desc || '-',
+        t.tipe || '-',
+        t.debit > 0 ? this.formatRupiah(t.debit) : '-',
+        t.credit > 0 ? this.formatRupiah(t.credit) : '-',
+        this.formatRupiah(t.runningBalance)
+      ]);
+
+      doc.autoTable({
+        startY: 65,
+        head: head,
+        body: body,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 37, 36], textColor: 255 },
+        columnStyles: {
+          3: { cellWidth: 15 },
+          4: { cellWidth: 25, halign: 'right' },
+          5: { cellWidth: 25, halign: 'right' },
+          6: { cellWidth: 25, halign: 'right' }
+        }
+      });
+
+      // Footer
+      const totalDebit = this.ledgerRekananTransactions.reduce((sum, t) => sum + t.debit, 0);
+      const totalCredit = this.ledgerRekananTransactions.reduce((sum, t) => sum + t.credit, 0);
+      const finalBalance = totalDebit - totalCredit;
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Total Debit:', 120, finalY);
+      doc.text(this.formatRupiah(totalDebit), 190, finalY, { align: 'right' });
+      doc.text('Total Kredit:', 120, finalY + 6);
+      doc.text(this.formatRupiah(totalCredit), 190, finalY + 6, { align: 'right' });
+      doc.text('Saldo Akhir:', 120, finalY + 12);
+      doc.text(finalBalance >= 0 ? this.formatRupiah(finalBalance) : this.formatRupiah(Math.abs(finalBalance)) + ' (Kewajiban)', 190, finalY + 12, { align: 'right' });
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Diperbuat di ' + (this.siteInfo?.city || 'Jakarta'), 20, finalY + 15);
+      doc.text('Tanggal: ' + new Date().toLocaleDateString('id-ID'), 20, finalY + 20);
+
+      doc.save(`Ledger_Rekanan_${entity.replace(/\s+/g, '_')}_${this.bulanAktif}.pdf`);
+      this.showToast('Ledger Rekanan PDF berhasil diunduh', 'success');
+    },
+
+    // ========================================================================
     // PENERIMAAN PIUTANG (Pelunasan)
     // ========================================================================
 
@@ -1728,6 +1890,19 @@ window.accountingApp = function() {
         const tDate = String(t.date || '').slice(0, 10);
         return tDate === filterDate;
       });
+    },
+
+    // Getter untuk Ledger Rekanan totals
+    get totalLedgerDebit() {
+      return this.ledgerRekananTransactions.reduce((sum, t) => sum + (t.debit || 0), 0);
+    },
+
+    get totalLedgerCredit() {
+      return this.ledgerRekananTransactions.reduce((sum, t) => sum + (t.credit || 0), 0);
+    },
+
+    get saldoAkhirLedgerRekanan() {
+      return this.totalLedgerDebit - this.totalLedgerCredit;
     },
 
     async loadJournal(bulan) {
