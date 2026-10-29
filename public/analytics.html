@@ -502,6 +502,7 @@
 
         // Chart state
         chartPeriod: 'week',
+        analyticsPeriod: 'monthly',
         statusFilter: 'all',
         revenueChart: null,
         categoryChart: null,
@@ -621,33 +622,10 @@
             }
             
 
-            // 3. POS transactions bulan ini — ✅ OPTIMASI: 1 fetch, bukan loop 30 hari
-            var now = new Date();
-            var yyyy = now.getFullYear();
-            var mm = String(now.getMonth() + 1).padStart(2, '0');
-            var monthParam = yyyy + '-' + mm;
+            // 3. POS transactions — gunakan loadAnalyticsData untuk periode bulanan
+            await this.loadAnalyticsData('monthly');
 
-            try {
-              var posRes = await fetch('/pos/transactions?month=' + monthParam);
-              if (posRes.ok) {
-                var posJson = await posRes.json();
-                var rawList = (posJson && Array.isArray(posJson.data)) ? posJson.data : [];
-                this.posTransactions = rawList.map(function(tx) {
-                  return Object.assign({}, tx, {
-                    __date: tx.date || '',
-                    __id: tx.id || ''
-                  });
-                });
-              } else {
-                this.posTransactions = [];
-              }
-            } catch (posErr) {
-              console.warn('POS transactions fetch error:', posErr);
-              this.posTransactions = [];
-            }
-            
-
-                        // 3b. Load Audit Logs (dari PIN Supervisor actions)
+            // 3b. Load Audit Logs (dari PIN Supervisor actions)
             try {
               var auditRes = await fetch('/pos/audit_logs?limit=200');
               if (auditRes.ok) {
@@ -681,6 +659,55 @@
           } catch (err) {
             console.error('[ANALYTICS] Load error:', err);
             this.loadError = err.message || 'Gagal memuat data';
+          } finally {
+            this.isLoading = false;
+          }
+        },
+
+        // ============================================================
+        // FASE 9: Load Analytics Data dari /pos/transactions
+        // ============================================================
+        async loadAnalyticsData(period) {
+          this.isLoading = true;
+          this.loadError = '';
+          try {
+            var now = new Date();
+            var url;
+
+            if (period === 'monthly') {
+              var yyyy = now.getFullYear();
+              var mm = String(now.getMonth() + 1).padStart(2, '0');
+              url = '/pos/transactions?month=' + yyyy + '-' + mm;
+            } else if (period === 'weekly') {
+              var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600000);
+              var startStr = getLocalDateStr(sevenDaysAgo);
+              var endStr = getLocalDateStr(now);
+              url = '/pos/transactions?start=' + startStr + '&end=' + endStr;
+            } else if (period === 'daily') {
+              var todayStr = getLocalDateStr(now);
+              url = '/pos/transactions?start=' + todayStr + '&end=' + todayStr;
+            } else {
+              url = '/pos/transactions';
+            }
+
+            console.log('[ANALYTICS] Fetching transactions:', url);
+            var posRes = await fetch(url);
+            if (posRes.ok) {
+              var posJson = await posRes.json();
+              var rawList = (posJson && Array.isArray(posJson.data)) ? posJson.data : [];
+              this.posTransactions = rawList.map(function(tx) {
+                return Object.assign({}, tx, {
+                  __date: tx.date || '',
+                  __id: tx.id || ''
+                });
+              });
+            } else {
+              this.posTransactions = [];
+            }
+            console.log('[ANALYTICS] Loaded', this.posTransactions.length, 'transactions for period:', period);
+          } catch (posErr) {
+            console.warn('[ANALYTICS] Fetch error:', posErr);
+            this.posTransactions = [];
           } finally {
             this.isLoading = false;
           }
@@ -976,52 +1003,47 @@
         // ============================================================
 
         exportCSV(period) {
+          this.analyticsPeriod = period;
+          this.loadAnalyticsData(period);
+
           var now = new Date();
-          var filtered = this.orders.slice();
+          var filtered = this.posTransactions.slice();
 
           if (period === 'daily') {
-            filtered = filtered.filter(function(o) {
-              var d = new Date(o.createdAt);
-              return d.toDateString() === now.toDateString();
-            });
+            var todayStr = getLocalDateStr(now);
+            filtered = filtered.filter(function(tx) { return tx.__date === todayStr; });
           } else if (period === 'weekly') {
             var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600000);
-            filtered = filtered.filter(function(o) { return new Date(o.createdAt) >= sevenDaysAgo; });
+            var sevenDaysStr = getLocalDateStr(sevenDaysAgo);
+            filtered = filtered.filter(function(tx) { return tx.__date >= sevenDaysStr; });
           } else if (period === 'monthly') {
-            filtered = filtered.filter(function(o) {
-              var d = new Date(o.createdAt);
-              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            });
+            var yyyy = now.getFullYear();
+            var mm = String(now.getMonth() + 1).padStart(2, '0');
+            var monthPrefix = yyyy + '-' + mm;
+            filtered = filtered.filter(function(tx) { return tx.__date && tx.__date.startsWith(monthPrefix); });
           }
 
           if (filtered.length === 0) {
-            alert('Tidak ada transaksi pada periode ' + period + '. Mengekspor seluruh data transaksi.');
-            filtered = this.orders;
+            alert('Tidak ada transaksi penjualan pada periode ' + period + '. Data tidak diekspor.');
+            return;
           }
 
-          var headers = ['Order ID','Tanggal','Jam','Nama Pelanggan','No WhatsApp','Alamat Pengiriman','Daftar Menu','Subtotal (IDR)','Ongkir (IDR)','Kurir','Total Bayar (IDR)','Status'];
+          var headers = ['Tanggal','Waktu','Metode Pembayaran','Total (IDR)','Status'];
 
-          var rows = filtered.map(function(o) {
-            var dateObj = new Date(o.createdAt || Date.now());
+          var rows = filtered.map(function(tx) {
+            var dateObj = new Date(tx.__date || Date.now());
             var dateStr = dateObj.toLocaleDateString('id-ID');
             var timeStr = dateObj.toLocaleTimeString('id-ID');
-            var menuText = (o.items || []).map(function(i) {
-              return (i.name || i.id) + ' (' + (i.quantity || i.qty || 1) + 'x)';
-            }).join(' | ');
+            var pm = tx.pm || tx.paymentMethod || 'cash';
+            var status = tx.voided === true ? 'Void' : 'Selesai';
+            var amt = Number(tx.tot || tx.total || tx.amount || 0);
 
             return [
-              '"' + (o.orderId || '') + '"',
               '"' + dateStr + '"',
               '"' + timeStr + '"',
-              '"' + ((o.customer && o.customer.name) || o.customerName || '').replace(/"/g, '""') + '"',
-              '"' + ((o.customer && o.customer.phone) || o.customerPhone || '').replace(/"/g, '""') + '"',
-              '"' + ((o.customer && o.customer.address) || o.customerAddress || '').replace(/"/g, '""') + '"',
-              '"' + menuText.replace(/"/g, '""') + '"',
-              o.subtotal || 0,
-              o.courierFee || 0,
-              '"' + ((o.courier && o.courier.name) || 'GoSend') + '"',
-              o.totalAmount || 0,
-              '"' + (o.status || 'Pending') + '"'
+              '"' + pm + '"',
+              amt,
+              '"' + status + '"'
             ].join(',');
           });
 
