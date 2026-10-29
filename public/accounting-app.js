@@ -1257,7 +1257,7 @@ window.accountingApp = function() {
     saldoKasTersedia: 0,
 
     // Buka modal pembayaran hutang dari SOA modal
-    openPaySupplierModal(supplierName) {
+    async openPaySupplierModal(supplierName) {
       this.activeSoaType = 'hutang';
       this.activeSoaEntity = supplierName;
       this.hutangPaymentEntityName = supplierName; // ← Tambahkan agar submitPembayaranHutang tidak gagal validasi
@@ -1267,6 +1267,14 @@ window.accountingApp = function() {
       this.hutangPaymentAmount = saldoSisa > 0 ? saldoSisa : 0;
       this.hutangPaymentMethod = 'cash';
       this.hutangPaymentNotes = 'Pelunasan Hutang - ' + supplierName;
+
+      // Muat ulang data COA dan jurnal agar saldo kas akurat
+      try {
+        if (typeof this.loadCOA === 'function') await this.loadCOA();
+      } catch (e) { console.warn('[MODAL-PAY] Gagal load COA:', e); }
+      try {
+        if (typeof this.loadJournal === 'function') await this.loadJournal(this.bulanAktif);
+      } catch (e) { console.warn('[MODAL-PAY] Gagal load jurnal:', e); }
 
       // Hitung saldo kas tersedia untuk ditampilkan di modal
       this.saldoKasTersedia = this.getSaldoKasLaci();
