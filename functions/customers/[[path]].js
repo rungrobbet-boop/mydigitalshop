@@ -69,6 +69,7 @@ function docToCustomer(doc) {
     addressKtp: f.addressKtp?.stringValue || "",
     officePhone: f.officePhone?.stringValue || "",
     tempoKredit: toNum(f.tempoKredit?.integerValue || 30),
+    notes: f.notes?.stringValue || "",
     createdAt: f.createdAt?.stringValue || "",
     updatedAt: f.updatedAt?.stringValue || "",
   };
@@ -149,7 +150,7 @@ export async function onRequest(context) {
     // ========================================================================
     if (method === "POST" && pathParts.length === 1) {
       const body = await request.json().catch(() => ({}));
-      const { name, phone, email, addressKirim, addressKtp, officePhone, tempoKredit } = body;
+      const { name, phone, email, addressKirim, addressKtp, officePhone, tempoKredit, notes } = body;
 
       if (!name || !phone) {
         return new Response(
@@ -179,6 +180,7 @@ export async function onRequest(context) {
           addressKtp: fvString(addressKtp || ""),
           officePhone: fvString(officePhone || ""),
           tempoKredit: fvInteger(tempoKredit || 30),
+          notes: fvString(notes || ""),
           createdAt: fvString(now),
           updatedAt: fvString(now),
         },
@@ -215,7 +217,7 @@ export async function onRequest(context) {
 
       const fields = {};
       const mask = [];
-      for (const key of ["name", "phone", "email", "addressKirim", "addressKtp", "officePhone"]) {
+      for (const key of ["name", "phone", "email", "addressKirim", "addressKtp", "officePhone", "notes"]) {
         if (body[key] !== undefined) {
           fields[key] = fvString(body[key]);
           mask.push(key);

@@ -4126,13 +4126,13 @@ async loadMoreProducts() {
     try {
       const isUpdate = !!this.selectedCustomer?.id;
       const res = await fetch(
-        isUpdate ? `/customers/${encodeURIComponent(this.selectedCustomer.id)}` : '/customers',
+        isUpdate ? `/customers/${encodeURIComponent(this.selectedCustomer?.id || '')}` : '/customers',
         {
           method: isUpdate ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...this.customerForm,
-            tempoKredit: Number(this.customerForm.tempoKredit) || 30,
+            tempoKredit: Number(this.customerForm?.tempoKredit) || 30,
           }),
         }
       );
@@ -4140,12 +4140,13 @@ async loadMoreProducts() {
       if (!res.ok) throw new Error('Gagal menyimpan customer');
       const json = await res.json();
       if (json.success) {
-        const savedCustomer = json.data || this.customerForm;
+        const savedCustomer = json.data || this.customerForm || {};
         this.selectedCustomer = {
-          id: savedCustomer.id || this.selectedCustomer?.id,
-          name: savedCustomer.name || this.customerForm.name,
-          phone: savedCustomer.phone || this.customerForm.phone,
-          tempoKredit: Number(savedCustomer.tempoKredit || this.customerForm.tempoKredit) || 30,
+          id: savedCustomer?.id || this.selectedCustomer?.id,
+          name: savedCustomer?.name || this.customerForm.name,
+          phone: savedCustomer?.phone || this.customerForm.phone,
+          tempoKredit: Number(savedCustomer?.tempoKredit || this.customerForm.tempoKredit) || 30,
+          notes: savedCustomer?.notes || this.customerForm.notes || '',
         };
 
         this.showToast(isUpdate ? 'Customer berhasil diupdate' : 'Customer berhasil ditambahkan', 'success');
@@ -4153,7 +4154,7 @@ async loadMoreProducts() {
         await this.loadCustomers();
 
         // ✅ Alur kredit: setelah customer disimpan, langsung panggil simpanTransaksi kredit
-        const tempoKredit = Number(this.selectedCustomer.tempoKredit) || 30;
+        const tempoKredit = Number(this.selectedCustomer?.tempoKredit) || 30;
         const today = new Date();
         const dueDate = new Date(today);
         dueDate.setDate(dueDate.getDate() + tempoKredit);
@@ -4161,12 +4162,12 @@ async loadMoreProducts() {
 
         await this.simpanTransaksi({
           method: 'kredit',
-          customerId: this.selectedCustomer.id,
-          customerName: this.selectedCustomer.name,
+          customerId: this.selectedCustomer?.id,
+          customerName: this.selectedCustomer?.name,
           dueDate: dueDateStr,
         });
       } else {
-        this.showToast(json.error || 'Gagal menyimpan customer', 'error');
+        this.showToast(json?.error || 'Gagal menyimpan customer', 'error');
       }
     } catch (e) {
       this.showToast('Gagal menyimpan customer: ' + e.message, 'error');
@@ -4184,6 +4185,7 @@ async loadMoreProducts() {
       addressKtp: '',
       officePhone: '',
       tempoKredit: 30,
+      notes: '',
     };
     this.showCustomerModal = true;
     this.$nextTick(() => {

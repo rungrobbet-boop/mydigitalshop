@@ -163,6 +163,10 @@ window.accountingApp = function() {
     showFinancePinModal: false,       // modal PIN aktif
     financePinInput: '',
     financePinError: '',
+    // Realtime listener cleanup refs
+    _journalUnsub: null,
+    _ledgerUnsub: null,
+    _summaryUnsub: null,
     
     // Filter & Periode
     bulanAktif: '2026-09',
@@ -566,7 +570,14 @@ window.accountingApp = function() {
 
       // 9. Daftarkan hook global ke window
       window._accountingAppInstance = this;
-      console.log('[ACCT-APP] Accounting App initialized with real data');
+
+
+      // Cleanup realtime listeners on page unload
+      window.addEventListener('beforeunload', () => {
+        if (this._journalUnsub) { try { this._journalUnsub(); } catch (e) {} }
+        if (this._ledgerUnsub) { try { this._ledgerUnsub(); } catch (e) {} }
+        if (this._summaryUnsub) { try { this._summaryUnsub(); } catch (e) {} }
+      });      console.log('[ACCT-APP] Accounting App initialized with real data');
 
       // ✅ Splash minimum display 1800ms
       if (typeof window.__splashStart === 'undefined') window.__splashStart = Date.now();
@@ -645,6 +656,13 @@ window.accountingApp = function() {
      */
     async loadSummary(bulan) {
       const targetBulan = bulan || this.bulanAktif;
+
+      // Cleanup previous summary listener
+      if (this._summaryUnsub) {
+        try { this._summaryUnsub(); } catch (e) {}
+        this._summaryUnsub = null;
+      }
+
       try {
         this.loadingSummary = true;
         console.log(`[ACCT-APP] Fetching summary for period ${targetBulan}...`);
@@ -764,6 +782,35 @@ window.accountingApp = function() {
         piutang: getVal(this.summary?.piutang, this.laporanData.balanceSheet?.piutang),
         hutangSupplier: getVal(this.summary?.hutang ?? this.summary?.hutangSupplier, this.laporanData.balanceSheet?.hutangSupplier)
       };
+    // ========================================================================
+    // REALTIME LISTENER: onValue untuk /accounting/summary/${bulan}
+    // ========================================================================
+    if (typeof window.rtdb !== 'undefined' && typeof window.ref !== 'undefined' && typeof window.onValue !== 'undefined') {
+      try {
+        const summaryRef = window.ref(window.rtdb, `accounting/summary/${targetBulan}`);
+        this._summaryUnsub = window.onValue(summaryRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            console.log('[ACCT-APP] 🔄 Realtime summary update:', data);
+            const d = data;
+            this.summary = {
+              totalAset: Number(d.totalAset) || 0,
+              totalKewajiban: Number(d.totalKewajiban) || 0,
+              totalEkuitas: Number(d.totalEkuitas) || 0,
+              labaBulanIni: Number(d.labaBersih) || 0,
+              kas: Number(d.saldoKas) || 0,
+              bank: Number(d.saldoBank) || 0,
+              piutang: Number(d.piutang) || 0,
+              hutang: Number(d.hutangSupplier) || 0
+            };
+          }
+        });
+        console.log(`[ACCT-APP] ✅ Realtime listener attached for summary/${targetBulan}`);
+      } catch (e) {
+        console.warn('[ACCT-APP] Realtime summary listener error:', e);
+      }
+    }
+
     },
 
     /**
@@ -1133,6 +1180,13 @@ window.accountingApp = function() {
 
     async loadJournal(bulan) {
       const targetBulan = bulan || this.bulanAktif;
+
+      // Cleanup previous journal listener
+      if (this._journalUnsub) {
+        try { this._journalUnsub(); } catch (e) {}
+        this._journalUnsub = null;
+      }
+
       try {
         console.log(`[ACCT-APP] Loading Journal for period ${targetBulan}...`);
         let list = null;
@@ -1161,6 +1215,31 @@ window.accountingApp = function() {
 
         // Jika tidak ada data, list kosong (TIDAK ADA DATA DUMMY)
         this.jurnalList = Array.isArray(list) ? list : [];
+
+        // ========================================================================
+        // REALTIME LISTENER: onValue untuk /accounting/journal/${bulan}
+        // ========================================================================
+        if (typeof window.rtdb !== 'undefined' && typeof window.ref !== 'undefined' && typeof window.onValue !== 'undefined') {
+          try {
+            const journalRef = window.ref(window.rtdb, `accounting/journal/${targetBulan}`);
+            this._journalUnsub = window.onValue(journalRef, (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                const listFromDb = Object.entries(data).map(([key, v]) => ({
+                  ...(v || {}),
+                  id: v.id || key
+                })).sort((a, b) => new Date(b.date || b.timestamp || 0) - new Date(a.date || a.timestamp || 0));
+                this.jurnalList = listFromDb;
+                console.log(`[ACCT-APP] 🔄 Realtime journal update: ${listFromDb.length} entries`);
+              } else {
+                this.jurnalList = [];
+              }
+            });
+            console.log(`[ACCT-APP] ✅ Realtime listener attached for journal/${targetBulan}`);
+          } catch (e) {
+            console.warn('[ACCT-APP] Realtime journal listener error:', e);
+          }
+        }
 
         // Normalisasi struktur jurnal jika diperlukan
         // Helper: mapping kode akun → nama
@@ -1754,11 +1833,17 @@ this.jurnalList.forEach(j => {
      * Memuat buku besar real akun tertentu
      */
     async loadLedger(accCode, bulan) {
-      const targetAcc = accCode || this.ledgerAkun || '101';
-      const targetBulan = bulan || this.bulanAktif;
-      this.ledgerAkun = targetAcc;
+       const targetAcc = accCode || this.ledgerAkun || '101';
+       const targetBulan = bulan || this.bulanAktif;
+       this.ledgerAkun = targetAcc;
 
-      const accObj = this.coaList.find(c => c.code === targetAcc) || {
+       // Cleanup previous ledger listener
+       if (this._ledgerUnsub) {
+         try { this._ledgerUnsub(); } catch (e) {}
+         this._ledgerUnsub = null;
+       }
+
+       const accObj = this.coaList.find(c => c.code === targetAcc) || {
         code: targetAcc,
         name: 'Akun ' + targetAcc,
         type: 'Aset',
@@ -1875,6 +1960,26 @@ this.jurnalList.forEach(j => {
           closingBalance: 0,
           transactions: []
         };
+      }
+
+      // ========================================================================
+      // REALTIME LISTENER: onValue untuk /accounting/ledger/${acc}/${bulan}
+      // ========================================================================
+      if (typeof window.rtdb !== 'undefined' && typeof window.ref !== 'undefined' && typeof window.onValue !== 'undefined') {
+        try {
+          const ledgerRef = window.ref(window.rtdb, `accounting/ledger/${targetAcc}/${targetBulan}`);
+          this._ledgerUnsub = window.onValue(ledgerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+              console.log(`[ACCT-APP] 🔄 Realtime ledger update for ${targetAcc}`);
+              // Re-render ledger from updated jurnalList
+              this.loadLedger(targetAcc, targetBulan);
+            }
+          });
+          console.log(`[ACCT-APP] ✅ Realtime listener attached for ledger/${targetAcc}/${targetBulan}`);
+        } catch (e) {
+          console.warn('[ACCT-APP] Realtime ledger listener error:', e);
+        }
       }
 
       return this.ledgerData;

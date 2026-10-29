@@ -131,6 +131,14 @@
     import { firebaseConfig } from '/firebase-config.js';
     window.firebaseConfig = firebaseConfig;
   </script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+    const app = initializeApp(window.firebaseConfig || {});
+    window.rtdb = getDatabase(app);
+    window.ref = ref;
+    window.onValue = onValue;
+  </script>
   <script defer src="/accounting-app.js"></script>
 
   <!-- Alpine.js CDN -->

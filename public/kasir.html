@@ -8224,6 +8224,16 @@
           placeholder="Telepon kantor (opsional)">
       </div>
 
+      <div>
+        <label class="block text-xs font-bold text-stone-700 mb-1">Keterangan</label>
+        <input
+          type="text"
+          x-model="customerForm.notes"
+          @click.stop
+          class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
+          placeholder="Keterangan (opsional)">
+      </div>
+
       <!-- Tombol Aksi -->
       <div class="flex justify-end gap-2 mt-4">
         <button
