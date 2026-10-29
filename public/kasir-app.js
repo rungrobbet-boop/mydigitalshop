@@ -4354,8 +4354,20 @@ async loadMoreProducts() {
     const serviceCharge = Number(tx.serviceCharge || 0) || 0;
     const subtotal = grandTotal - disc - tax - serviceCharge;
 
+    // Hitung item subtotal & diskon total dari items
+    let itemSubtotal = 0;
+    let itemDiscTotal = 0;
+    (tx.items || []).forEach(item => {
+      const isArray = Array.isArray(item);
+      const qty = isArray ? item[1] : item.qty;
+      const basePrice = isArray ? item[2] : (item.basePrice || item.price || 0);
+      const itemDiscount = isArray ? 0 : (item.itemDiscount || 0);
+      itemSubtotal += (basePrice - itemDiscount) * qty;
+      itemDiscTotal += itemDiscount;
+    });
+
     // ========================================================================
-    // 2. BUAT 2 INSTANCE jsPDF (Invoice & Surat Jalan)
+    // 2. BUAT 2 INSTANCE jsPDF (Invoice & Surat Jalan) — A5 Landscape
     // ========================================================================
     const docInvoice = new jsPDF('l', 'mm', 'a5');
     const docSuratJalan = new jsPDF('l', 'mm', 'a5');
@@ -4364,56 +4376,91 @@ async loadMoreProducts() {
     const brandAddress = this.siteInfo?.address || 'Alamat Toko';
     const brandPhone = this.siteInfo?.phone || '-';
 
-    // Helper: cetak header toko (tengah)
+    // Helper: cetak header toko (judul rata kanan)
     const printTokoHeader = (doc, title) => {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text(title, 105, 12, { align: 'center' });
+      doc.text(title, 200, 12, { align: 'right' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(brandName, 200, 18, { align: 'right' });
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text(brandName, 105, 17, { align: 'center' });
-      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 105, 22, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 200, 23, { align: 'right' });
 
       // Garis pemisah full-width
       doc.setLineWidth(0.5);
       doc.setDrawColor(41, 37, 36);
-      doc.line(10, 28, 200, 28);
+      doc.line(5, 28, 205, 28);
     };
 
-    // Helper: cetak tabel barang
+    // Helper: cetak tabel barang dengan alignment per kolom
     const printItemTable = (doc, startY, includePrice = true) => {
       const tableData = (tx.items || []).map((item, idx) => {
-        const itemId = Array.isArray(item) ? item[0] : item.id;
-        const qty = Array.isArray(item) ? item[1] : item.qty;
-        const price = Array.isArray(item) ? item[2] : item.price;
+        const isArray = Array.isArray(item);
+        const itemId = isArray ? item[0] : item.id;
+        const qty = isArray ? item[1] : item.qty;
+        const basePrice = isArray ? item[2] : (item.basePrice || item.price || 0);
+        const itemDiscount = isArray ? 0 : (item.itemDiscount || 0);
+        const itemTotal = (basePrice - itemDiscount) * qty;
 
         // Lookup nama barang dari menuList
         const foundMenu = this.menuList.find(m => String(m.id) === String(itemId));
-        const itemName = foundMenu ? foundMenu.name : (Array.isArray(item) ? item[0] : item.name || itemId);
+        const itemName = foundMenu ? foundMenu.name : (isArray ? item[0] : item.name || itemId);
 
         if (includePrice) {
-          return [String(idx + 1), itemName, String(qty), this.formatRupiah(price), this.formatRupiah(qty * price)];
+          // Invoice: No | Nama Barang | Qty | Diskon | Harga Satuan | Total
+          return [
+            String(idx + 1),
+            itemName,
+            String(qty),
+            itemDiscount > 0 ? this.formatRupiah(itemDiscount) : '-',
+            this.formatRupiah(basePrice),
+            this.formatRupiah(itemTotal)
+          ];
         }
-        return [String(idx + 1), itemName, String(qty)];
+        // Surat Jalan: No | ID/Barcode | Nama Barang | Qty | Keterangan
+        const sku = isArray ? '' : (item.sku || item.barcode || '');
+        return [
+          String(idx + 1),
+          sku || '-',
+          itemName,
+          String(qty),
+          ''
+        ];
       });
 
       const head = includePrice
-        ? [['No', 'Nama Barang', 'Qty', 'Harga Satuan', 'Total']]
-        : [['No', 'Nama Barang', 'Qty']];
+        ? [['No', 'Nama Barang', 'Qty', 'Diskon', 'Harga Satuan', 'Total']]
+        : [['No', 'ID/Barcode', 'Nama Barang', 'Qty', 'Keterangan']];
 
       doc.autoTable({
         startY: startY,
         head: head,
         body: tableData,
         theme: 'grid',
-        styles: { fontSize: 8, cellWidth: 'wrap', halign: 'center' },
+        styles: { fontSize: 8 },
         headStyles: { fillColor: [41, 37, 36], textColor: 255 },
-        margin: { left: 30, right: 30 },
-        tableWidth: 'auto',
+        margin: { left: 5, right: 5 },
+        tableWidth: 'wrap',
         columnStyles: includePrice
-          ? { 0: { cellWidth: 10 }, 1: { cellWidth: 60, halign: 'left' }, 2: { cellWidth: 15 }, 3: { cellWidth: 35 }, 4: { cellWidth: 35 } }
-          : { 0: { cellWidth: 10 }, 1: { cellWidth: 80, halign: 'left' }, 2: { cellWidth: 15 } },
+          ? {
+              0: { cellWidth: 12, halign: 'center' },    // No
+              1: { cellWidth: 55, halign: 'left' },      // Nama Barang
+              2: { cellWidth: 15, halign: 'center' },    // Qty
+              3: { cellWidth: 25, halign: 'center' },    // Diskon
+              4: { cellWidth: 35, halign: 'right' },     // Harga Satuan
+              5: { cellWidth: 35, halign: 'right' }      // Total
+            }
+          : {
+              0: { cellWidth: 12, halign: 'center' },    // No
+              1: { cellWidth: 25, halign: 'center' },    // ID/Barcode
+              2: { cellWidth: 70, halign: 'left' },      // Nama Barang
+              3: { cellWidth: 15, halign: 'center' },    // Qty
+              4: { cellWidth: 75, halign: 'left' }       // Keterangan
+            },
       });
       return doc.lastAutoTable.finalY;
     };
@@ -4423,79 +4470,86 @@ async loadMoreProducts() {
     // ========================================================================
     printTokoHeader(docInvoice, 'INVOICE');
 
-    // Info Transaksi (Kiri) & Info Customer (Kanan) — sejajar, tanpa baris kosong
+    // Blok Informasi 2 Kolom
     docInvoice.setFontSize(9);
     docInvoice.setFont('helvetica', 'normal');
     let y = 33;
-    docInvoice.text('No. Invoice : ' + tx.id, 20, y);
-    docInvoice.text('Tanggal     : ' + txDate, 20, y + 5);
-    docInvoice.text('Jatuh Tempo : ' + dueDate, 20, y + 10);
 
-    // Info Customer (Kanan) — tanpa "Kepada Yth."
-    docInvoice.text('Nama        : ' + customerName, 130, y);
-    docInvoice.text('No. HP      : ' + customerPhone, 130, y + 5);
-    docInvoice.text('Alamat Kirim: ' + customerAddress, 130, y + 10);
+    // Kolom Kiri (x=10) — rata kiri
+    docInvoice.text('No. Invoice : ' + tx.id, 10, y, { align: 'left' });
+    docInvoice.text('Tanggal     : ' + txDate, 10, y + 5, { align: 'left' });
+    docInvoice.text('Jatuh Tempo : ' + dueDate, 10, y + 10, { align: 'left' });
 
-    // Tabel Barang (dengan harga)
-    const tableEndY = printItemTable(docInvoice, y + 15, true);
+    // Kolom Kanan (x=200) — rata kanan
+    docInvoice.text('Kepada Yth: ' + customerName, 200, y, { align: 'right' });
+    docInvoice.text('No. HP: ' + customerPhone, 200, y + 5, { align: 'right' });
+    docInvoice.text('Alamat Kirim: ' + customerAddress, 200, y + 10, { align: 'right' });
 
-    // Rincian bawah tabel
+    // Tabel Barang (dengan harga & diskon)
+    const tableEndY = printItemTable(docInvoice, y + 18, true);
+
+    // Rincian bawah tabel (rata kanan)
     let detailY = tableEndY + 8;
     docInvoice.setFontSize(9);
     docInvoice.setFont('helvetica', 'normal');
 
-    docInvoice.text('Subtotal', 150, detailY);
-    docInvoice.text(this.formatRupiah(subtotal), 190, detailY, { align: 'right' });
+    docInvoice.text('Subtotal', 180, detailY);
+    docInvoice.text(this.formatRupiah(itemSubtotal), 200, detailY, { align: 'right' });
     detailY += 5;
 
-    if (disc > 0) {
-      docInvoice.text('Diskon', 150, detailY);
-      docInvoice.text('- ' + this.formatRupiah(disc), 190, detailY, { align: 'right' });
+    if (itemDiscTotal > 0) {
+      docInvoice.text('Diskon', 180, detailY);
+      docInvoice.text('- ' + this.formatRupiah(itemDiscTotal), 200, detailY, { align: 'right' });
       detailY += 5;
     }
 
-    if (tax > 0) {
-      docInvoice.text('PPN', 150, detailY);
-      docInvoice.text(this.formatRupiah(tax), 190, detailY, { align: 'right' });
+    if (disc > 0) {
+      docInvoice.text('Diskon Transaksi', 180, detailY);
+      docInvoice.text('- ' + this.formatRupiah(disc), 200, detailY, { align: 'right' });
       detailY += 5;
     }
 
     if (serviceCharge > 0) {
-      docInvoice.text('Ongkir/Biaya', 150, detailY);
-      docInvoice.text(this.formatRupiah(serviceCharge), 190, detailY, { align: 'right' });
+      docInvoice.text('Ongkir/Biaya', 180, detailY);
+      docInvoice.text(this.formatRupiah(serviceCharge), 200, detailY, { align: 'right' });
       detailY += 5;
     }
 
-    // TOTAL (Bold)
+    if (tax > 0) {
+      docInvoice.text('PPN', 180, detailY);
+      docInvoice.text(this.formatRupiah(tax), 200, detailY, { align: 'right' });
+      detailY += 5;
+    }
+
+    // TOTAL TAGIHAN (Bold)
     detailY += 5;
     docInvoice.setFontSize(11);
     docInvoice.setFont('helvetica', 'bold');
-    docInvoice.text('TOTAL', 150, detailY);
-    docInvoice.text(this.formatRupiah(grandTotal), 190, detailY, { align: 'right' });
+    docInvoice.text('TOTAL TAGIHAN', 180, detailY);
+    docInvoice.text(this.formatRupiah(grandTotal), 200, detailY, { align: 'right' });
 
-    // Tanda Tangan (dua kolom berdampingan) — struktur yang benar
-    let sigY = detailY + 15; // Jarak wajar dari TOTAL ke teks label TTD
+    // Tanda Tangan (rata kiri, bukan center) — currentY += 15
+    let sigY = detailY + 15;
 
     docInvoice.setFontSize(8);
     docInvoice.setFont('helvetica', 'normal');
-    docInvoice.text('Penerima', 70, sigY);
-    docInvoice.text('Dibuat Oleh', 140, sigY);
+    docInvoice.text('Penerima', 15, sigY, { align: 'left' });
+    docInvoice.text('Dibuat Oleh', 110, sigY, { align: 'left' });
 
-    // Beri jarak lebar untuk TTD (15mm ke bawah - proporsional dengan font 8-9pt)
-    sigY += 15;
+    // Garis TTD di currentY + 20
+    sigY += 20;
 
-    // Garis horizontal
     docInvoice.setLineWidth(0.5);
     docInvoice.setDrawColor(41, 37, 36);
-    docInvoice.line(70, sigY, 120, sigY); // Garis Penerima
-    docInvoice.line(140, sigY, 190, sigY); // Garis Dibuat Oleh
+    docInvoice.line(15, sigY, 70, sigY);    // Garis Penerima
+    docInvoice.line(110, sigY, 165, sigY); // Garis Dibuat Oleh
 
-    // Teks di bawah garis
+    // Teks "Tanda Tangan" di currentY + 25
     sigY += 5;
-    docInvoice.text('(Nama & Tanda Tangan)', 70, sigY);
-    docInvoice.text('(Kasir)', 140, sigY);
+    docInvoice.text('Tanda Tangan', 15, sigY, { align: 'left' });
+    docInvoice.text('Tanda Tangan', 110, sigY, { align: 'left' });
 
-    // Footer (beri jarak dari garis TTD)
+    // Footer Invoice (italic, size 7, rata tengah)
     let footY = sigY + 12;
     docInvoice.setFontSize(7);
     docInvoice.setFont('helvetica', 'italic');
@@ -4510,52 +4564,53 @@ async loadMoreProducts() {
     // ========================================================================
     printTokoHeader(docSuratJalan, 'SURAT JALAN');
 
-    // Info Customer (Kiri)
+    // Blok Informasi 2 Kolom
     docSuratJalan.setFontSize(9);
     docSuratJalan.setFont('helvetica', 'normal');
-    let sjY = 40;
-    docSuratJalan.text('Nama        : ' + customerName, 20, sjY);
-    docSuratJalan.text('No. HP      : ' + customerPhone, 20, sjY + 5);
-    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 20, sjY + 10);
+    let sjY = 33;
 
-    // Info Transaksi (Kanan)
-    docSuratJalan.text('No. Invoice : ' + tx.id, 150, sjY, { align: 'right' });
-    docSuratJalan.text('Tanggal     : ' + txDate, 150, sjY + 5, { align: 'right' });
+    // Kolom Kiri (x=10) — rata kiri
+    docSuratJalan.text('No. Invoice : ' + tx.id, 10, sjY, { align: 'left' });
+    docSuratJalan.text('Tanggal     : ' + txDate, 10, sjY + 5, { align: 'left' });
 
-    // Tabel Barang (tanpa harga)
-    const sjTableEndY = printItemTable(docSuratJalan, sjY + 15, false);
+    // Kolom Kanan (x=200) — rata kanan
+    docSuratJalan.text('Kepada Yth: ' + customerName, 200, sjY, { align: 'right' });
+    docSuratJalan.text('No. HP: ' + customerPhone, 200, sjY + 5, { align: 'right' });
+    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 200, sjY + 10, { align: 'right' });
 
-    // Tanda Tangan (empat kolom berdampingan) — struktur yang benar
-    let sjSigY = sjTableEndY + 15; // Jarak wajar dari tabel ke teks label TTD
+    // Tabel Barang (tanpa harga & total)
+    const sjTableEndY = printItemTable(docSuratJalan, sjY + 18, false);
+
+    // Tanda Tangan (4 kolom, rata kiri) — currentY += 15
+    let sjSigY = sjTableEndY + 15;
 
     docSuratJalan.setFontSize(8);
     docSuratJalan.setFont('helvetica', 'normal');
 
     const signCols = [
-      { x: 40, label: 'Penerima' },
-      { x: 100, label: 'Pengirim' },
-      { x: 160, label: 'Dicek Oleh' },
-      { x: 220, label: 'Dibuat Oleh' },
+      { x: 15, label: 'Penerima' },
+      { x: 70, label: 'Pengirim' },
+      { x: 125, label: 'Dicek Oleh' },
+      { x: 175, label: 'Dibuat Oleh' },
     ];
 
     signCols.forEach((col) => {
-      docSuratJalan.text(col.label, col.x, sjSigY);
+      docSuratJalan.text(col.label, col.x, sjSigY, { align: 'left' });
     });
 
-    // Beri jarak lebar untuk TTD (15mm ke bawah - proporsional dengan font 8-9pt)
-    sjSigY += 15;
+    // Garis TTD di currentY + 20
+    sjSigY += 20;
 
-    // Gambar garis horizontal untuk setiap kolom
     docSuratJalan.setLineWidth(0.5);
     docSuratJalan.setDrawColor(41, 37, 36);
     signCols.forEach((col) => {
       docSuratJalan.line(col.x, sjSigY, col.x + 50, sjSigY);
     });
 
-    // Teks di bawah garis
+    // Teks "Tanda Tangan" di currentY + 25
     sjSigY += 5;
     signCols.forEach((col) => {
-      docSuratJalan.text('(Tanda Tangan)', col.x, sjSigY);
+      docSuratJalan.text('Tanda Tangan', col.x, sjSigY, { align: 'left' });
     });
 
     // Simpan Surat Jalan
