@@ -1111,17 +1111,16 @@
                   </div>
                 </div>
 
-                <!-- Checkbox Opsional Biaya Layanan (5%) -->
+                <!-- Input Manual Ongkir / Biaya Lainnya -->
                 <div class="flex items-center justify-between py-0.5">
                   <label class="flex items-center gap-2 cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      x-model="isServiceChargeEnabled" 
-                      class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
-                    />
-                    <span class="font-semibold text-stone-700">Biaya Layanan (5%)</span>
+                    <span class="font-semibold text-stone-700">Ongkir / Biaya Lainnya (Rp)</span>
                   </label>
-                  <span class="font-bold font-mono" :class="isServiceChargeEnabled ? 'text-stone-900' : 'text-stone-400 line-through'" x-text="formatRupiah(getCartServiceCharge())"></span>
+                  <input
+                    type="number"
+                    x-model.number="manualServiceCharge"
+                    class="w-24 border rounded p-2 text-sm text-right font-mono"
+                  />
                 </div>
 
                 <!-- TOTAL BESAR TAGIHAN -->
@@ -4490,7 +4489,7 @@
 
             <template x-if="((currentOrder && currentOrder.serviceCharge !== undefined ? currentOrder.serviceCharge : getCartServiceCharge()) > 0)">
               <div class="flex justify-between">
-                <span>Biaya Layanan (5%):</span>
+                <span>Ongkir / Biaya Lainnya:</span>
                 <span x-text="formatRupiah(currentOrder && currentOrder.serviceCharge !== undefined ? currentOrder.serviceCharge : getCartServiceCharge())"></span>
               </div>
             </template>

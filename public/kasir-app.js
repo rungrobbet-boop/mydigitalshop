@@ -266,12 +266,11 @@ window.kasirApp = () => ({
     drafts: [],
     showDraftModal: false,
 
-    // Fitur Diskon, Pajak & Service Charge Keranjang
+    // Fitur Diskon, Pajak & Biaya Lainnya Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
   orderDiscountValue: 0,
   isTaxEnabled: false, // ✅ PATCH H-11: Default OFF — kasir centang manual bila perlu
-  isServiceChargeEnabled: false, // Service Charge 5%
-  serviceChargeRate: 5,
+  manualServiceCharge: 0,
   isTaxIncluded: false, // ✅ PATCH H: PPN Include/Exclude toggle (default OFF)
 
   // Modal Diskon Per Item
@@ -2670,15 +2669,11 @@ async loadMoreProducts() {
     return Math.round(netSales * 0.11);
   },
 
-  /**
-   * Hitung Service Charge (5%)
+  /** 
+   * Hitung Biaya Lainnya (Manual)
    */
-    getCartServiceCharge() {
-    if (!this.isServiceChargeEnabled) return 0;
-    // ✅ PATCH H: Service Charge dihitung dari NetSales (setelah diskon total)
-    const netSales = this.getCartSubtotalAfterOrderDiscount();
-    const rate = (Number(this.serviceChargeRate) || 5) / 100;
-    return Math.round(netSales * rate);
+   getCartServiceCharge() {
+   return Number(this.manualServiceCharge) || 0;
   },
 
   /**
@@ -4371,8 +4366,7 @@ async loadMoreProducts() {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.text(brandName, 105, 18, { align: 'center' });
-      doc.text(brandAddress, 105, 23, { align: 'center' });
-      doc.text('Telp: ' + brandPhone, 105, 28, { align: 'center' });
+      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 105, 23, { align: 'center' });
     };
 
     // Helper: cetak tabel barang
@@ -4403,10 +4397,10 @@ async loadMoreProducts() {
         theme: 'grid',
         styles: { fontSize: 8, cellWidth: 'wrap', halign: 'center' },
         headStyles: { fillColor: [41, 37, 36], textColor: 255 },
-        margin: { left: 20, right: 20 },
+        margin: { left: 10, right: 10 },
         columnStyles: includePrice
-          ? { 0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 15 }, 3: { cellWidth: 35 }, 4: { cellWidth: 35 } }
-          : { 0: { cellWidth: 10 }, 1: { cellWidth: 80 }, 2: { cellWidth: 15 } },
+          ? { 0: { cellWidth: 10 }, 1: { cellWidth: 60, halign: 'left' }, 2: { cellWidth: 15 }, 3: { cellWidth: 35 }, 4: { cellWidth: 35 } }
+          : { 0: { cellWidth: 10 }, 1: { cellWidth: 80, halign: 'left' }, 2: { cellWidth: 15 } },
       });
       return doc.lastAutoTable.finalY;
     };
@@ -4425,7 +4419,6 @@ async loadMoreProducts() {
     docInvoice.text('Jatuh Tempo : ' + dueDate, 20, y + 10);
 
     // Info Customer (Kanan)
-    docInvoice.text('Kepada Yth:', 130, y);
     docInvoice.text('Nama        : ' + customerName, 130, y + 5);
     docInvoice.text('No. HP      : ' + customerPhone, 130, y + 10);
     docInvoice.text('Alamat Kirim: ' + customerAddress, 130, y + 15);
@@ -4461,6 +4454,7 @@ async loadMoreProducts() {
     }
 
     // Total Tagihan (Bold)
+    detailY += 8;
     docInvoice.setFontSize(11);
     docInvoice.setFont('helvetica', 'bold');
     docInvoice.text('TOTAL TAGIHAN', 150, detailY);
@@ -4492,18 +4486,17 @@ async loadMoreProducts() {
     // ========================================================================
     printTokoHeader(docSuratJalan, 'SURAT JALAN');
 
-    // Info Transaksi (Kiri)
+    // Info Customer (Kiri)
     docSuratJalan.setFontSize(9);
     docSuratJalan.setFont('helvetica', 'normal');
     let sjY = 40;
-    docSuratJalan.text('No. Invoice : ' + tx.id, 20, sjY);
-    docSuratJalan.text('Tanggal     : ' + txDate, 20, sjY + 5);
+    docSuratJalan.text('Nama        : ' + customerName, 20, sjY);
+    docSuratJalan.text('No. HP      : ' + customerPhone, 20, sjY + 5);
+    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 20, sjY + 10);
 
-    // Info Customer (Kanan)
-    docSuratJalan.text('Kepada Yth:', 130, sjY);
-    docSuratJalan.text('Nama        : ' + customerName, 130, sjY + 5);
-    docSuratJalan.text('No. HP      : ' + customerPhone, 130, sjY + 10);
-    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 130, sjY + 15);
+    // Info Transaksi (Kanan)
+    docSuratJalan.text('No. Invoice : ' + tx.id, 150, sjY, { align: 'right' });
+    docSuratJalan.text('Tanggal     : ' + txDate, 150, sjY + 5, { align: 'right' });
 
     // Tabel Barang (tanpa harga)
     const sjTableEndY = printItemTable(docSuratJalan, sjY + 22, false);
