@@ -1072,14 +1072,9 @@ window.accountingApp = function() {
         t.ref,
         t.desc,
         t.debit > 0 ? this.formatRupiah(t.debit) : '-',
-        t.credit > 0 ? this.formatRupiah(t.credit) : '-'
+        t.credit > 0 ? this.formatRupiah(t.credit) : '-',
+        this.formatRupiah(t.runningBalance || 0)
       ]);
-
-      let runningBalance = 0;
-      this.soaTransactions.forEach(t => {
-        runningBalance += t.debit - t.credit;
-        tableData[tableData.length - 1].push(this.formatRupiah(runningBalance));
-      });
 
       const head = [['Tanggal', 'No. Ref', 'Deskripsi', 'Debit', 'Kredit', 'Saldo Berjalan']];
 
