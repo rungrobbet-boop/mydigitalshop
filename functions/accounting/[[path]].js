@@ -845,8 +845,82 @@ export async function onRequest(context) {
         console.log(`[POS-JOURNAL] ✅ ${orderId}: Rev=${total} HPP=${totalHpp}`);
         return jsonResponse({
           success: true,
-          message: `Jurnal POS tersimpan. Revenue: ${total}, HPP: ${totalHpp}`,
+          message: `Jurnal POS tersimpan. Revenue: ${total}, HPP=${totalHpp}`,
           revId, hppId, totalRev: total, totalHpp, hppDetails
+        }, 201);
+      }
+
+      // ================================================================
+      // POST /accounting/journal/pay-credit — Jurnal Pelunasan Piutang
+      // Debit Kas/Bank, Kredit Piutang Usaha (103)
+      // ================================================================
+      if (method === 'POST' && parts[1] === 'pay-credit') {
+        const body = await request.json().catch(() => ({}));
+        const orderId = String(body.orderId || '').trim();
+        const dateStr = body.date || new Date().toISOString().split('T')[0];
+        const pm = String(body.pm || 'cash').toLowerCase();
+        const amount = toNum(body.amount || body.amountPaid || 0);
+        const desc = body.description || `Pelunasan Piutang Invoice #${orderId}`;
+
+        if (!orderId || amount <= 0) {
+          return jsonResponse({ success: false, error: 'orderId dan amount wajib diisi' }, 400);
+        }
+
+        const bulan = dateStr.substring(0, 7);
+
+        // Tentukan akun debit berdasarkan metode pembayaran
+        const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
+                    || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
+        const debitAcc = isBank ? '102' : '101'; // 102 = Bank, 101 = Kas Tunai
+
+        const payId = `JRN-${dateStr.replace(/-/g, '')}-PAY-${Date.now().toString().slice(-4)}`;
+
+        const payEntry = {
+          noEntry: `PAY-${orderId.slice(-6)}`,
+          date: dateStr,
+          timestamp: Date.now(),
+          category: 'pelunasan',
+          desc: desc,
+          ref: orderId,
+          status: 'approved',
+          lines: [
+            { acc: debitAcc, debit: amount, credit: 0 },
+            { acc: '103', debit: 0, credit: amount }
+          ],
+          total: amount,
+          createdAt: Date.now(),
+          isCreditPayment: true,
+          orderId: orderId
+        };
+
+        await fetch(`${dbUrl}/accounting/journal/${bulan}/${payId}.json${authParam}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payEntry)
+        });
+        await updateLedgerAfterApprove(dbUrl, bulan, payEntry.lines, apiKey, payId);
+
+        // Update status transaksi menjadi lunas
+        const txRef = `${dbUrl}/pos/transactions/${dateStr}/${orderId}.json${authParam}`;
+        const txRes = await fetch(txRef);
+        const txData = await txRes.json();
+        if (txData) {
+          txData.status = 'lunas';
+          txData.paidAt = Date.now();
+          txData.paidAmount = amount;
+          txData.paidMethod = pm;
+          await fetch(txRef, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(txData)
+          });
+        }
+
+        await updateSummaryAfterApprove(dbUrl, bulan, apiKey);
+
+        console.log(`[PAY-CREDIT] ✅ ${orderId}: Bayar=${amount} via ${pm}`);
+        return jsonResponse({
+          success: true,
+          message: `Pelunasan piutang tersimpan. Bayar: ${amount}`,
+          payId, total: amount
         }, 201);
       }
 

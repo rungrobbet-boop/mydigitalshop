@@ -256,6 +256,13 @@ window.kasirApp = () => ({
     },
     customerSearch: '',
     filteredCustomers: [],
+
+    // Status Pelunasan Piutang
+    piutangList: [],
+    showPelunasanModal: false,
+    selectedPiutang: null,
+    pilihMetode: null,
+    nominalBayar: 0,
     drafts: [],
     showDraftModal: false,
 
@@ -4301,6 +4308,225 @@ async loadMoreProducts() {
     } catch (e) {
       console.error('[KREDIT] Gagal eksekusi transaksi kredit:', e);
       this.showToast('Gagal menyimpan transaksi kredit: ' + e.message, 'error');
+    }
+  },
+
+  /** =========================================================================
+   * CETAK INVOICE / SURAT JALAN KREDIT
+   * ========================================================================= */
+  async cetakInvoiceKredit(txData) {
+    if (!txData) {
+      this.showToast('Data transaksi tidak valid', 'error');
+      return;
+    }
+
+    const { jsPDF } = window;
+    if (!jsPDF) {
+      this.showToast('jsPDF tidak tersedia', 'error');
+      return;
+    }
+
+    const total = Number(txData.tot || txData.total || txData.amount || 0);
+    const items = Array.isArray(txData.items) ? txData.items : [];
+    const dueDate = txData.dueDate || '-';
+    const customerName = txData.customerName || txData.customer || 'Pelanggan';
+    const customerPhone = txData.customerPhone || txData.phone || '-';
+    const customerAddress = txData.addressKirim || txData.address || '-';
+    const txDate = new Date(txData.t || txData.date || Date.now()).toLocaleDateString('id-ID', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(16);
+    doc.text('INVOICE & SURAT JALAN', pageWidth / 2, 15, { align: 'center' });
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
+    doc.text('MYDIGITALSHOP', pageWidth / 2, 20, { align: 'center' });
+    doc.text('Jl. Raya Toko Bangunan No. 88, Jaksel', pageWidth / 2, 24, { align: 'center' });
+    doc.text('Telp/WA: 0812-3456-7890', pageWidth / 2, 28, { align: 'center' });
+    doc.text('========================================', pageWidth / 2, 32, { align: 'center' });
+
+    // Info Customer
+    doc.setFontSize(9);
+    doc.text('Pelanggan:', 10, 40);
+    doc.text(customerName, 35, 40);
+    doc.text('Alamat Kirim:', 10, 45);
+    doc.text(customerAddress, 35, 45);
+    doc.text('No HP:', 10, 50);
+    doc.text(customerPhone, 35, 50);
+
+    // Info Transaksi
+    doc.text('No. Invoice:', 10, 55);
+    doc.text(String(txData.id || txData.orderId), 35, 55);
+    doc.text('Tanggal:', 10, 60);
+    doc.text(txDate, 35, 60);
+    doc.text('Jatuh Tempo:', 10, 65);
+    doc.text(String(dueDate), 35, 65);
+
+    doc.setFontSize(8);
+    doc.text('========================================', pageWidth / 2, 70, { align: 'center' });
+
+    // Tabel header
+    doc.setFont('courier', 'bold');
+    doc.text('No.', 10, 75);
+    doc.text('Nama Barang', 25, 75);
+    doc.text('Qty', 95, 75);
+    doc.text('Harga Satuan', 120, 75);
+    doc.text('Subtotal', 165, 75);
+
+    let y = 80;
+    doc.setFont('courier', 'normal');
+    items.forEach((it, idx) => {
+      const name = it.name || (Array.isArray(it) ? it[0] : 'Menu');
+      const qty = Number(it.qty || (Array.isArray(it) ? it[1] : 1)) || 1;
+      const price = Number((it.basePrice !== undefined ? it.basePrice : it.price) || 0);
+      const subtotal = qty * price;
+
+      doc.text(String(idx + 1), 10, y);
+      doc.text(String(name).substring(0, 25), 25, y);
+      doc.text(String(qty), 95, y);
+      doc.text(this.formatRupiah(price), 120, y, { align: 'right' });
+      doc.text(this.formatRupiah(subtotal), 165, y, { align: 'right' });
+      y += 5;
+    });
+
+    y += 2;
+    doc.text('----------------------------------------', pageWidth / 2, y, { align: 'center' });
+    y += 5;
+
+    doc.setFont('courier', 'bold');
+    doc.text('Total Tagihan:', 10, y);
+    doc.text(this.formatRupiah(total), 165, y, { align: 'right' });
+    y += 8;
+
+    doc.setFont('courier', 'normal');
+    doc.text('Status:', 10, y);
+    doc.text('BELUM LUNAS', 30, y);
+    y += 5;
+    doc.text('Tanda Tangan:', 10, y);
+    doc.text('Penerima Barang: ____________________', 35, y);
+    y += 5;
+    doc.text('Kasir: ____________________', 35, y);
+
+    doc.text('========================================', pageWidth / 2, y + 5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text('Terima kasih telah berbelanja di MyDigitalShop!', pageWidth / 2, y + 10, { align: 'center' });
+
+    doc.save(`Invoice-${txData.id || txData.orderId}.pdf`);
+    this.showToast('Invoice Kredit dicetak', 'success');
+  },
+
+  /** =========================================================================
+   * PELUNASAN PIUTANG
+   * ========================================================================= */
+
+  // Muat daftar piutang (transaksi kredit yang belum lunas)
+  async loadPiutangList() {
+    try {
+      const res = await fetch('/accounting/journal/' + new Date().toISOString().slice(0, 7));
+      if (!res.ok) throw new Error('Gagal memuat jurnal');
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) {
+        this.piutangList = [];
+        return;
+      }
+
+      // Filter hanya transaksi kredit yang belum lunas
+      this.piutangList = json.data.filter(j =>
+        (j.isCredit === true || j.status === 'piutang') &&
+        j.status !== 'lunas'
+      ).map(j => ({
+        id: j.id || j.orderId || j.ref || j.noEntry,
+        customerName: j.customerName || j.customer || 'Pelanggan',
+        customerPhone: j.customerPhone || '',
+        addressKirim: j.addressKirim || '',
+        total: j.total || 0,
+        dueDate: j.dueDate || '-',
+        status: j.status || 'piutang'
+      }));
+
+      console.log('[PIUTANG] Dimuat:', this.piutangList.length, 'piutang');
+    } catch (e) {
+      console.warn('[PIUTANG] Gagal load:', e);
+      this.piutangList = [];
+    }
+  },
+
+  // Pilih piutang dari daftar
+  pilihPiutang(tx) {
+    this.selectedPiutang = tx;
+    this.pilihMetode = null;
+    this.nominalBayar = Number(tx.tot || tx.total || 0);
+  },
+
+  // Pilih metode pembayaran
+  pilihMetodePelunasan(method) {
+    this.pilihMetode = method;
+  },
+
+  // Buka modal pelunasan
+  async openPelunasanModal() {
+    await this.loadPiutangList();
+    this.showPelunasanModal = true;
+    this.selectedPiutang = null;
+    this.pilihMetode = null;
+    this.nominalBayar = 0;
+  },
+
+  // Tutup modal pelunasan
+  closePelunasanModal() {
+    this.showPelunasanModal = false;
+    this.selectedPiutang = null;
+    this.pilihMetode = null;
+    this.nominalBayar = 0;
+  },
+
+  // Proses pelunasan piutang
+  async prosesPelunasanPiutang() {
+    if (!this.selectedPiutang) {
+      this.showToast('Pilih piutang terlebih dahulu', 'error');
+      return;
+    }
+    if (!this.pilihMetode) {
+      this.showToast('Pilih metode pembayaran', 'error');
+      return;
+    }
+
+    const txId = this.selectedPiutang.id;
+    const amount = Number(this.nominalBayar || this.selectedPiutang.total || 0);
+    const pm = this.pilihMetode;
+
+    try {
+      const res = await fetch('/accounting/journal/pay-credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: txId,
+          amount: amount,
+          pm: pm,
+          date: new Date().toISOString().split('T')[0],
+          description: 'Pelunasan Piutang Invoice #' + txId
+        })
+      });
+
+      if (!res.ok) throw new Error('Gagal memproses pelunasan');
+      const json = await res.json();
+
+      if (!json.success) throw new Error(json.error || 'Pelunasan gagal');
+
+      this.showToast('Piutang berhasil dilunasi', 'success');
+      this.closePelunasanModal();
+      await this.loadPiutangList();
+      await this.loadJournalListForKasir();
+      await this.loadAccountingSummary(true);
+    } catch (e) {
+      console.error('[PELUNASAN] Error:', e);
+      this.showToast('Gagal melunasi piutang: ' + e.message, 'error');
     }
   },
 

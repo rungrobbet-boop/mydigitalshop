@@ -6765,6 +6765,18 @@
                   <i class="fa-solid fa-file-pdf text-red-600 text-xs"></i>
                   <span>PDF</span>
                 </button>
+                <!-- TOMBOL INVOICE KREDIT -->
+                <button
+                  type="button"
+                  x-show="tx.isCredit === true || tx.status === 'piutang'"
+                  @click="cetakInvoiceKredit(tx)"
+                  class="px-2.5 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 text-blue-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                  title="Cetak Invoice & Surat Jalan Kredit">
+                  <i class="fa-solid fa-file-invoice text-blue-600 text-xs"></i>
+                  <span>Invoice</span>
+                </button>
+
+
 
                 <button 
                   type="button" 
@@ -8327,5 +8339,118 @@
   </div>
 </div>
 
+
+<!-- MODAL PELUNASAN PIUTANG -->
+<div
+  x-show="showPelunasanModal"
+  x-cloak
+  class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+>
+  <div
+    @click.self="closePelunasanModal()"
+    class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5"
+  >
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center text-xl">
+        <i class="fa-solid fa-money-bill-wave"></i>
+      </div>
+      <div>
+        <h3 class="font-extrabold text-lg text-stone-900">Pelunasan Piutang</h3>
+        <p class="text-xs text-stone-500">Terima pembayaran utang pelanggan dari transaksi kredit</p>
+      </div>
+      <button
+        @click="closePelunasanModal()"
+        class="w-8 h-8 rounded-lg bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition"
+      >
+        <i class="fa-solid fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Tabel Piutang Belum Lunas -->
+    <div class="max-h-64 overflow-y-auto mb-4 space-y-2">
+      <template x-for="tx in piutangList" :key="tx.id || tx.orderId">
+        <div class="p-3 rounded-lg border border-stone-200 hover:bg-stone-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="font-bold text-stone-900 text-sm" x-text="tx.customer || tx.customerName || 'Pelanggan'"></span>
+            <span class="text-xs text-stone-500 font-mono" x-text="'#' + (tx.id || tx.orderId)"></span>
+            <span class="text-xs text-stone-400" x-text="'Jatuh Tempo: ' + (tx.dueDate || '-')"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-stone-900 text-sm" x-text="formatRupiah(tx.tot || tx.total || 0)"></span>
+            <button
+              @click="pilihPiutang(tx)"
+              class="px-3 py-1 rounded-md bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition"
+              :disabled="selectedPiutang?.id === (tx.id || tx.orderId)"
+            >
+              Pilih
+            </button>
+          </div>
+        </div>
+      </template>
+      <div x-show="piutangList.length === 0" class="p-4 text-center text-stone-400 text-sm">
+        <p>Tidak ada piutang yang belum lunas</p>
+      </div>
+    </div>
+
+    <!-- Detail Piutang Terpilih -->
+    <div x-show="selectedPiutang" class="border-t border-stone-200 pt-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-stone-600 uppercase">Pilihan Pembayaran</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          @click="pilihMetodePelunasan('cash')"
+          :class="pilihMetode === 'cash' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'"
+          class="py-2 rounded-lg text-xs font-bold transition flex flex-col items-center gap-1"
+        >
+          <i class="fa-solid fa-money-bill-wave"></i>
+          <span>Tunai</span>
+        </button>
+        <button
+          @click="pilihMetodePelunasan('transfer')"
+          :class="pilihMetode === 'transfer' ? 'bg-blue-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'"
+          class="py-2 rounded-lg text-xs font-bold transition flex flex-col items-center gap-1"
+        >
+          <i class="fa-solid fa-bank"></i>
+          <span>Transfer</span>
+        </button>
+        <button
+          @click="pilihMetodePelunasan('qris')"
+          :class="pilihMetode === 'qris' ? 'bg-purple-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'"
+          class="py-2 rounded-lg text-xs font-bold transition flex flex-col items-center gap-1"
+        >
+          <i class="fa-solid fa-qrcode"></i>
+          <span>QRIS</span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-stone-100">
+        <span class="text-xs font-bold text-stone-600">Jumlah Bayar</span>
+        <span class="text-lg font-black font-mono text-emerald-700" x-text="formatRupiah(nominalBayar || selectedPiutang?.tot || selectedPiutang?.total || 0)"></span>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button
+          @click="closePelunasanModal()"
+          class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition"
+        >
+          Batal
+        </button>
+        <button
+          @click="prosesPelunasanPiutang()"
+          :disabled="!pilihMetode || !selectedPiutang"
+          class="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition"
+        >
+          <i class="fa-solid fa-check mr-1"></i>
+          <span>Konfirmasi Pelunasan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
 </body>
 </html>
