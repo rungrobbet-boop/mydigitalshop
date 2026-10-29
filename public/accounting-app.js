@@ -171,8 +171,8 @@ window.accountingApp = function() {
 
     // SOA Modal State
     soaModalOpen: false,
-    soaEntityType: 'piutang', // 'piutang' | 'hutang'
-    soaEntityName: '',
+    activeSoaType: 'piutang', // 'piutang' | 'hutang'
+    activeSoaEntity: '',
     soaTransactions: [],
 
     // Filter & Periode
@@ -841,7 +841,7 @@ window.accountingApp = function() {
       const list = [];
       const entityMap = {};
 
-      console.log("[SUB-LEDGER] Data Jurnal:", this.jurnalList || []);
+      console.log("[SUB-LEDGER] Data Jurnal Piutang:", this.jurnalList || []);
 
       (this.jurnalList || []).forEach(j => {
         // Skip entri VOID (rejected), tapi JANGAN skip Saldo Awal
@@ -852,7 +852,7 @@ window.accountingApp = function() {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '103') {
-              // Ambil nama customer dari data transaksi asli, bukan j.desc
+              // Ambil nama customer dari data transaksi asli
               let entity = j.customerName || j.customer || '';
 
               // Jika belum ada, coba cari dari transaksi asli via j.ref atau j.orderId
@@ -865,12 +865,22 @@ window.accountingApp = function() {
                 }
               }
 
+              // Jika masih belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso")
+              if (!entity && j.desc) {
+                const desc = String(j.desc);
+                // Coba ekstrak nama dari deskripsi seperti "Void Transaksi - Santoso" atau "Invoice Santoso"
+                const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
+                if (match) {
+                  entity = match[1].trim();
+                }
+              }
+
               if (!entity) entity = 'Pelanggan';
 
               if (!entityMap[entity]) {
                 entityMap[entity] = { entity: entity, total: 0, dueDate: j.dueDate || '-' };
               }
-              // Saldo Piutang = Debit 103 - Kredit 103
+              // Saldo Piutang = Debit 103 - Kredit 103 (termasuk Void/Kredit pembatalan)
               entityMap[entity].total += (Number(l.debit) || 0) - (Number(l.credit) || 0);
               if (j.dueDate && (!entityMap[entity].dueDate || j.dueDate < entityMap[entity].dueDate)) {
                 entityMap[entity].dueDate = j.dueDate;
@@ -941,8 +951,8 @@ window.accountingApp = function() {
     // ========================================================================
 
     showSoaModal(type, entityName) {
-      this.soaEntityType = type;
-      this.soaEntityName = entityName;
+      this.activeSoaType = type;
+      this.activeSoaEntity = entityName;
 
       const targetAcc = type === 'piutang' ? '103' : '201';
       const transactions = [];
@@ -955,6 +965,20 @@ window.accountingApp = function() {
               const entity = type === 'piutang'
                 ? (j.customerName || j.customer || 'Pelanggan')
                 : (j.supplierName || j.supplier || j.desc || 'Supplier');
+
+              // Debug untuk Santoso
+              if (j.ref === 'T1793245892737' || String(j.desc || '').includes('Santoso')) {
+                console.log("[DEBUG SOA]", {
+                  ref: j.ref,
+                  desc: j.desc,
+                  acc: l.acc,
+                  debit: l.debit,
+                  credit: l.credit,
+                  entity: entity,
+                  entityName: entityName,
+                  match: entity === entityName
+                });
+              }
 
               if (entity === entityName) {
                 transactions.push({
@@ -971,7 +995,7 @@ window.accountingApp = function() {
         }
       });
 
-      // Hitung running balance (kumulatif)
+      // Hitung running balance (kumulatif): Saldo = Total Debit - Total Kredit
       let runningBalance = 0;
       transactions.forEach(t => {
         runningBalance += t.debit - t.credit;
@@ -984,8 +1008,8 @@ window.accountingApp = function() {
 
     closeSoaModal() {
       this.soaModalOpen = false;
-      this.soaEntityType = 'piutang';
-      this.soaEntityName = '';
+      this.activeSoaType = 'piutang';
+      this.activeSoaEntity = '';
       this.soaTransactions = [];
     },
 
@@ -1149,6 +1173,88 @@ window.accountingApp = function() {
       } catch (e) {
         console.error('[PELUNASAN] Error:', e);
         this.showToast('Gagal mencatat pelunasan: ' + e.message, 'error');
+      }
+    },
+
+    // ========================================================================
+    // PEMBAYARAN HUTANG SUPPLIER
+    // ========================================================================
+
+    // State untuk modal pembayaran hutang
+    showPaymentHutangModal: false,
+    hutangPaymentEntityName: '',
+    hutangPaymentAmount: 0,
+    hutangPaymentMethod: 'cash',
+    hutangPaymentNotes: '',
+
+    // Buka modal pembayaran hutang dari SOA modal
+    openPaySupplierModal(supplierName) {
+      this.activeSoaType = 'hutang';
+      this.activeSoaEntity = supplierName;
+
+      // Hitung saldo sisa hutang dari soaTransactions
+      const saldoSisa = this.soaTransactions.reduce((s, t) => s + (t.debit - t.credit), 0);
+      this.hutangPaymentAmount = saldoSisa > 0 ? saldoSisa : 0;
+      this.hutangPaymentMethod = 'cash';
+      this.hutangPaymentNotes = 'Pelunasan Hutang - ' + supplierName;
+
+      this.showPaymentHutangModal = true;
+    },
+
+    closePaymentModalHutang() {
+      this.showPaymentHutangModal = false;
+      this.hutangPaymentEntityName = '';
+      this.hutangPaymentAmount = 0;
+      this.hutangPaymentMethod = 'cash';
+      this.hutangPaymentNotes = '';
+    },
+
+    async submitPembayaranHutang() {
+      if (!this.hutangPaymentEntityName) {
+        this.showToast('Supplier tidak valid', 'error');
+        return;
+      }
+      if (!this.hutangPaymentAmount || this.hutangPaymentAmount <= 0) {
+        this.showToast('Nominal pembayaran harus lebih dari 0', 'error');
+        return;
+      }
+      if (!this.hutangPaymentMethod) {
+        this.showToast('Pilih metode pembayaran', 'error');
+        return;
+      }
+
+      try {
+        const dateStr = new Date().toISOString().split('T')[0];
+        const pm = this.hutangPaymentMethod; // 'cash', 'transfer', 'qris'
+        const amount = Number(this.hutangPaymentAmount);
+        const desc = this.hutangPaymentNotes || 'Pelunasan Hutang - ' + this.hutangPaymentEntityName;
+
+        const res = await fetch('/accounting/journal/pay-payable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entityName: this.hutangPaymentEntityName,
+            amount: amount,
+            pm: pm,
+            date: dateStr,
+            description: desc
+          })
+        });
+
+        if (!res.ok) throw new Error('Gagal mencatat pembayaran hutang');
+        const json = await res.json();
+
+        if (!json.success) throw new Error(json.error || 'Pembayaran hutang gagal');
+
+        this.showToast('Pembayaran hutang berhasil dicatat', 'success');
+        this.closePaymentModalHutang();
+        this.closeSoaModal();
+
+        // Refresh data jurnal
+        await this.loadJournal(this.bulanAktif);
+      } catch (e) {
+        console.error('[PEMBAYARAN HUTANG] Error:', e);
+        this.showToast('Gagal mencatat pembayaran hutang: ' + e.message, 'error');
       }
     },
 
