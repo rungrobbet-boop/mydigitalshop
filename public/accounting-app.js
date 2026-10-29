@@ -900,15 +900,22 @@ window.accountingApp = function() {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '201') {
-              // Ambil nama supplier dari j.desc
-              let entity = String(j.desc || '').trim();
+              // Ambil nama supplier dari berbagai field yang mungkin tersedia
+              let entity = j.supplierName || j.supplier || '';
 
-              // Ekstrak nama supplier dari "Saldo Awal - PT. Jaya" -> "PT. Jaya"
-              if (entity.toUpperCase().startsWith('SALDO AWAL - ')) {
-                entity = entity.substring('SALDO AWAL - '.length);
+              // Jika belum ada, coba ekstraksi dari j.desc
+              if (!entity && j.desc) {
+                const desc = String(j.desc).trim();
+                // Pola: "Saldo Awal - PT. Jaya" -> "PT. Jaya"
+                if (desc.toUpperCase().startsWith('SALDO AWAL - ')) {
+                  entity = desc.substring('SALDO AWAL - '.length);
+                } else {
+                  entity = desc;
+                }
               }
-              // Jika "Saldo Awal - Semua Supplier" -> "Semua Supplier"
-              if (entity.toUpperCase() === 'SEMUA SUPPLIER') {
+
+              // Normalisasi "Semua Supplier"
+              if (entity && entity.toUpperCase() === 'SEMUA SUPPLIER') {
                 entity = 'Semua Supplier';
               }
 
@@ -955,12 +962,20 @@ window.accountingApp = function() {
                   ref: j.ref || j.noEntry || j.id || '-',
                   desc: j.desc || j.keterangan || '-',
                   debit: Number(l.debit) || 0,
-                  credit: Number(l.credit) || 0
+                  credit: Number(l.credit) || 0,
+                  isVoid: j.desc && String(j.desc).toUpperCase().includes('VOID')
                 });
               }
             }
           });
         }
+      });
+
+      // Hitung running balance (kumulatif)
+      let runningBalance = 0;
+      transactions.forEach(t => {
+        runningBalance += t.debit - t.credit;
+        t.runningBalance = runningBalance;
       });
 
       this.soaTransactions = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1052,6 +1067,91 @@ window.accountingApp = function() {
       doc.save(`SOA_${this.soaEntityName}_${this.bulanAktif}.pdf`);
       this.showToast('SOA PDF berhasil diunduh', 'success');
     },
+
+    // ========================================================================
+    // PENERIMAAN PIUTANG (Pelunasan)
+    // ========================================================================
+
+    // State untuk modal pembayaran piutang
+    showPaymentModal: false,
+    paymentEntityType: 'piutang',
+    paymentEntityName: '',
+    paymentAmount: 0,
+    paymentMethod: 'cash',
+    paymentNotes: '',
+
+    // Buka modal pembayaran piutang dari SOA modal
+    openPaymentModal(entityName) {
+      this.paymentEntityType = 'piutang';
+      this.paymentEntityName = entityName;
+
+      // Hitung saldo sisa dari soaTransactions
+      const saldoSisa = this.soaTransactions.reduce((s, t) => s + (t.debit - t.credit), 0);
+      this.paymentAmount = saldoSisa > 0 ? saldoSisa : 0;
+      this.paymentMethod = 'cash';
+      this.paymentNotes = 'Pelunasan Piutang - ' + entityName;
+
+      this.showPaymentModal = true;
+    },
+
+    closePaymentModal() {
+      this.showPaymentModal = false;
+      this.paymentEntityType = 'piutang';
+      this.paymentEntityName = '';
+      this.paymentAmount = 0;
+      this.paymentMethod = 'cash';
+      this.paymentNotes = '';
+    },
+
+    async prosesPenerimaanPiutang() {
+      if (!this.paymentEntityName) {
+        this.showToast('Entity tidak valid', 'error');
+        return;
+      }
+      if (!this.paymentAmount || this.paymentAmount <= 0) {
+        this.showToast('Nominal pembayaran harus lebih dari 0', 'error');
+        return;
+      }
+      if (!this.paymentMethod) {
+        this.showToast('Pilih metode pembayaran', 'error');
+        return;
+      }
+
+      try {
+        const dateStr = new Date().toISOString().split('T')[0];
+        const pm = this.paymentMethod; // 'cash', 'transfer', 'qris'
+        const amount = Number(this.paymentAmount);
+        const desc = this.paymentNotes || 'Pelunasan Piutang - ' + this.paymentEntityName;
+
+        const res = await fetch('/accounting/journal/pay-receivable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entityName: this.paymentEntityName,
+            amount: amount,
+            pm: pm,
+            date: dateStr,
+            description: desc
+          })
+        });
+
+        if (!res.ok) throw new Error('Gagal mencatat pelunasan');
+        const json = await res.json();
+
+        if (!json.success) throw new Error(json.error || 'Pelunasan gagal');
+
+        this.showToast('Penerimaan piutang berhasil dicatat', 'success');
+        this.closePaymentModal();
+        this.closeSoaModal();
+
+        // Refresh data jurnal
+        await this.loadJournal(this.bulanAktif);
+      } catch (e) {
+        console.error('[PELUNASAN] Error:', e);
+        this.showToast('Gagal mencatat pelunasan: ' + e.message, 'error');
+      }
+    },
+
 
     // ------------------------------------------------------------------------
     // 3. CHART OF ACCOUNTS (COA)

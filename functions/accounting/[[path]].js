@@ -925,6 +925,90 @@ export async function onRequest(context) {
       }
 
       // ================================================================
+      // POST /accounting/journal/pay-receivable — Jurnal Penerimaan Piutang
+      // Debit Kas/Bank, Kredit Piutang Usaha (103)
+      // ================================================================
+      if (method === 'POST' && parts[1] === 'pay-receivable') {
+        const body = await request.json().catch(() => ({}));
+        const entityName = String(body.entityName || '').trim();
+        const dateStr = body.date || new Date().toISOString().split('T')[0];
+        const pm = String(body.pm || 'cash').toLowerCase();
+        const amount = toNum(body.amount || 0);
+        const desc = body.description || `Pelunasan Piutang - ${entityName}`;
+
+        if (!entityName || amount <= 0) {
+          return jsonResponse({ success: false, error: 'entityName dan amount wajib diisi' }, 400);
+        }
+
+        const bulan = dateStr.substring(0, 7);
+
+        // Tentukan akun debit berdasarkan metode pembayaran
+        const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
+                    || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
+        const debitAcc = isBank ? '102' : '101'; // 102 = Bank, 101 = Kas Tunai
+
+        const payId = `JRN-${dateStr.replace(/-/g, '')}-RCV-${Date.now().toString().slice(-4)}`;
+
+        const payEntry = {
+          noEntry: `RCV-${entityName.slice(-6)}`,
+          date: dateStr,
+          timestamp: Date.now(),
+          category: 'pelunasan_piutang',
+          desc: desc,
+          ref: entityName,
+          status: 'approved',
+          lines: [
+            { acc: debitAcc, debit: amount, credit: 0 },
+            { acc: '103', debit: 0, credit: amount }
+          ],
+          total: amount,
+          createdAt: Date.now(),
+          isReceivablePayment: true,
+          entityName: entityName
+        };
+
+        await fetch(`${dbUrl}/accounting/journal/${bulan}/${payId}.json${authParam}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payEntry)
+        });
+        await updateLedgerAfterApprove(dbUrl, bulan, payEntry.lines, apiKey, payId);
+
+        // Coba update status transaksi asli menjadi lunas jika ada orderId/ref
+        // (frontend mengirim entityName sebagai customer name, coba cari di transaksi)
+        try {
+          const txRes = await fetch(`${dbUrl}/pos/transactions/${dateStr}.json${authParam}`);
+          const txData = await txRes.json();
+          if (txData && typeof txData === 'object') {
+            const txEntries = Object.entries(txData);
+            for (const [txId, tx] of txEntries) {
+              if (tx && tx.customerName === entityName && tx.status !== 'lunas') {
+                tx.status = 'lunas';
+                tx.paidAt = Date.now();
+                tx.paidAmount = amount;
+                tx.paidMethod = pm;
+                await fetch(`${dbUrl}/pos/transactions/${dateStr}/${txId}.json${authParam}`, {
+                  method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(tx)
+                });
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[PAY-RECEIVABLE] Gagal update status transaksi:', e);
+        }
+
+        await updateSummaryAfterApprove(dbUrl, bulan, apiKey);
+
+        console.log(`[PAY-RECEIVABLE] ✅ ${entityName}: Terima=${amount} via ${pm}`);
+        return jsonResponse({
+          success: true,
+          message: `Penerimaan piutang tersimpan. Terima: ${amount}`,
+          payId, total: amount
+        }, 201);
+      }
+
+      // ================================================================
       // POST /accounting/journal/receive — Jurnal Terima Barang Konsinyasi
       // Debit Persediaan 1004 / Kredit Hutang Supplier 2001
       // ================================================================
