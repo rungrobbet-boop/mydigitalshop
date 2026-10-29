@@ -4328,7 +4328,7 @@ async loadMoreProducts() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a5');
+    const doc = new jsPDF('l', 'mm', 'a5'); // Landscape A5 (210 x 148 mm)
 
     // --- 1. HEADER TOKO ---
     doc.setFont('helvetica', 'bold');
@@ -4348,13 +4348,13 @@ async loadMoreProducts() {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     const startY = 45;
-    doc.text('No. Invoice : ' + tx.id, 10, startY);
-    doc.text('Tanggal     : ' + this.formatDate(tx.t), 10, startY + 5);
-    doc.text('Jatuh Tempo : ' + (tx.dueDate || '-'), 10, startY + 10);
+    doc.text('No. Invoice : ' + tx.id, 20, startY);
+    doc.text('Tanggal     : ' + this.formatDate(tx.t), 20, startY + 5);
+    doc.text('Jatuh Tempo : ' + (tx.dueDate || '-'), 20, startY + 10);
 
-    doc.text('Kepada Yth:', 110, startY);
-    doc.text('Nama        : ' + (tx.customerName || '-'), 110, startY + 5);
-    doc.text('No. HP      : ' + (tx.customerPhone || '-'), 110, startY + 10);
+    doc.text('Kepada Yth:', 120, startY);
+    doc.text('Nama        : ' + (tx.customerName || '-'), 120, startY + 5);
+    doc.text('No. HP      : ' + (tx.customerPhone || '-'), 120, startY + 10);
 
     // --- 4. TABEL BARANG ---
     const tableData = (tx.items || []).map(item => {
@@ -4375,16 +4375,17 @@ async loadMoreProducts() {
       head: [['Nama Barang', 'Qty', 'Harga Satuan', 'Total']],
       body: tableData,
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255 }
+      styles: { fontSize: 9, cellWidth: 'wrap' },
+      headStyles: { fillColor: [41, 37, 36], textColor: 255 },
+      margin: { left: 20, right: 20 }
     });
 
     // --- 5. TOTAL & FOOTER ---
     const finalY = doc.lastAutoTable.finalY + 10;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL TAGIHAN:', 110, finalY);
-    doc.text(this.formatRupiah(tx.total), 195, finalY, { align: 'right' });
+    doc.text('TOTAL TAGIHAN:', 150, finalY);
+    doc.text(this.formatRupiah(tx.total), 190, finalY, { align: 'right' });
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');

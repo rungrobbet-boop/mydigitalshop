@@ -6768,7 +6768,7 @@
                 <!-- TOMBOL INVOICE KREDIT -->
                 <button
                   type="button"
-                  x-show="tx.isCredit === true || tx.status === 'piutang'"
+                  x-show="tx.isCredit || tx.pm === 'kredit'"
                   @click="cetakInvoiceKredit(tx)"
                   class="px-2.5 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 text-blue-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
                   title="Cetak Invoice & Surat Jalan Kredit">
@@ -6778,8 +6778,9 @@
 
 
 
-                <button 
-                  type="button" 
+                <button
+                  type="button"
+                  x-show="!tx.isCredit && tx.pm !== 'kredit'"
                   @click="previewStruk(tx); showTxHistoryModal = false"
                   class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition shadow-2xs">
                   <i class="fa-solid fa-receipt text-xs"></i>
