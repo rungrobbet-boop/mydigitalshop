@@ -4465,24 +4465,35 @@ async loadMoreProducts() {
     docInvoice.setFont('helvetica', 'bold');
     docInvoice.text('TOTAL', 150, detailY);
     docInvoice.text(this.formatRupiah(grandTotal), 190, detailY, { align: 'right' });
-    detailY += 35;
 
-    // Tanda Tangan (dua kolom berdampingan)
+    // Tanda Tangan (dua kolom berdampingan) — struktur yang benar
+    let sigY = detailY + 15; // Jarak wajar dari TOTAL ke teks label TTD
+
     docInvoice.setFontSize(8);
     docInvoice.setFont('helvetica', 'normal');
-    docInvoice.text('Penerima', 70, detailY);
-    docInvoice.text('Dibuat Oleh', 140, detailY);
-    docInvoice.text('___________________', 70, detailY + 8);
-    docInvoice.text('___________________', 140, detailY + 8);
-    docInvoice.text('(Nama & Tanda Tangan)', 70, detailY + 13);
-    docInvoice.text('(Kasir)', 140, detailY + 13);
-    detailY += 22;
+    docInvoice.text('Penerima', 70, sigY);
+    docInvoice.text('Dibuat Oleh', 140, sigY);
 
-    // Footer
+    // Beri jarak lebar untuk TTD (25mm ke bawah)
+    sigY += 25;
+
+    // Garis horizontal
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(41, 37, 36);
+    doc.line(70, sigY, 120, sigY); // Garis Penerima
+    doc.line(140, sigY, 190, sigY); // Garis Dibuat Oleh
+
+    // Teks di bawah garis
+    sigY += 5;
+    docInvoice.text('(Nama & Tanda Tangan)', 70, sigY);
+    docInvoice.text('(Kasir)', 140, sigY);
+
+    // Footer (beri jarak dari garis TTD)
+    let footY = sigY + 12;
     docInvoice.setFontSize(7);
     docInvoice.setFont('helvetica', 'italic');
     const footerText = 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan. Terima kasih atas kepercayaan Anda berbelanja di ' + brandName + '.';
-    docInvoice.text(footerText, 105, detailY, { align: 'center' });
+    docInvoice.text(footerText, 105, footY, { align: 'center' });
 
     // Simpan Invoice
     docInvoice.save('Invoice_' + tx.id + '.pdf');
@@ -4507,8 +4518,9 @@ async loadMoreProducts() {
     // Tabel Barang (tanpa harga)
     const sjTableEndY = printItemTable(docSuratJalan, sjY + 15, false);
 
-    // Tanda Tangan (empat kolom berdampingan) — beri jarak lebih dari tabel
-    let sjSignY = sjTableEndY + 35;
+    // Tanda Tangan (empat kolom berdampingan) — struktur yang benar
+    let sjSigY = sjTableEndY + 15; // Jarak wajar dari tabel ke teks label TTD
+
     docSuratJalan.setFontSize(8);
     docSuratJalan.setFont('helvetica', 'normal');
 
@@ -4519,10 +4531,24 @@ async loadMoreProducts() {
       { x: 220, label: 'Dibuat Oleh' },
     ];
 
-    signCols.forEach((col, idx) => {
-      docSuratJalan.text(col.label, col.x, sjSignY);
-      docSuratJalan.text('___________________', col.x, sjSignY + 8);
-      docSuratJalan.text('(Tanda Tangan)', col.x, sjSignY + 13);
+    signCols.forEach((col) => {
+      docSuratJalan.text(col.label, col.x, sjSigY);
+    });
+
+    // Beri jarak lebar untuk TTD (25mm ke bawah)
+    sjSigY += 25;
+
+    // Gambar garis horizontal untuk setiap kolom
+    docSuratJalan.setLineWidth(0.5);
+    docSuratJalan.setDrawColor(41, 37, 36);
+    signCols.forEach((col) => {
+      docSuratJalan.line(col.x, sjSigY, col.x + 50, sjSigY);
+    });
+
+    // Teks di bawah garis
+    sjSigY += 5;
+    signCols.forEach((col) => {
+      docSuratJalan.text('(Tanda Tangan)', col.x, sjSigY);
     });
 
     // Simpan Surat Jalan
