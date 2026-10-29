@@ -446,6 +446,39 @@
         }
         return () => {};
       },
+
+      // ==== FASE 9: Laporan Penjualan Kredit (Piutang) - Landing Page Owner Dashboard ====
+      getTotalPenjualanKreditBulanIni: async () => {
+        if (!db) return 0;
+        try {
+          const now = new Date();
+          const snapshot = await ref(db, 'pos/transactions').once('value');
+          const data = snapshot.val();
+          if (!data) return 0;
+
+          let totalKredit = 0;
+          Object.values(data).forEach(dayData => {
+            if (!dayData || typeof dayData !== 'object') return;
+            Object.values(dayData).forEach(tx => {
+              if (!tx || typeof tx !== 'object') return;
+              const pm = String(tx.pm || tx.paymentMethod || '').toLowerCase();
+              if (pm === 'kredit' || tx.isCredit === true) {
+                const amt = Number(tx.tot || tx.total || tx.amount || 0);
+                const txDate = new Date(tx.createdAt || tx.date || '');
+                if (txDate.getFullYear() === now.getFullYear() && txDate.getMonth() === now.getMonth()) {
+                  totalKredit += amt;
+                }
+              }
+            });
+          });
+          console.log(`[LANDING] Total Penjualan Kredit Bulan Ini: Rp ${totalKredit}`);
+          return totalKredit;
+        } catch (e) {
+          console.warn('[LANDING] Error computing total penjualan kredit:', e);
+          return 0;
+        }
+      },
+      // ==== /FASE 9 ====
       // Cloud Firestore Data Layer & Seeder Functions
       getProducts: firestoreService.getProducts,
       getProductById: firestoreService.getProductById,

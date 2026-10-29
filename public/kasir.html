@@ -1761,6 +1761,11 @@
               <span class="text-[11px] font-bold text-amber-700 uppercase">Total Omset</span>
               <p class="text-base sm:text-lg font-black text-amber-950 font-mono mt-1" x-text="formatRupiah(shiftSummary.totalSales)"></p>
             </div>
+            <!-- Total Penjualan Kredit -->
+            <div class="p-4 rounded-2xl bg-orange-50/60 border border-orange-200 col-span-2 sm:col-span-1">
+              <span class="text-[11px] font-bold text-orange-700 uppercase">Penjualan Kredit</span>
+              <p class="text-base sm:text-lg font-black text-orange-900 font-mono mt-1" x-text="formatRupiah(laporanHariIni?.totalPenjualanKredit || 0)"></p>
+            </div>
           </div>
         </div>
 

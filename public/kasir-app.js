@@ -8574,6 +8574,7 @@ async loadMoreProducts() {
       const txList = await this.fetchTransactionsInRange(start, end);
 
       let totalSales = 0;
+      let totalPenjualanKredit = 0;
       const breakdown = { cash: 0, qris: 0, transfer: 0, ewallet: 0 };
 
       for (const tx of txList) {
@@ -8588,11 +8589,17 @@ async loadMoreProducts() {
         else if (pm.includes('transfer') || pm.includes('bca') || pm.includes('mandiri')) breakdown.transfer += amt;
         else if (pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo')) breakdown.ewallet += amt;
         else breakdown.cash += amt;
+
+        // Penjualan Kredit (Piutang)
+        if (pm === 'kredit' || tx.isCredit === true) {
+          totalPenjualanKredit += amt;
+        }
       }
 
       const summary = {
         totalSales,
         totalTx: txList.length,
+        totalPenjualanKredit,
         breakdown,
         periodStart: start,
         periodEnd: end,
@@ -8899,6 +8906,10 @@ async loadMoreProducts() {
       doc.text('Penjualan E-Wallet:', 18, y + 38);
       doc.text(this.formatRupiah(ewalletSales), 90, y + 38, { align: 'right' });
 
+      const kreditSales = this.laporanHariIni?.totalPenjualanKredit || 0;
+      doc.text('Penjualan Kredit:', 18, y + 45);
+      doc.text(this.formatRupiah(kreditSales), 90, y + 45, { align: 'right' });
+
       // Kanan: ringkasan transaksi & omset
       doc.text('Total Transaksi Sukses:', 110, y + 17);
       doc.text(`${txCount} transaksi`, 190, y + 17, { align: 'right' });
@@ -9007,6 +9018,15 @@ async loadMoreProducts() {
         'SUMMARY',
         'SEMUA METODE',
         String(this.shiftSummary.totalSales || this.todayTotalRevenue),
+        this.kasirInfo.username || 'kasir',
+        'COMPLETED'
+      ]);
+      rows.push([
+        this.formatDate(Date.now()),
+        this.kasirInfo.shiftId || 'S-2026-09-18-01',
+        'SUMMARY',
+        'PENJUALAN KREDIT',
+        String(this.laporanHariIni?.totalPenjualanKredit || 0),
         this.kasirInfo.username || 'kasir',
         'COMPLETED'
       ]);
