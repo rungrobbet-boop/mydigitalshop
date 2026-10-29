@@ -978,12 +978,17 @@ window.accountingApp = function() {
                 ? (j.customerName || j.customer || '')
                 : (j.supplierName || j.supplier || j.desc || 'Supplier');
 
-              // Jika belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso")
+              // Jika belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso" atau "Saldo Awal - Semua Supplier")
               if (!entity && j.desc) {
                 const desc = String(j.desc);
-                const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
-                if (match) {
-                  entity = match[1].trim();
+                // Coba ekstrak dari "SALDO AWAL - Semua Supplier" → "Semua Supplier"
+                if (desc.toUpperCase().startsWith('SALDO AWAL - ')) {
+                  entity = desc.substring('SALDO AWAL - '.length);
+                } else {
+                  const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
+                  if (match) {
+                    entity = match[1].trim();
+                  }
                 }
               }
 
@@ -1201,7 +1206,7 @@ window.accountingApp = function() {
     // PEMBAYARAN HUTANG SUPPLIER
     // ========================================================================
 
-    // Helper function untuk cek saldo kas laci (digunakan untuk validasi transaksi pengeluaran kas)
+    // Helper function untuk cek saldo kas laci (digunakan untuk validasi transaksi pengeluaran)
     getSaldoKasLaci() {
       const modalAwal = Number(this.shiftSummary?.startCash) || 0;
       const penjualanTunai = Number(this.shiftSummary?.cashSales) || 0;
@@ -1210,7 +1215,7 @@ window.accountingApp = function() {
       const today = new Date().toISOString().slice(0, 10);
       let pengeluaranTunai = 0;
       const list = Array.isArray(this.jurnalList) ? this.jurnalList : [];
-    
+   
       list.forEach(j => {
         if (j.date !== today) return;
         if (j.status === 'rejected') return;
@@ -1222,8 +1227,15 @@ window.accountingApp = function() {
           }
         });
       });
-    
-      return Math.max(0, modalAwal + penjualanTunai - pengeluaranTunai);
+   
+      const saldoDariJurnal = Math.max(0, modalAwal + penjualanTunai - pengeluaranTunai);
+   
+      // Fallback: cek saldo dari COA Backend (account 101 Kas)
+      const coaKas = Array.isArray(this.coaListBackend) ? this.coaListBackend.find(c => c.code === '101') : null;
+      const saldoDariCOA = coaKas ? Number(coaKas.currentBalance || coaKas.saldo || 0) : 0;
+   
+      // Gunakan saldo yang lebih tinggi (COA biasanya lebih akurat karena mencakup semua history)
+      return Math.max(saldoDariJurnal, saldoDariCOA);
     },
     hutangPaymentEntityName: '',
     hutangPaymentAmount: 0,
@@ -1235,6 +1247,7 @@ window.accountingApp = function() {
     openPaySupplierModal(supplierName) {
       this.activeSoaType = 'hutang';
       this.activeSoaEntity = supplierName;
+      this.hutangPaymentEntityName = supplierName; // ← Tambahkan agar submitPembayaranHutang tidak gagal validasi
 
       // Hitung saldo sisa hutang dari soaTransactions
       const saldoSisa = this.soaTransactions.reduce((s, t) => s + (t.debit - t.credit), 0);
