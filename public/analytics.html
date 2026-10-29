@@ -739,6 +739,8 @@
         get totalRevenue() {
           var self = this;
           return this.posTransactions.reduce(function(sum, tx) {
+            // Lewati transaksi yang di-void
+            if (tx.voided === true) return sum;
             var pm = String(tx.pm || '').toLowerCase();
             var isKredit = pm === 'kredit' || tx.isCredit === true;
             // Hanya hitung transaksi penjualan (kecuali Setoran Modal & non-penjualan)
@@ -750,7 +752,7 @@
         },
 
         get totalOrdersCount() {
-          return this.posTransactions.length;
+          return this.posTransactions.filter(function(tx) { return tx.voided !== true; }).length;
         },
 
         get averageOrderValue() {
@@ -772,6 +774,8 @@
           });
 
           this.posTransactions.forEach(function(tx) {
+            // Lewati transaksi yang di-void
+            if (tx.voided === true) return;
             var items = Array.isArray(tx.items) ? tx.items : [];
             items.forEach(function(it) {
               var menuId, qty, price;
@@ -815,7 +819,7 @@
               var dayLabel = i === 0 ? 'Hari Ini' : (i === 1 ? 'Kemarin' : 'H-' + i);
               labels.push(dayLabel);
               var dayTotal = this.posTransactions
-                .filter(function(tx) { return tx.__date === ds; })
+                .filter(function(tx) { return tx.__date === ds && tx.voided !== true; })
                 .reduce(function(s, tx) { return s + Number(tx.tot || tx.total || 0); }, 0);
               values.push(dayTotal);
             }
@@ -824,6 +828,8 @@
             values = [0, 0, 0, 0];
             this.posTransactions.forEach(function(tx) {
               if (!tx.__date) return;
+              // Lewati transaksi yang di-void
+              if (tx.voided === true) return;
               var day = parseInt(tx.__date.slice(-2), 10) || 1;
               var weekIdx = Math.min(3, Math.floor((day - 1) / 7));
               values[weekIdx] += Number(tx.tot || tx.total || 0);
@@ -1022,6 +1028,9 @@
             var monthPrefix = yyyy + '-' + mm;
             filtered = filtered.filter(function(tx) { return tx.__date && tx.__date.startsWith(monthPrefix); });
           }
+
+          // Lewati transaksi yang di-void dari export
+          filtered = filtered.filter(function(tx) { return tx.voided !== true; });
 
           if (filtered.length === 0) {
             alert('Tidak ada transaksi penjualan pada periode ' + period + '. Data tidak diekspor.');
