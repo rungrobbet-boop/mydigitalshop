@@ -6192,7 +6192,7 @@ async loadMoreProducts() {
           image: d.image || '',
           isCredit: d.isCredit === true || d.isCredit === 'true' || d.isCredit === 1 || d.isCredit === 'Y' || Boolean(d.isCredit),
         });
-      }
+      });
       if (invFromProducts.length > 0) {
         this.inventoryList = invFromProducts;
         console.log(`[FB-FS-INV] Loaded ${this.inventoryList.length} inventory dari Firestore 'products'`);
