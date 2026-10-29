@@ -1254,6 +1254,7 @@ window.accountingApp = function() {
     hutangPaymentMethod: 'cash',
     hutangPaymentNotes: '',
     showPaymentHutangModal: false,
+    saldoKasTersedia: 0,
 
     // Buka modal pembayaran hutang dari SOA modal
     openPaySupplierModal(supplierName) {
@@ -1266,6 +1267,12 @@ window.accountingApp = function() {
       this.hutangPaymentAmount = saldoSisa > 0 ? saldoSisa : 0;
       this.hutangPaymentMethod = 'cash';
       this.hutangPaymentNotes = 'Pelunasan Hutang - ' + supplierName;
+
+      // Hitung saldo kas tersedia untuk ditampilkan di modal
+      this.saldoKasTersedia = this.getSaldoKasLaci();
+      console.log("[MODAL-PAY] Saldo Kas Tersedia:", this.saldoKasTersedia);
+      console.log("[MODAL-PAY] Data COA:", this.coaListBackend);
+      console.log("[MODAL-PAY] Summary Data:", this.accountingSummaryData);
 
       this.showPaymentHutangModal = true;
     },
