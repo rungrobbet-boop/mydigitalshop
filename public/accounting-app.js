@@ -170,7 +170,7 @@ window.accountingApp = function() {
     _summaryUnsub: null,
 
     // SOA Modal State
-    showSoaModal: false,
+    soaModalOpen: false,
     soaEntityType: 'piutang', // 'piutang' | 'hutang'
     soaEntityName: '',
     soaTransactions: [],
@@ -840,19 +840,25 @@ window.accountingApp = function() {
     get piutangList() {
       const list = [];
       const entityMap = {};
-      const targetBulan = this.bulanAktif;
 
       (this.jurnalList || []).forEach(j => {
+        // Skip entri VOID dan Saldo Awal
+        if (j.status === 'rejected') return;
+        const desc = String(j.desc || '').toUpperCase();
+        if (desc.includes('VOID') || desc.includes('SALDO AWAL')) return;
+
         // Cari akun 103 (Piutang Usaha) di lines
         if (Array.isArray(j.lines)) {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '103') {
-              const entity = j.customerName || j.desc || 'Pelanggan';
+              // Ambil nama customer dari field customerName, bukan desc
+              const entity = j.customerName || j.customer || 'Pelanggan';
               if (!entityMap[entity]) {
                 entityMap[entity] = { entity: entity, total: 0, dueDate: j.dueDate || '-' };
               }
-              entityMap[entity].total += Number(l.credit) || 0 - (Number(l.debit) || 0);
+              // Saldo Piutang = Kredit 103 - Debit 103
+              entityMap[entity].total += (Number(l.credit) || 0) - (Number(l.debit) || 0);
               if (j.dueDate && (!entityMap[entity].dueDate || j.dueDate < entityMap[entity].dueDate)) {
                 entityMap[entity].dueDate = j.dueDate;
               }
@@ -862,7 +868,8 @@ window.accountingApp = function() {
       });
 
       Object.values(entityMap).forEach(v => list.push(v));
-      return list.sort((a, b) => b.total - a.total);
+      // Tampilkan hanya yang memiliki saldo piutang positif (belum lunas)
+      return list.filter(v => v.total > 0).sort((a, b) => b.total - a.total);
     },
 
     get hutangList() {
@@ -870,23 +877,31 @@ window.accountingApp = function() {
       const entityMap = {};
 
       (this.jurnalList || []).forEach(j => {
+        // Skip entri VOID dan Saldo Awal
+        if (j.status === 'rejected') return;
+        const desc = String(j.desc || '').toUpperCase();
+        if (desc.includes('VOID') || desc.includes('SALDO AWAL')) return;
+
         // Cari akun 201 (Hutang Supplier) di lines
         if (Array.isArray(j.lines)) {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '201') {
-              const entity = j.desc || j.ref || 'Supplier';
+              // Ambil nama supplier dari field supplierName, bukan desc
+              const entity = j.supplierName || j.supplier || j.desc || 'Supplier';
               if (!entityMap[entity]) {
                 entityMap[entity] = { entity: entity, total: 0 };
               }
-              entityMap[entity].total += Number(l.debit) || 0 - (Number(l.credit) || 0);
+              // Saldo Hutang = Debit 201 - Kredit 201
+              entityMap[entity].total += (Number(l.debit) || 0) - (Number(l.credit) || 0);
             }
           });
         }
       });
 
       Object.values(entityMap).forEach(v => list.push(v));
-      return list.sort((a, b) => b.total - a.total);
+      // Tampilkan hanya yang memiliki saldo hutang positif (belum lunas)
+      return list.filter(v => v.total > 0).sort((a, b) => b.total - a.total);
     },
 
     // ========================================================================
@@ -906,8 +921,8 @@ window.accountingApp = function() {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === targetAcc) {
               const entity = type === 'piutang'
-                ? (j.customerName || j.desc || 'Pelanggan')
-                : (j.desc || j.ref || 'Supplier');
+                ? (j.customerName || j.customer || 'Pelanggan')
+                : (j.supplierName || j.supplier || j.desc || 'Supplier');
 
               if (entity === entityName) {
                 transactions.push({
@@ -924,11 +939,11 @@ window.accountingApp = function() {
       });
 
       this.soaTransactions = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-      this.showSoaModal = true;
+      this.soaModalOpen = true;
     },
 
     closeSoaModal() {
-      this.showSoaModal = false;
+      this.soaModalOpen = false;
       this.soaEntityType = 'piutang';
       this.soaEntityName = '';
       this.soaTransactions = [];
@@ -1323,7 +1338,34 @@ window.accountingApp = function() {
       const search = String(this.jurnalSearch || '').toLowerCase().trim();
       const filterDate = String(this.journalFilterDate || '').trim();
 
-      return list.filter(j => {
+      // Normalisasi setiap entri jurnal: tambahkan debitCode/creditCode/debitAmount/creditAmount/debitName/creditName
+      // dari struktur lines (backend) agar tabel Jurnal Umum dapat menampilkan Debit/Kredit dengan benar
+      const normalized = list.map(j => {
+        if (!j) return j;
+
+        // Jika sudah punya flat fields, gunakan langsung
+        if (j.debitCode && j.creditCode) return j;
+
+        // Jika pakai struktur lines, extract debit dan credit
+        if (Array.isArray(j.lines)) {
+          const debitLine = j.lines.find(l => Number(l.debit) > 0) || {};
+          const creditLine = j.lines.find(l => Number(l.credit) > 0) || {};
+
+          return {
+            ...j,
+            debitCode: debitLine.acc || debitLine.code || '',
+            debitName: debitLine.name || '',
+            debitAmount: Number(debitLine.debit) || 0,
+            creditCode: creditLine.acc || creditLine.code || '',
+            creditName: creditLine.name || '',
+            creditAmount: Number(creditLine.credit) || 0,
+          };
+        }
+
+        return j;
+      });
+
+      return normalized.filter(j => {
         if (!j) return false;
         // Filter akun
         if (filterAkun !== 'all') {
