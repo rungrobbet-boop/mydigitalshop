@@ -841,24 +841,37 @@ window.accountingApp = function() {
       const list = [];
       const entityMap = {};
 
+      console.log("[SUB-LEDGER] Data Jurnal:", this.jurnalList || []);
+
       (this.jurnalList || []).forEach(j => {
-        // Skip entri VOID dan Saldo Awal
+        // Skip entri VOID (rejected), tapi JANGAN skip Saldo Awal
         if (j.status === 'rejected') return;
-        const desc = String(j.desc || '').toUpperCase();
-        if (desc.includes('VOID') || desc.includes('SALDO AWAL')) return;
 
         // Cari akun 103 (Piutang Usaha) di lines
         if (Array.isArray(j.lines)) {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '103') {
-              // Ambil nama customer dari field customerName, bukan desc
-              const entity = j.customerName || j.customer || 'Pelanggan';
+              // Ambil nama customer dari data transaksi asli, bukan j.desc
+              let entity = j.customerName || j.customer || '';
+
+              // Jika belum ada, coba cari dari transaksi asli via j.ref atau j.orderId
+              if (!entity && (j.ref || j.orderId)) {
+                const txId = j.ref || j.orderId;
+                const txDate = j.date ? String(j.date).slice(0, 7) : new Date().toISOString().slice(0, 7);
+                const txFromList = this.posTransactions?.find(t => String(t.id || t.orderId || t.noEntry) === String(txId));
+                if (txFromList) {
+                  entity = txFromList.customerName || txFromList.customer || '';
+                }
+              }
+
+              if (!entity) entity = 'Pelanggan';
+
               if (!entityMap[entity]) {
                 entityMap[entity] = { entity: entity, total: 0, dueDate: j.dueDate || '-' };
               }
-              // Saldo Piutang = Kredit 103 - Debit 103
-              entityMap[entity].total += (Number(l.credit) || 0) - (Number(l.debit) || 0);
+              // Saldo Piutang = Debit 103 - Kredit 103
+              entityMap[entity].total += (Number(l.debit) || 0) - (Number(l.credit) || 0);
               if (j.dueDate && (!entityMap[entity].dueDate || j.dueDate < entityMap[entity].dueDate)) {
                 entityMap[entity].dueDate = j.dueDate;
               }
@@ -876,24 +889,36 @@ window.accountingApp = function() {
       const list = [];
       const entityMap = {};
 
+      console.log("[SUB-LEDGER] Data Jurnal Hutang:", this.jurnalList || []);
+
       (this.jurnalList || []).forEach(j => {
-        // Skip entri VOID dan Saldo Awal
+        // Skip entri VOID (rejected), tapi TERIMA Saldo Awal (hutang sah)
         if (j.status === 'rejected') return;
-        const desc = String(j.desc || '').toUpperCase();
-        if (desc.includes('VOID') || desc.includes('SALDO AWAL')) return;
 
         // Cari akun 201 (Hutang Supplier) di lines
         if (Array.isArray(j.lines)) {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '201') {
-              // Ambil nama supplier dari field supplierName, bukan desc
-              const entity = j.supplierName || j.supplier || j.desc || 'Supplier';
+              // Ambil nama supplier dari j.desc
+              let entity = String(j.desc || '').trim();
+
+              // Ekstrak nama supplier dari "Saldo Awal - PT. Jaya" -> "PT. Jaya"
+              if (entity.toUpperCase().startsWith('SALDO AWAL - ')) {
+                entity = entity.substring('SALDO AWAL - '.length);
+              }
+              // Jika "Saldo Awal - Semua Supplier" -> "Semua Supplier"
+              if (entity.toUpperCase() === 'SEMUA SUPPLIER') {
+                entity = 'Semua Supplier';
+              }
+
+              if (!entity) entity = 'Supplier';
+
               if (!entityMap[entity]) {
                 entityMap[entity] = { entity: entity, total: 0 };
               }
-              // Saldo Hutang = Debit 201 - Kredit 201
-              entityMap[entity].total += (Number(l.debit) || 0) - (Number(l.credit) || 0);
+              // Total Hutang = Sum(Kredit 201) - Sum(Debit 201)
+              entityMap[entity].total += (Number(l.credit) || 0) - (Number(l.debit) || 0);
             }
           });
         }
