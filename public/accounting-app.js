@@ -3900,6 +3900,14 @@ this.jurnalList.forEach(j => {
         const json = await res.json();
         if (json.success) {
           alert('✅ Reset berhasil!\n\nData diarsipkan ke:\n' + json.archivedTo);
+
+          // ✅ Hapus flag saldo awal dan draft agar bisa generate ulang
+          localStorage.removeItem('dapur_opening_balance_done');
+          localStorage.removeItem('dapur_pos_drafts');
+          localStorage.removeItem('dapur_pos_draft_cart');
+          localStorage.removeItem('dapur_reconciled_orders');
+          console.log('[RESET] Flag saldo awal dan draft dihapus dari localStorage');
+
           this.showResetModal = false;
           await this.loadTrialPreview();
           await this.loadSummary(this.bulanAktif);
