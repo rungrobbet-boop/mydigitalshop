@@ -4480,10 +4480,10 @@ async loadMoreProducts() {
     sigY += 25;
 
     // Garis horizontal
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(41, 37, 36);
-    doc.line(70, sigY, 120, sigY); // Garis Penerima
-    doc.line(140, sigY, 190, sigY); // Garis Dibuat Oleh
+    docInvoice.setLineWidth(0.5);
+    docInvoice.setDrawColor(41, 37, 36);
+    docInvoice.line(70, sigY, 120, sigY); // Garis Penerima
+    docInvoice.line(140, sigY, 190, sigY); // Garis Dibuat Oleh
 
     // Teks di bawah garis
     sigY += 5;

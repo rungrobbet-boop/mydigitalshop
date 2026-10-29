@@ -1009,6 +1009,65 @@ export async function onRequest(context) {
       }
 
       // ================================================================
+      // POST /accounting/journal/pay-payable — Jurnal Pelunasan Hutang Supplier
+      // Debit Hutang Supplier (201), Kredit Kas/Bank (101/102)
+      // ================================================================
+      if (method === 'POST' && parts[1] === 'pay-payable') {
+        const body = await request.json().catch(() => ({}));
+        const entityName = String(body.entityName || '').trim();
+        const dateStr = body.date || new Date().toISOString().split('T')[0];
+        const pm = String(body.pm || 'cash').toLowerCase();
+        const amount = toNum(body.amount || 0);
+        const desc = body.description || `Pelunasan Hutang - ${entityName}`;
+
+        if (!entityName || amount <= 0) {
+          return jsonResponse({ success: false, error: 'entityName dan amount wajib diisi' }, 400);
+        }
+
+        const bulan = dateStr.substring(0, 7);
+
+        // Tentukan akun kredit berdasarkan metode pembayaran
+        const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
+                    || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
+        const creditAcc = isBank ? '102' : '101'; // 102 = Bank, 101 = Kas Tunai
+
+        const payId = `JRN-${dateStr.replace(/-/g, '')}-PAY-${Date.now().toString().slice(-4)}`;
+
+        const payEntry = {
+          noEntry: `PAY-${entityName.slice(-6)}`,
+          date: dateStr,
+          timestamp: Date.now(),
+          category: 'pelunasan_hutang',
+          desc: desc,
+          ref: entityName,
+          status: 'approved',
+          lines: [
+            { acc: '201', debit: amount, credit: 0 },      // Debit Hutang Supplier
+            { acc: creditAcc, debit: 0, credit: amount }   // Kredit Kas/Bank
+          ],
+          total: amount,
+          createdAt: Date.now(),
+          isPayablePayment: true,
+          entityName: entityName
+        };
+
+        await fetch(`${dbUrl}/accounting/journal/${bulan}/${payId}.json${authParam}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payEntry)
+        });
+        await updateLedgerAfterApprove(dbUrl, bulan, payEntry.lines, apiKey, payId);
+
+        await updateSummaryAfterApprove(dbUrl, bulan, apiKey);
+
+        console.log(`[PAY-PAYABLE] ✅ ${entityName}: Bayar=${amount} via ${pm}`);
+        return jsonResponse({
+          success: true,
+          message: `Pembayaran hutang tersimpan. Bayar: ${amount}`,
+          payId, total: amount
+        }, 201);
+      }
+
+      // ================================================================
       // POST /accounting/journal/receive — Jurnal Terima Barang Konsinyasi
       // Debit Persediaan 1004 / Kredit Hutang Supplier 2001
       // ================================================================
