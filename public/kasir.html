@@ -888,8 +888,8 @@
           </div>
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-          <div class="lg:col-span-5 xl:col-span-4 sticky top-20">
-            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4">
+          <div class="lg:col-span-5 xl:col-span-4 sticky top-20 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[70] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full'">
+            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4 md:h-full md:overflow-hidden md:flex md:flex-col">
               
               <!-- Header Keranjang: Judul + Hapus Semua -->
               <div class="flex items-center justify-between pb-3 border-b border-stone-200">
@@ -902,6 +902,13 @@
                   </span>
                 </div>
                 
+                <button 
+                  type="button" 
+                  @click="showCartMobile = false"
+                  class="md:hidden text-stone-500 hover:text-stone-800 p-2"
+                  title="Tutup Keranjang">
+                  <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
                 <button 
                   type="button" 
                   x-show="cart.length > 0"
@@ -8473,7 +8480,51 @@
   </div>
 </div>
 
+<!-- Overlay untuk menutup keranjang mobile -->
+<div 
+    x-show="showCartMobile" 
+    @click="showCartMobile = false"
+    x-transition.opacity.duration.200ms
+    class="fixed inset-0 bg-black/50 z-[65] md:hidden" 
+    style="display: none;">
+</div>
+
+<!-- FAB Keranjang Mobile -->
+<button 
+    @click="showCartMobile = true" 
+    class="fixed bottom-20 right-4 z-[60] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center hover:bg-orange-700 transition-all border-2 border-white"
+    x-show="cart && cart.length > 0"
+    title="Buka Keranjang">
+    <i class="fa-solid fa-cart-shopping text-xl"></i>
+    <span 
+        x-text="cart.reduce((sum, i) => sum + (i.qty || 1), 0)"
+        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+    </span>
+</button>
+
 </body>
 </html>
+<!-- Overlay untuk menutup keranjang mobile -->
+<div 
+    x-show="showCartMobile" 
+    @click="showCartMobile = false"
+    x-transition.opacity.duration.200ms
+    class="fixed inset-0 bg-black/50 z-[65] md:hidden" 
+    style="display: none;">
+</div>
+
+<!-- FAB Keranjang Mobile -->
+<button 
+    @click="showCartMobile = true" 
+    class="fixed bottom-20 right-4 z-[60] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center hover:bg-orange-700 transition-all border-2 border-white"
+    x-show="cart && cart.length > 0"
+    title="Buka Keranjang">
+    <i class="fa-solid fa-cart-shopping text-xl"></i>
+    <span 
+        x-text="cart.reduce((sum, i) => sum + (i.qty || 1), 0)"
+        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+    </span>
+</button>
+
 </body>
 </html>

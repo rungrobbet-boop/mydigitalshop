@@ -193,6 +193,7 @@ window.kasirApp = () => ({
   // =========================================================================
   activeTab: 'transaksi',
   mobileMenuOpen: false,
+  showCartMobile: false,
 
   // Sesi Kasir & Jam Realtime
   kasirInfo: {
