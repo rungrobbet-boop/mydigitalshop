@@ -844,14 +844,25 @@ window.accountingApp = function() {
       console.log("[SUB-LEDGER] Data Jurnal Piutang:", this.jurnalList || []);
 
       (this.jurnalList || []).forEach(j => {
-        // Skip entri VOID (rejected), tapi JANGAN skip Saldo Awal
-        if (j.status === 'rejected') return;
+        // JANGAN skip entri VOID — Void adalah pengurang piutang yang sah
+        // Hanya skip entri yang benar-benar rejected (tidak ada dalam data)
 
         // Cari akun 103 (Piutang Usaha) di lines
         if (Array.isArray(j.lines)) {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === '103') {
+              // Debug khusus untuk Santoso
+              if (String(j.customerName || j.desc || '').includes('Santoso')) {
+                console.log("[CEK SANTOSO]", {
+                  ref: j.ref,
+                  desc: j.desc,
+                  lines: j.lines,
+                  customerName: j.customerName,
+                  customer: j.customer
+                });
+              }
+
               // Ambil nama customer dari data transaksi asli
               let entity = j.customerName || j.customer || '';
 
