@@ -1897,6 +1897,15 @@ this.jurnalList.forEach(j => {
       let marketing = 0;
       let operasional = 0;
 
+      // ✅ BAGIAN 3: Pastikan jurnal dimuat dari backend sebelum perhitungan
+      if (!this.jurnalList || this.jurnalList.length === 0) {
+        try {
+          await this.loadJournal(bulan);
+        } catch (e) {
+          console.warn('[LABA-RUGI] Gagal load jurnal:', e);
+        }
+      }
+
       // Hitung mutasi dari jurnal
       this.jurnalList.forEach(j => {
         // Struktur baru: j.lines = [{acc, debit, credit}, ...]
@@ -1906,12 +1915,12 @@ this.jurnalList.forEach(j => {
             const ld = Number(l.debit) || 0;
             const lc = Number(l.credit) || 0;
             if (!acc) return;
-            // Pendapatan (Kredit menambah, Debit mengurangi)
+            // Pendapatan (Kredit menambah, Debit mengurangi) → acc 4xx
             if (acc === '401') revPOS += lc - ld;
             if (acc === '402') revCatering += lc - ld;
-            // HPP (Debit menambah, Kredit mengurangi)
+            // HPP (Debit menambah, Kredit mengurangi) → acc 501
             if (acc === '501') hpp += ld - lc;
-            // Beban Operasional (Debit menambah, Kredit mengurangi)
+            // Beban Operasional (Debit menambah, Kredit mengurangi) → acc 6xx
             if (acc === '601') gaji += ld - lc;
             if (acc === '602') sewa += ld - lc;
             if (acc === '603') listrik += ld - lc;
@@ -1925,15 +1934,15 @@ this.jurnalList.forEach(j => {
         const dAmt = Number(j.debitAmount) || 0;
         const cAmt = Number(j.creditAmount) || 0;
 
-        // Pendapatan (Kredit menambah, Debit mengurangi)
+        // Pendapatan (Kredit menambah, Debit mengurangi) → acc 4xx
         if (j.creditCode === '401' || j.debitCode === '401') revPOS += cAmt - dAmt;
         if (j.creditCode === '402' || j.debitCode === '402') revCatering += cAmt - dAmt;
 
-        // HPP (Debit menambah, Kredit mengurangi)
+        // HPP (Debit menambah, Kredit mengurangi) → acc 501
         if (j.debitCode === '501' || j.debitCode === '501') hpp += dAmt;
         if (j.creditCode === '501' || j.creditCode === '501') hpp -= cAmt;
 
-        // Beban Operasional (Debit menambah, Kredit mengurangi)
+        // Beban Operasional (Debit menambah, Kredit mengurangi) → acc 6xx
         if (j.debitCode === '601' || j.debitCode === '601') gaji += dAmt;
         if (j.creditCode === '601' || j.creditCode === '601') gaji -= cAmt;
 
@@ -1950,25 +1959,10 @@ this.jurnalList.forEach(j => {
         if (j.creditCode === '605' || j.creditCode === '605') operasional -= cAmt;
       });
 
-      // Tambahkan saldo dari COA jika belum terangkum
-      const getAccBal = (code) => {
-        const found = this.coaList.find(c => c.code === code);
-        return found ? Number(found.currentBalance) || 0 : 0;
-      };
-
-      if (revPOS === 0 && getAccBal('401') > 0) revPOS = getAccBal('401');
-      if (revCatering === 0 && getAccBal('402') > 0) revCatering = getAccBal('402');
-      if (hpp === 0 && getAccBal('501') > 0) hpp = getAccBal('501');
-      if (gaji === 0 && getAccBal('601') > 0) gaji = getAccBal('601');
-      if (sewa === 0 && getAccBal('602') > 0) sewa = getAccBal('602');
-      if (listrik === 0 && getAccBal('603') > 0) listrik = getAccBal('603');
-      if (marketing === 0 && getAccBal('604') > 0) marketing = getAccBal('604');
-      if (operasional === 0 && getAccBal('605') > 0) operasional = getAccBal('605');
-
-      const totalPendapatan = revPOS + revCatering;
-      const hppFinal = Math.abs(hpp);
+      const totalPendapatan = Math.max(0, revPOS + revCatering);
+      const hppFinal = Math.max(0, hpp);
       const labaKotor = totalPendapatan - hppFinal;
-      const totalBeban = Math.abs(gaji + sewa + listrik + marketing + operasional);
+      const totalBeban = Math.max(0, gaji + sewa + listrik + marketing + operasional);
       const labaBersih = labaKotor - totalBeban;
 
       this.laporanData.pl = {

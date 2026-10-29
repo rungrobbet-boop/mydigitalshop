@@ -928,6 +928,9 @@ try {
     // ✅ Load journal list untuk tab Jurnal Umum
     await this.loadJournalListForKasir();
 
+    // ✅ BAGIAN 1: Muat drafts dari localStorage saat halaman dimuat agar counter benar
+    await this.loadDraftsFromStorage();
+
     // 6. Muat Inventory Realtime, Resep Bahan Baku & Riwayat Shift (BAGIAN 3)
     await this.loadInventory();
     this.loadSuppliers();
@@ -3766,7 +3769,7 @@ async loadMoreProducts() {
       doc.text(`Waktu     : ${order.time || this.formatTime(Date.now())}`, 5, y); y += 4;
       doc.text(`Kasir     : ${this.kasirInfo.name || this.kasirInfo.username}`, 5, y); y += 4;
       doc.text(`Shift ID  : ${this.kasirInfo.shiftId || '-'}`, 5, y); y += 4;
-      doc.text(`Metode    : ${(order.paymentMethod || order.pm || 'CASH').toUpperCase()}`, 5, y); y += 4;
+      doc.text(`Metode    : ${(order.paymentMethod || order.pm || 'cash').toLowerCase() === 'kredit' ? 'KREDIT (Piutang)' : (order.paymentMethod || order.pm || 'CASH').toUpperCase()}`, 5, y); y += 4;
       doc.text('--------------------------------', 40, y, { align: 'center' }); y += 4;
 
         (order.items || []).forEach(it => {
@@ -3996,7 +3999,7 @@ async loadMoreProducts() {
       `No. Order: *${order.id}*\n` +
       `Tanggal: ${order.date || this.formatDate(Date.now())}\n` +
       `Kasir: ${this.kasirInfo.name}\n` +
-      `Metode: ${(order.paymentMethod || order.pm || 'CASH').toUpperCase()}\n` +
+      `Metode: ${(order.paymentMethod || order.pm || 'cash').toLowerCase() === 'kredit' ? 'KREDIT (Piutang)' : (order.paymentMethod || order.pm || 'CASH').toUpperCase()}\n` +
       `--------------------------------\n` +
       itemsText +
       `--------------------------------\n` +
