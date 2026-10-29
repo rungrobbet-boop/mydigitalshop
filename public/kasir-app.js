@@ -4312,12 +4312,14 @@ async loadMoreProducts() {
    * CETAK INVOICE / SURAT JALAN KREDIT
    * ========================================================================= */
   async cetakInvoiceKredit(tx) {
+    console.log("[INVOICE-CLICK] Tombol Invoice diklik untuk:", tx);
     if (!tx) {
       this.showToast('Data transaksi tidak valid', 'error');
       return;
     }
 
     if (!window.jspdf || !window.jspdf.jsPDF) {
+      console.log("[INVOICE-CLICK] jsPDF tidak tersedia:", { hasJspdf: !!window.jspdf, hasJsPDF: window.jspdf && !!window.jspdf.jsPDF });
       this.showToast('Library PDF belum siap, tunggu sebentar.', 'error');
       return;
     }
