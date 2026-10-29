@@ -6071,6 +6071,8 @@ async loadMoreProducts() {
               isReadyToSell: Boolean(d.isReadyToSell) || false,
               linkedMenuId: d.linkedMenuId || null,
               image: d.image || d.imageUrl || '',
+              // ✅ BAGIAN 1: Pastikan isCredit terbaca dari RTDB
+              isCredit: d.isCredit === true || d.isCredit === 'true' || d.isCredit === 1 || Boolean(d.isCredit),
             });
           }
           this.inventoryList = invFromRtdb;
