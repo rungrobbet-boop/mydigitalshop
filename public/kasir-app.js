@@ -4365,8 +4365,13 @@ async loadMoreProducts() {
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(brandName, 105, 18, { align: 'center' });
-      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 105, 23, { align: 'center' });
+      doc.text(brandName, 105, 17, { align: 'center' });
+      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 105, 22, { align: 'center' });
+
+      // Garis pemisah full-width
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(41, 37, 36);
+      doc.line(10, 28, 200, 28);
     };
 
     // Helper: cetak tabel barang
@@ -4410,24 +4415,24 @@ async loadMoreProducts() {
     // ========================================================================
     printTokoHeader(docInvoice, 'INVOICE');
 
-    // Info Transaksi (Kiri)
+    // Info Transaksi (Kiri) & Info Customer (Kanan) — sejajar, tanpa baris kosong
     docInvoice.setFontSize(9);
     docInvoice.setFont('helvetica', 'normal');
-    let y = 40;
+    let y = 33;
     docInvoice.text('No. Invoice : ' + tx.id, 20, y);
     docInvoice.text('Tanggal     : ' + txDate, 20, y + 5);
     docInvoice.text('Jatuh Tempo : ' + dueDate, 20, y + 10);
 
-    // Info Customer (Kanan)
-    docInvoice.text('Nama        : ' + customerName, 130, y + 5);
-    docInvoice.text('No. HP      : ' + customerPhone, 130, y + 10);
-    docInvoice.text('Alamat Kirim: ' + customerAddress, 130, y + 15);
+    // Info Customer (Kanan) — tanpa "Kepada Yth."
+    docInvoice.text('Nama        : ' + customerName, 130, y);
+    docInvoice.text('No. HP      : ' + customerPhone, 130, y + 5);
+    docInvoice.text('Alamat Kirim: ' + customerAddress, 130, y + 10);
 
     // Tabel Barang (dengan harga)
-    const tableEndY = printItemTable(docInvoice, y + 22, true);
+    const tableEndY = printItemTable(docInvoice, y + 15, true);
 
     // Rincian bawah tabel
-    let detailY = tableEndY + 10;
+    let detailY = tableEndY + 8;
     docInvoice.setFontSize(9);
     docInvoice.setFont('helvetica', 'normal');
 
@@ -4448,18 +4453,18 @@ async loadMoreProducts() {
     }
 
     if (serviceCharge > 0) {
-      docInvoice.text('Service Charge', 150, detailY);
+      docInvoice.text('Ongkir/Biaya', 150, detailY);
       docInvoice.text(this.formatRupiah(serviceCharge), 190, detailY, { align: 'right' });
       detailY += 5;
     }
 
-    // Total Tagihan (Bold)
+    // TOTAL (Bold)
     detailY += 8;
     docInvoice.setFontSize(11);
     docInvoice.setFont('helvetica', 'bold');
-    docInvoice.text('TOTAL TAGIHAN', 150, detailY);
+    docInvoice.text('TOTAL', 150, detailY);
     docInvoice.text(this.formatRupiah(grandTotal), 190, detailY, { align: 'right' });
-    detailY += 12;
+    detailY += 20;
 
     // Tanda Tangan (dua kolom berdampingan)
     docInvoice.setFontSize(8);
@@ -4499,10 +4504,10 @@ async loadMoreProducts() {
     docSuratJalan.text('Tanggal     : ' + txDate, 150, sjY + 5, { align: 'right' });
 
     // Tabel Barang (tanpa harga)
-    const sjTableEndY = printItemTable(docSuratJalan, sjY + 22, false);
+    const sjTableEndY = printItemTable(docSuratJalan, sjY + 15, false);
 
-    // Tanda Tangan (empat kolom berdampingan)
-    let sjSignY = sjTableEndY + 12;
+    // Tanda Tangan (empat kolom berdampingan) — beri jarak lebih dari tabel
+    let sjSignY = sjTableEndY + 20;
     docSuratJalan.setFontSize(8);
     docSuratJalan.setFont('helvetica', 'normal');
 
