@@ -4383,12 +4383,12 @@ async loadMoreProducts() {
       doc.text(title, 200, 12, { align: 'right' });
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text(brandName, 200, 18, { align: 'right' });
+      doc.setFontSize(12);
+      doc.text(brandName, 105, 22, { align: 'center' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 200, 23, { align: 'right' });
+      doc.text((brandAddress || '') + ' | Telp: ' + (brandPhone || ''), 105, 27, { align: 'center' });
 
       // Garis pemisah full-width
       doc.setLineWidth(0.5);
@@ -4447,19 +4447,19 @@ async loadMoreProducts() {
         tableWidth: 'wrap',
         columnStyles: includePrice
           ? {
-              0: { cellWidth: 12, halign: 'center' },    // No
-              1: { cellWidth: 55, halign: 'left' },      // Nama Barang
+              0: { cellWidth: 10, halign: 'center' },    // No
+              1: { cellWidth: 90, halign: 'left' },      // Nama Barang (Sangat Lebar)
               2: { cellWidth: 15, halign: 'center' },    // Qty
-              3: { cellWidth: 25, halign: 'center' },    // Diskon
-              4: { cellWidth: 35, halign: 'right' },     // Harga Satuan
-              5: { cellWidth: 35, halign: 'right' }      // Total
+              3: { cellWidth: 20, halign: 'center' },    // Diskon
+              4: { cellWidth: 30, halign: 'right' },     // Harga Satuan
+              5: { cellWidth: 'auto', halign: 'right' }  // Total
             }
           : {
-              0: { cellWidth: 12, halign: 'center' },    // No
-              1: { cellWidth: 25, halign: 'center' },    // ID/Barcode
-              2: { cellWidth: 70, halign: 'left' },      // Nama Barang
-              3: { cellWidth: 15, halign: 'center' },    // Qty
-              4: { cellWidth: 75, halign: 'left' }       // Keterangan
+              0: { cellWidth: 15, halign: 'center' },    // No
+              1: { cellWidth: 35, halign: 'center' },    // ID/Barcode
+              2: { cellWidth: 90, halign: 'left' },      // Nama Barang (Paling Lebar)
+              3: { cellWidth: 20, halign: 'center' },    // Qty
+              4: { cellWidth: 'auto', halign: 'left' }    // Keterangan (Sisa ruang)
             },
       });
       return doc.lastAutoTable.finalY;
@@ -4488,45 +4488,45 @@ async loadMoreProducts() {
     // Tabel Barang (dengan harga & diskon)
     const tableEndY = printItemTable(docInvoice, y + 18, true);
 
-    // Rincian bawah tabel (rata kanan)
-    let detailY = tableEndY + 8;
+    // Rincian bawah tabel (rata kanan) — menggunakan finalY dari tabel terakhir
+    const finalY = docInvoice.lastAutoTable.finalY + 10;
+    let detailY = finalY;
     docInvoice.setFontSize(9);
     docInvoice.setFont('helvetica', 'normal');
 
-    docInvoice.text('Subtotal', 180, detailY);
-    docInvoice.text(this.formatRupiah(itemSubtotal), 200, detailY, { align: 'right' });
-    detailY += 5;
+    docInvoice.text('Subtotal', 140, detailY);
+    docInvoice.text(this.formatRupiah(subtotal), 195, detailY, { align: 'right' });
+    detailY += 6;
 
     if (itemDiscTotal > 0) {
-      docInvoice.text('Diskon', 180, detailY);
-      docInvoice.text('- ' + this.formatRupiah(itemDiscTotal), 200, detailY, { align: 'right' });
-      detailY += 5;
+      docInvoice.text('Diskon', 140, detailY);
+      docInvoice.text('- ' + this.formatRupiah(itemDiscTotal), 195, detailY, { align: 'right' });
+      detailY += 6;
     }
 
     if (disc > 0) {
-      docInvoice.text('Diskon Transaksi', 180, detailY);
-      docInvoice.text('- ' + this.formatRupiah(disc), 200, detailY, { align: 'right' });
-      detailY += 5;
+      docInvoice.text('Diskon Transaksi', 140, detailY);
+      docInvoice.text('- ' + this.formatRupiah(disc), 195, detailY, { align: 'right' });
+      detailY += 6;
     }
 
     if (serviceCharge > 0) {
-      docInvoice.text('Ongkir/Biaya', 180, detailY);
-      docInvoice.text(this.formatRupiah(serviceCharge), 200, detailY, { align: 'right' });
-      detailY += 5;
+      docInvoice.text('Ongkir/Biaya', 140, detailY);
+      docInvoice.text(this.formatRupiah(serviceCharge), 195, detailY, { align: 'right' });
+      detailY += 6;
     }
 
     if (tax > 0) {
-      docInvoice.text('PPN', 180, detailY);
-      docInvoice.text(this.formatRupiah(tax), 200, detailY, { align: 'right' });
-      detailY += 5;
+      docInvoice.text('PPN', 140, detailY);
+      docInvoice.text(this.formatRupiah(tax), 195, detailY, { align: 'right' });
+      detailY += 6;
     }
 
-    // TOTAL TAGIHAN (Bold)
-    detailY += 5;
-    docInvoice.setFontSize(11);
+    // TOTAL (Bold)
     docInvoice.setFont('helvetica', 'bold');
-    docInvoice.text('TOTAL TAGIHAN', 180, detailY);
-    docInvoice.text(this.formatRupiah(grandTotal), 200, detailY, { align: 'right' });
+    docInvoice.setFontSize(10);
+    docInvoice.text('TOTAL', 140, detailY + 2);
+    docInvoice.text(this.formatRupiah(grandTotal), 195, detailY + 2, { align: 'right' });
 
     // Tanda Tangan (rata kiri, bukan center) — currentY += 15
     let sigY = detailY + 15;
