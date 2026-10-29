@@ -1202,12 +1202,35 @@ window.accountingApp = function() {
     // PEMBAYARAN HUTANG SUPPLIER
     // ========================================================================
 
-    // State untuk modal pembayaran hutang
-    showPaymentHutangModal: false,
+    // Helper function untuk cek saldo kas laci (digunakan untuk validasi transaksi pengeluaran kas)
+    getSaldoKasLaci() {
+      const modalAwal = Number(this.shiftSummary?.startCash) || 0;
+      const penjualanTunai = Number(this.shiftSummary?.cashSales) || 0;
+    
+      // Hitung pengeluaran tunai dari jurnal hari ini
+      const today = new Date().toISOString().slice(0, 10);
+      let pengeluaranTunai = 0;
+      const list = Array.isArray(this.jurnalList) ? this.jurnalList : [];
+    
+      list.forEach(j => {
+        if (j.date !== today) return;
+        if (j.status === 'rejected') return;
+        (j.lines || []).forEach(l => {
+          const acc = String(l.acc || '').trim();
+          // Kredit ke Kas = uang keluar
+          if ((acc === '101' || acc === '101') && Number(l.credit) > 0) {
+            pengeluaranTunai += Number(l.credit) || 0;
+          }
+        });
+      });
+    
+      return Math.max(0, modalAwal + penjualanTunai - pengeluaranTunai);
+    },
     hutangPaymentEntityName: '',
     hutangPaymentAmount: 0,
     hutangPaymentMethod: 'cash',
     hutangPaymentNotes: '',
+    showPaymentHutangModal: false,
 
     // Buka modal pembayaran hutang dari SOA modal
     openPaySupplierModal(supplierName) {
@@ -1250,6 +1273,15 @@ window.accountingApp = function() {
         const pm = this.hutangPaymentMethod; // 'cash', 'transfer', 'qris'
         const amount = Number(this.hutangPaymentAmount);
         const desc = this.hutangPaymentNotes || 'Pelunasan Hutang - ' + this.hutangPaymentEntityName;
+
+        // Validasi saldo kas untuk pelunasan tunai
+        if (pm === 'cash' || pm === 'tunai') {
+          const saldoKas = this.getSaldoKasLaci();
+          if (amount > saldoKas) {
+            this.showToast(`❌ Kas tidak cukup! Pelunasan Rp ${this.formatRupiah(amount)} melebihi saldo kas Rp ${this.formatRupiah(saldoKas)}`, 'error');
+            return;
+          }
+        }
 
         const res = await fetch('/accounting/journal/pay-payable', {
           method: 'POST',

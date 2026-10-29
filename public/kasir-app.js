@@ -430,6 +430,11 @@ window.kasirApp = () => ({
     return Math.max(0, modalAwal + penjualanTunai - pengeluaranTunai);
   },
 
+  // Helper function untuk cek saldo kas laci (digunakan untuk validasi transaksi pengeluaran)
+  getSaldoKasLaci() {
+    return this.saldoKasLaci;
+  },
+
   shiftData: {
     startTime: '08:00 WIB',
     duration: '5 jam 30 menit',
@@ -7234,6 +7239,16 @@ async loadMoreProducts() {
     }
 
     const totalBeli = numQty * numPrice;
+    
+    // Validasi saldo kas untuk pembelian tunai
+    if (paymentMethod === 'cash' || paymentMethod === 'tunai') {
+      const saldoKas = this.getSaldoKasLaci();
+      if (totalBeli > saldoKas) {
+        this.showToast(`❌ Kas tidak cukup! Total beli Rp ${this.formatRupiah(totalBeli)} melebihi saldo kas Rp ${this.formatRupiah(saldoKas)}`, 'error');
+        return;
+      }
+    }
+    
     const oldStock = Number(item.stock || item.stok || 0);
     const newStock = oldStock + numQty;
     const dateStr = date || new Date().toISOString().slice(0, 10);
