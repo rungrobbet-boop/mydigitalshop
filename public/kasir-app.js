@@ -4476,8 +4476,8 @@ async loadMoreProducts() {
     docInvoice.text('Penerima', 70, sigY);
     docInvoice.text('Dibuat Oleh', 140, sigY);
 
-    // Beri jarak lebar untuk TTD (25mm ke bawah)
-    sigY += 25;
+    // Beri jarak lebar untuk TTD (15mm ke bawah - proporsional dengan font 8-9pt)
+    sigY += 15;
 
     // Garis horizontal
     docInvoice.setLineWidth(0.5);
@@ -4537,8 +4537,8 @@ async loadMoreProducts() {
       docSuratJalan.text(col.label, col.x, sjSigY);
     });
 
-    // Beri jarak lebar untuk TTD (25mm ke bawah)
-    sjSigY += 25;
+    // Beri jarak lebar untuk TTD (15mm ke bawah - proporsional dengan font 8-9pt)
+    sjSigY += 15;
 
     // Gambar garis horizontal untuk setiap kolom
     docSuratJalan.setLineWidth(0.5);

@@ -974,8 +974,19 @@ window.accountingApp = function() {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === targetAcc) {
               const entity = type === 'piutang'
-                ? (j.customerName || j.customer || 'Pelanggan')
+                ? (j.customerName || j.customer || '')
                 : (j.supplierName || j.supplier || j.desc || 'Supplier');
+
+              // Jika belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso")
+              if (!entity && j.desc) {
+                const desc = String(j.desc);
+                const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
+                if (match) {
+                  entity = match[1].trim();
+                }
+              }
+
+              if (!entity) entity = type === 'piutang' ? 'Pelanggan' : 'Supplier';
 
               // Debug untuk Santoso
               if (j.ref === 'T1793245892737' || String(j.desc || '').includes('Santoso')) {
@@ -1032,8 +1043,8 @@ window.accountingApp = function() {
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
-      const typeLabel = this.soaEntityType === 'piutang' ? 'PIUTANG' : 'HUTANG';
-      const entityLabel = this.soaEntityType === 'piutang' ? 'Customer' : 'Supplier';
+      const typeLabel = this.activeSoaType === 'piutang' ? 'PIUTANG' : 'HUTANG';
+      const entityLabel = this.activeSoaType === 'piutang' ? 'Customer' : 'Supplier';
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
@@ -1049,7 +1060,7 @@ window.accountingApp = function() {
       doc.setFont('helvetica', 'bold');
       doc.text(`${typeLabel} - ${entityLabel}`, 20, 50);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Nama ${entityLabel.toLowerCase()}: ${this.soaEntityName}`, 20, 56);
+      doc.text(`Nama ${entityLabel.toLowerCase()}: ${this.activeSoaEntity || '-'}`, 20, 56);
       doc.text(`Periode: ${this.bulanAktif}`, 20, 62);
 
       const tableData = this.soaTransactions.map(t => [
@@ -1081,7 +1092,7 @@ window.accountingApp = function() {
       const totalCredit = this.soaTransactions.reduce((sum, t) => sum + t.credit, 0);
       const finalBalance = totalDebit - totalCredit;
 
-      const finalY = doc.lastAutoTable.finalY + 15;
+      const finalY = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text('Total Debit:', 120, finalY);
@@ -1093,13 +1104,13 @@ window.accountingApp = function() {
 
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text('Diperbuat di ' + (this.siteInfo?.city || 'Jakarta'), 20, finalY + 25);
-      doc.text('Tanggal: ' + new Date().toLocaleDateString('id-ID'), 20, finalY + 30);
-      doc.text('Hormat kami,', 20, finalY + 38);
-      doc.text('_________________________', 20, finalY + 45);
-      doc.text('Penerima / ' + entityLabel, 20, finalY + 50);
+      doc.text('Diperbuat di ' + (this.siteInfo?.city || 'Jakarta'), 20, finalY + 15);
+      doc.text('Tanggal: ' + new Date().toLocaleDateString('id-ID'), 20, finalY + 20);
+      doc.text('Hormat kami,', 20, finalY + 28);
+      doc.text('_________________________', 20, finalY + 35);
+      doc.text('Penerima / ' + entityLabel, 20, finalY + 40);
 
-      doc.save(`SOA_${this.soaEntityName}_${this.bulanAktif}.pdf`);
+      doc.save(`SOA_${this.activeSoaEntity || 'unknown'}_${this.bulanAktif}.pdf`);
       this.showToast('SOA PDF berhasil diunduh', 'success');
     },
 
