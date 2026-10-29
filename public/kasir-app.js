@@ -4402,7 +4402,8 @@ async loadMoreProducts() {
         theme: 'grid',
         styles: { fontSize: 8, cellWidth: 'wrap', halign: 'center' },
         headStyles: { fillColor: [41, 37, 36], textColor: 255 },
-        margin: { left: 10, right: 10 },
+        margin: { left: 30, right: 30 },
+        tableWidth: 'auto',
         columnStyles: includePrice
           ? { 0: { cellWidth: 10 }, 1: { cellWidth: 60, halign: 'left' }, 2: { cellWidth: 15 }, 3: { cellWidth: 35 }, 4: { cellWidth: 35 } }
           : { 0: { cellWidth: 10 }, 1: { cellWidth: 80, halign: 'left' }, 2: { cellWidth: 15 } },
@@ -4459,12 +4460,12 @@ async loadMoreProducts() {
     }
 
     // TOTAL (Bold)
-    detailY += 8;
+    detailY += 5;
     docInvoice.setFontSize(11);
     docInvoice.setFont('helvetica', 'bold');
     docInvoice.text('TOTAL', 150, detailY);
     docInvoice.text(this.formatRupiah(grandTotal), 190, detailY, { align: 'right' });
-    detailY += 20;
+    detailY += 35;
 
     // Tanda Tangan (dua kolom berdampingan)
     docInvoice.setFontSize(8);
@@ -4507,7 +4508,7 @@ async loadMoreProducts() {
     const sjTableEndY = printItemTable(docSuratJalan, sjY + 15, false);
 
     // Tanda Tangan (empat kolom berdampingan) — beri jarak lebih dari tabel
-    let sjSignY = sjTableEndY + 20;
+    let sjSignY = sjTableEndY + 35;
     docSuratJalan.setFontSize(8);
     docSuratJalan.setFont('helvetica', 'normal');
 
