@@ -1271,83 +1271,129 @@
       <!-- TAB 6: BUKU BESAR REKANAN                                          -->
       <!-- ================================================================= -->
       <div x-show="activeTab === 'ledger-rekanan'" x-cloak class="space-y-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+        <!-- Header & Filter -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-stone-200">
           <div>
-            <h2 class="text-xl font-bold text-stone-900">Buku Besar Rekanan</h2>
-            <p class="text-sm text-stone-500">Lihat semua transaksi jurnal per customer atau supplier</p>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">Buku Besar Rekanan</h2>
+            <p class="text-xs sm:text-sm text-stone-500 font-medium">Mutasi rinci debit & kredit per customer atau supplier (akun 103 Piutang &amp; 201 Hutang).</p>
           </div>
-          <span class="text-xs font-bold text-stone-400 uppercase tracking-wider">Periode: <span x-text="bulanAktif"></span></span>
+
+          <!-- Filter: Pencarian + Bulan -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              x-model="searchRekanan"
+              @input="loadLedgerRekanan()"
+              placeholder="Cari nama customer/supplier..."
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-sm font-mono text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500 min-w-[240px]">
+            <select
+              x-model="ledgerBulanRekanan"
+              @change="loadLedgerRekanan()"
+              class="h-10 px-3 rounded-xl border border-stone-300 bg-white text-xs font-mono text-stone-800 shadow-2xs focus:ring-2 focus:ring-brand-500">
+              <option value="">Semua Periode</option>
+              <option value="2026-01">Januari 2026</option>
+              <option value="2026-02">Februari 2026</option>
+              <option value="2026-03">Maret 2026</option>
+              <option value="2026-04">April 2026</option>
+              <option value="2026-05">Mei 2026</option>
+              <option value="2026-06">Juni 2026</option>
+              <option value="2026-07">Juli 2026</option>
+              <option value="2026-08">Agustus 2026</option>
+              <option value="2026-09">September 2026</option>
+              <option value="2026-10">Oktober 2026</option>
+              <option value="2026-11">November 2026</option>
+              <option value="2026-12">Desember 2026</option>
+            </select>
+          </div>
         </div>
 
-        <!-- Pencarian -->
-        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
-          <input
-            type="text"
-            x-model="searchRekanan"
-            @input="loadLedgerRekanan()"
-            placeholder="Cari nama customer/supplier..."
-            class="w-full border rounded-xl p-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+        <!-- 4 Summary Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-bold uppercase">Saldo Awal Bulan</span>
+            <div class="text-xl font-extrabold text-stone-900 font-mono mt-1" x-text="formatRupiah(ledgerRekanan.openingBalance || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-emerald-600 font-bold uppercase">Total Mutasi Debit</span>
+            <div class="text-xl font-extrabold text-emerald-700 font-mono mt-1" x-text="formatRupiah(ledgerRekanan.totalDebit || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <span class="text-xs text-rose-600 font-bold uppercase">Total Mutasi Kredit</span>
+            <div class="text-xl font-extrabold text-rose-700 font-mono mt-1" x-text="formatRupiah(ledgerRekanan.totalCredit || 0)"></div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white border border-brand-200 shadow-xs bg-brand-50/30">
+            <span class="text-xs text-brand-700 font-bold uppercase">Saldo Akhir Berjalan</span>
+            <div class="text-xl font-extrabold text-brand-800 font-mono mt-1" x-text="formatRupiah(ledgerRekanan.closingBalance || 0)"></div>
+          </div>
         </div>
 
-        <!-- Tombol Download PDF -->
-        <div class="flex justify-end mb-3">
-          <button
-            @click="downloadLedgerPdf()"
-            class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-bold hover:bg-brand-700 transition flex items-center gap-2">
-            <i class="fa-solid fa-file-pdf"></i>
-            <span>Download PDF Ledger</span>
-          </button>
-        </div>
-
-        <!-- Tabel Ledger Rekanan -->
-        <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+        <!-- Tabel Mutasi Transaksi Ledger Rekanan -->
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-xs overflow-hidden">
+          <div class="md:hidden px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-left-right text-amber-600"></i>
+            <span>Geser tabel ke kanan untuk lihat kolom <strong>Debit</strong>, <strong>Kredit</strong>, <strong>Saldo</strong></span>
+          </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-stone-50">
+            <table class="w-full text-left text-xs text-stone-600">
+              <thead class="bg-stone-50/80 text-stone-500 font-extrabold uppercase border-b border-stone-200 tracking-wider">
                 <tr>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase">Tanggal</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase">No. Ref</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase">Deskripsi</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase">Tipe</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase text-right">Debit</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase text-right">Kredit</th>
-                  <th class="px-4 py-3 font-bold text-stone-500 uppercase text-right">Saldo</th>
+                  <th class="py-3.5 px-4 sm:px-6">Tanggal</th>
+                  <th class="py-3.5 px-4">No. Ref</th>
+                  <th class="py-3.5 px-6">Deskripsi Transaksi</th>
+                  <th class="py-3.5 px-4 text-right">Debit (Rp)</th>
+                  <th class="py-3.5 px-4 text-right">Kredit (Rp)</th>
+                  <th class="py-3.5 px-4 sm:px-6 text-right">Saldo Berjalan</th>
                 </tr>
               </thead>
-              <tbody>
-                <template x-for="t in ledgerRekananTransactions" :key="t.ref + '-' + t.date">
-                  <tr class="border-b border-stone-50 hover:bg-stone-50 last:border-0">
-                    <td class="px-4 py-2 text-stone-700" x-text="t.date"></td>
-                    <td class="px-4 py-2 text-stone-700 font-mono" x-text="t.ref"></td>
-                    <td class="px-4 py-2 text-stone-700" x-text="t.desc"></td>
-                    <td class="px-4 py-2">
-                      <span class="px-2 py-1 rounded text-xs font-bold" :class="t.tipe === 'Void' ? 'bg-red-100 text-red-700' : t.tipe === 'Kredit' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'" x-text="t.tipe"></span>
-                    </td>
-                    <td class="px-4 py-2 text-right font-mono text-stone-700" x-text="formatRupiah(t.debit)"></td>
-                    <td class="px-4 py-2 text-right font-mono text-stone-700" x-text="formatRupiah(t.credit)"></td>
-                    <td class="px-4 py-2 text-right font-mono font-bold text-stone-800" x-text="formatRupiah(t.runningBalance)"></td>
+              <tbody class="divide-y divide-stone-100 font-medium">
+                <!-- Baris Saldo Awal -->
+                <tr class="bg-stone-50/40">
+                  <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-500" x-text="ledgerRekanan.periode + '-01'"></td>
+                  <td class="py-3.5 px-4 font-mono text-stone-400">SALDO-AWAL</td>
+                  <td class="py-3.5 px-6 font-bold text-stone-700 italic">Saldo Awal Periode Buku</td>
+                  <td class="py-3.5 px-4 text-right font-mono text-stone-400">-</td>
+                  <td class="py-3.5 px-4 text-right font-mono text-stone-400">-</td>
+                  <td class="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-stone-900" x-text="formatRupiah(ledgerRekanan.openingBalance || 0)"></td>
+                </tr>
+
+                <!-- Mutasi Jurnal -->
+                <template x-for="(t, idx) in ledgerRekanan.transactions" :key="idx">
+                  <tr class="hover:bg-stone-50/70 transition">
+                    <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-800" x-text="t.date"></td>
+                    <td class="py-3.5 px-4 font-mono text-brand-700 font-bold" x-text="t.ref"></td>
+                    <td class="py-3.5 px-6 font-bold text-stone-900" x-text="t.desc"></td>
+                    <td class="py-3.5 px-4 text-right font-mono" :class="t.debit > 0 ? 'font-bold text-emerald-700' : 'text-stone-300'" x-text="t.debit > 0 ? formatRupiah(t.debit) : '-'"></td>
+                    <td class="py-3.5 px-4 text-right font-mono" :class="t.credit > 0 ? 'font-bold text-rose-700' : 'text-stone-300'" x-text="t.credit > 0 ? formatRupiah(t.credit) : '-'"></td>
+                    <td class="py-3.5 px-4 sm:px-6 text-right font-mono font-black text-stone-900" x-text="formatRupiah(t.runningBalance || 0)"></td>
                   </tr>
                 </template>
-                <tr x-show="ledgerRekananTransactions.length === 0">
-                  <td colspan="7" class="px-4 py-8 text-center text-stone-400 text-sm">Belum ada transaksi untuk rekanan ini</td>
+
+                <!-- Footer: Total -->
+                <tr class="bg-brand-50/40 font-bold border-t border-brand-200">
+                  <td class="py-3.5 px-4 sm:px-6 font-mono text-stone-700">TOTAL</td>
+                  <td class="py-3.5 px-4 font-mono text-stone-400"></td>
+                  <td class="py-3.5 px-6 font-bold text-stone-700">Total Mutasi</td>
+                  <td class="py-3.5 px-4 text-right font-mono font-bold text-emerald-700" x-text="formatRupiah(ledgerRekanan.totalDebit || 0)"></td>
+                  <td class="py-3.5 px-4 text-right font-mono font-bold text-rose-700" x-text="formatRupiah(ledgerRekanan.totalCredit || 0)"></td>
+                  <td class="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-brand-800" x-text="formatRupiah(ledgerRekanan.closingBalance || 0)"></td>
+                </tr>
+
+                <tr x-show="ledgerRekanan.transactions.length === 0">
+                  <td colspan="6" class="px-4 py-8 text-center text-stone-400 text-sm">Belum ada transaksi untuk rekanan ini</td>
                 </tr>
               </tbody>
             </table>
           </div>
+        </div>
 
-          <!-- Total -->
-          <div class="p-4 border-t border-stone-100 bg-stone-50 flex justify-between items-center">
-            <div class="text-sm font-bold text-stone-700">
-              Total Debit: <span class="font-mono" x-text="formatRupiah(totalLedgerDebit)"></span>
-            </div>
-            <div class="text-sm font-bold text-stone-700">
-              Total Kredit: <span class="font-mono" x-text="formatRupiah(totalLedgerCredit)"></span>
-            </div>
-            <div class="text-sm font-bold text-stone-700">
-              Saldo Akhir: <span class="font-mono" x-text="formatRupiah(saldoAkhirLedgerRekanan)"></span>
-            </div>
-          </div>
+        <!-- Tombol Download PDF di bawah tabel -->
+        <div class="flex justify-end mt-4">
+          <button
+            @click="downloadLedgerRekananPdf()"
+            class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-bold hover:bg-brand-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>Download PDF Ledger</span>
+          </button>
         </div>
       </div>
 
