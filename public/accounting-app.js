@@ -963,6 +963,7 @@ window.accountingApp = function() {
 
     showSoaModal(type, entityName) {
       console.log("[SOA-CLICK] Membuka:", entityName, "Tipe:", type);
+      console.log("[SOA] Jurnal terbaca:", this.jurnalList ? this.jurnalList.length : 0);
       this.activeSoaType = type;
       this.activeSoaEntity = entityName;
 
@@ -974,25 +975,33 @@ window.accountingApp = function() {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === targetAcc) {
-              let entity = type === 'piutang'
-                ? (j.customerName || j.customer || '')
-                : (j.supplierName || j.supplier || j.desc || 'Supplier');
+              // Untuk Hutang: TAMPILKAN SEMUA jurnal 201, jangan filter berdasarkan entity name
+              // Karena SALDO-AWAL-ALL tidak punya customerName/supplierName
+              if (type === 'hutang') {
+                transactions.push({
+                  date: j.date || formatDate(j.timestamp),
+                  ref: j.ref || j.noEntry || j.id || '-',
+                  desc: j.desc || j.keterangan || '-',
+                  debit: Number(l.debit) || 0,
+                  credit: Number(l.credit) || 0,
+                  isVoid: j.desc && String(j.desc).toUpperCase().includes('VOID')
+                });
+                return;
+              }
 
-              // Jika belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso" atau "Saldo Awal - Semua Supplier")
+              // Untuk Piutang: filter berdasarkan entity name
+              let entity = j.customerName || j.customer || '';
+
+              // Jika belum ada, coba ekstrak dari desc (misal "Void Transaksi Santoso")
               if (!entity && j.desc) {
                 const desc = String(j.desc);
-                // Coba ekstrak dari "SALDO AWAL - Semua Supplier" → "Semua Supplier"
-                if (desc.toUpperCase().startsWith('SALDO AWAL - ')) {
-                  entity = desc.substring('SALDO AWAL - '.length);
-                } else {
-                  const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
-                  if (match) {
-                    entity = match[1].trim();
-                  }
+                const match = desc.match(/(?:Void|Transaksi|Invoice|Piutang)[\s\-:]+(.+)/i);
+                if (match) {
+                  entity = match[1].trim();
                 }
               }
 
-              if (!entity) entity = type === 'piutang' ? 'Pelanggan' : 'Supplier';
+              if (!entity) entity = 'Pelanggan';
 
               // Debug untuk Santoso
               if (j.ref === 'T1793245892737' || String(j.desc || '').includes('Santoso')) {
@@ -1210,12 +1219,12 @@ window.accountingApp = function() {
     getSaldoKasLaci() {
       const modalAwal = Number(this.shiftSummary?.startCash) || 0;
       const penjualanTunai = Number(this.shiftSummary?.cashSales) || 0;
-    
+
       // Hitung pengeluaran tunai dari jurnal hari ini
       const today = new Date().toISOString().slice(0, 10);
       let pengeluaranTunai = 0;
       const list = Array.isArray(this.jurnalList) ? this.jurnalList : [];
-   
+
       list.forEach(j => {
         if (j.date !== today) return;
         if (j.status === 'rejected') return;
@@ -1227,15 +1236,18 @@ window.accountingApp = function() {
           }
         });
       });
-   
+
       const saldoDariJurnal = Math.max(0, modalAwal + penjualanTunai - pengeluaranTunai);
-   
+
+      // Fallback: cek saldo dari accountingSummaryData (akun 101 Kas)
+      const saldoDariSummary = Number(this.accountingSummaryData?.saldoKas || 0);
+
       // Fallback: cek saldo dari COA Backend (account 101 Kas)
       const coaKas = Array.isArray(this.coaListBackend) ? this.coaListBackend.find(c => c.code === '101') : null;
       const saldoDariCOA = coaKas ? Number(coaKas.currentBalance || coaKas.saldo || 0) : 0;
-   
-      // Gunakan saldo yang lebih tinggi (COA biasanya lebih akurat karena mencakup semua history)
-      return Math.max(saldoDariJurnal, saldoDariCOA);
+
+      // Gunakan saldo tertinggi (COA/summary biasanya lebih akurat karena mencakup semua history)
+      return Math.max(saldoDariJurnal, saldoDariSummary, saldoDariCOA);
     },
     hutangPaymentEntityName: '',
     hutangPaymentAmount: 0,
