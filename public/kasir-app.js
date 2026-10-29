@@ -256,6 +256,8 @@ window.kasirApp = () => ({
     },
     customerSearch: '',
     filteredCustomers: [],
+    drafts: [],
+    showDraftModal: false,
 
     // Fitur Diskon, Pajak & Service Charge Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
@@ -3197,8 +3199,9 @@ async loadMoreProducts() {
       } : {}),
       usedBatches: fifoResult.usedBatches || [],
       payDetail: {
-        cash: paymentData.cashReceived || (this.cashReceived || grandTotal),
-        change: paymentData.cashChange || (this.getCashChange() > 0 ? this.getCashChange() : 0),
+        // ✅ FASE 8-FIX: Kredit tidak pakai cash — paksa cashReceived=0, cashChange=0
+        cash: pm === 'kredit' ? 0 : (paymentData.cashReceived || (this.cashReceived || grandTotal)),
+        change: pm === 'kredit' ? 0 : (paymentData.cashChange || (this.getCashChange() > 0 ? this.getCashChange() : 0)),
         breakdown: paymentData.breakdown || null,
         orderId: orderData ? (orderData.orderId || orderData.id) : (paymentData.orderId || null)
       }
@@ -3236,8 +3239,8 @@ async loadMoreProducts() {
       discount: disc,
       total: grandTotal,
       paymentMethod: pm,
-      cashReceived: paymentData.cashReceived || (this.cashReceived || grandTotal),
-      cashChange: paymentData.cashChange || (this.getCashChange() > 0 ? this.getCashChange() : 0),
+      cashReceived: pm === 'kredit' ? 0 : (paymentData.cashReceived || (this.cashReceived || grandTotal)),
+      cashChange: pm === 'kredit' ? 0 : (paymentData.cashChange || (this.getCashChange() > 0 ? this.getCashChange() : 0)),
       note: orderData ? (orderData.note || 'Rekonsiliasi') : this.orderNote
     };
 
@@ -4224,34 +4227,135 @@ async loadMoreProducts() {
 
     this.showCustomerModal = false;
 
-    // Panggil simpanTransaksi dengan parameter kredit
-    await this.simpanTransaksi({
-      method: 'kredit',
-      customerId: this.selectedCustomer.id,
-      customerName: this.selectedCustomer.name,
-      dueDate: dueDateStr,
-    });
+    // Panggil simpanTransaksi dengan parameter kredit (wrap try-catch agar cart tidak hilang jika error)
+    try {
+      await this.simpanTransaksi({
+        method: 'kredit',
+        customerId: this.selectedCustomer.id,
+        customerName: this.selectedCustomer.name,
+        dueDate: dueDateStr,
+      });
+    } catch (e) {
+      console.error('[KREDIT] Gagal eksekusi transaksi kredit:', e);
+      this.showToast('Gagal menyimpan transaksi kredit: ' + e.message, 'error');
+    }
   },
 
   /**
-   * Simpan draft secara manual dari tombol
+   * Simpan draft secara manual dari tombol (Multi-Draft via LocalStorage)
    */
   saveDraftOrder() {
     if (this.cart.length === 0) return;
+
+    // Prompt input label draft (opsional)
+    const label = prompt('Label Draft (misal: "Pak Santoso"):', '') || '';
+
+    const totalAmount = this.getCartGrandTotal();
     const draft = {
-      cart: this.cart,
-      orderNote: this.orderNote,
-      discountAmount: this.discountAmount,
-      savedAt: Date.now()
+      id: 'DRAFT-' + Date.now(),
+      label: label || 'Draft Tanpa Label',
+      items: [...this.cart],
+      totalItems: this.cart.reduce((sum, it) => sum + Number(it.qty || 1), 0),
+      totalAmount: totalAmount,
+      savedAt: Date.now(),
     };
-    localStorage.setItem('dapur_pos_draft_cart', JSON.stringify(draft));
-    this.showToast('Draft pesanan berhasil disimpan di memori kasir', 'success');
+
+    // Muat drafts lama, tambahkan baru, simpan kembali
+    let drafts = [];
+    try {
+      const raw = localStorage.getItem('dapur_pos_drafts');
+      if (raw) drafts = JSON.parse(raw);
+      if (!Array.isArray(drafts)) drafts = [];
+    } catch (e) {
+      drafts = [];
+    }
+
+    drafts.push(draft);
+    localStorage.setItem('dapur_pos_drafts', JSON.stringify(drafts));
+
+    this.showToast('Draft berhasil disimpan: ' + draft.label, 'success');
     this.playSound('click');
   },
 
-  // =========================================================================
-  // 9. SOUND FEEDBACK (Web Audio API Synthesizer)
-  // =========================================================================
+  /** =========================================================================
+   * MODAL DAFTAR DRAFT
+   * ========================================================================= */
+
+  // Buka modal daftar draft
+  openDraftModal() {
+    this.loadDraftsFromStorage();
+    this.showDraftModal = true;
+  },
+
+  // Muat drafts dari localStorage ke this.drafts
+  loadDraftsFromStorage() {
+    try {
+      const raw = localStorage.getItem('dapur_pos_drafts');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.drafts = Array.isArray(parsed) ? parsed : [];
+      } else {
+        this.drafts = [];
+      }
+    } catch (e) {
+      console.warn('[DRAFT] Gagal load dari storage:', e);
+      this.drafts = [];
+    }
+  },
+
+  // Tutup modal draft
+  closeDraftModal() {
+    this.showDraftModal = false;
+  },
+
+  // Muat draft ke keranjang (Buka)
+  async loadDraft(draftId) {
+    const draft = this.drafts.find(d => d.id === draftId);
+    if (!draft) {
+      this.showToast('Draft tidak ditemukan', 'error');
+      return;
+    }
+
+    // Pindahkan items ke cart
+    this.cart = draft.items.map(it => ({
+      id: it.id,
+      qty: Number(it.qty || 1),
+      price: Number(it.price || 0)
+    }));
+
+    this.orderNote = draft.label || '';
+    this.discountAmount = 0;
+
+    // Hapus dari array draft
+    this.drafts = this.drafts.filter(d => d.id !== draftId);
+    localStorage.setItem('dapur_pos_drafts', JSON.stringify(this.drafts));
+
+    this.showDraftModal = false;
+    this.showToast('Draft "' + draft.label + '" dibuka ke keranjang', 'success');
+    this.playSound('notify');
+  },
+
+  // Muat draft lalu buka modal pembayaran (Bayar)
+  async payDraft(draftId) {
+    await this.loadDraft(draftId);
+    this.openPaymentModal();
+  },
+
+  // Muat draft lalu buka modal customer untuk Invoice Kredit (Kredit)
+  async creditDraft(draftId) {
+    await this.loadDraft(draftId);
+    this.openCustomerModal();
+  },
+
+  // Hapus draft dari array dan storage
+  deleteDraft(draftId) {
+    if (!confirm('Hapus draft ini?')) return;
+
+    this.drafts = this.drafts.filter(d => d.id !== draftId);
+    localStorage.setItem('dapur_pos_drafts', JSON.stringify(this.drafts));
+    this.showToast('Draft berhasil dihapus', 'success');
+  },
+
 
   /**
    * Audio synthesizer mandiri tanpa file eksternal (click | success | error | notify)
