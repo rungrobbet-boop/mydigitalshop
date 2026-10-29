@@ -8149,6 +8149,7 @@
             id="customerFormName"
             type="text"
             x-model="customerForm.name"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="Masukkan nama customer">
         </div>
@@ -8157,6 +8158,7 @@
           <input
             type="text"
             x-model="customerForm.phone"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="08123456789">
         </div>
@@ -8165,6 +8167,7 @@
           <input
             type="email"
             x-model="customerForm.email"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="customer@email.com">
         </div>
@@ -8173,6 +8176,7 @@
           <input
             type="number"
             x-model="customerForm.tempoKredit"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="30">
         </div>
@@ -8184,6 +8188,7 @@
           <input
             type="text"
             x-model="customerForm.addressKirim"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="Alamat pengiriman">
         </div>
@@ -8192,6 +8197,7 @@
           <input
             type="text"
             x-model="customerForm.addressKtp"
+            @click.stop
             class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
             placeholder="Alamat KTP">
         </div>
@@ -8201,6 +8207,7 @@
         <input
           type="text"
           x-model="customerForm.officePhone"
+          @click.stop
           class="w-full border border-stone-200 rounded-xl p-2 text-sm focus:ring-2 focus:ring-orange-500"
           placeholder="Telepon kantor (opsional)">
       </div>
@@ -8208,12 +8215,12 @@
       <!-- Tombol Aksi -->
       <div class="flex justify-end gap-2 mt-4">
         <button
-          @click="closeCustomerModal()"
+          @click.stop="closeCustomerModal()"
           class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition">
           Batal
         </button>
         <button
-          @click="saveCustomer()"
+          @click.stop="saveCustomer()"
           :disabled="!customerForm.name || !customerForm.phone"
           class="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition">
           Simpan Customer
@@ -8282,12 +8289,6 @@
                     class="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition text-xs"
                     title="Buka">
                     <i class="fa-solid fa-folder-open"></i>
-                  </button>
-                  <button
-                    @click="payDraft(d.id)"
-                    class="w-8 h-8 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition text-xs"
-                    title="Bayar">
-                    <i class="fa-solid fa-money-bill-wave"></i>
                   </button>
                   <button
                     @click="creditDraft(d.id)"

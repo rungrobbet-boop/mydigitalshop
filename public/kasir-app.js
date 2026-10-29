@@ -4100,11 +4100,16 @@ async loadMoreProducts() {
     }
   },
 
-  // Simpan customer baru atau update existing
+  // Simpan customer baru atau update existing, lalu lanjutkan ke transaksi kredit
   async saveCustomer() {
     const { name, phone } = this.customerForm;
     if (!name || !phone) {
       this.showToast('Nama dan nomor HP wajib diisi', 'error');
+      return;
+    }
+
+    if (this.cart.length === 0) {
+      this.showToast('Keranjang kosong, tidak bisa buat transaksi kredit', 'error');
       return;
     }
 
@@ -4125,9 +4130,31 @@ async loadMoreProducts() {
       if (!res.ok) throw new Error('Gagal menyimpan customer');
       const json = await res.json();
       if (json.success) {
+        const savedCustomer = json.data || this.customerForm;
+        this.selectedCustomer = {
+          id: savedCustomer.id || this.selectedCustomer?.id,
+          name: savedCustomer.name || this.customerForm.name,
+          phone: savedCustomer.phone || this.customerForm.phone,
+          tempoKredit: Number(savedCustomer.tempoKredit || this.customerForm.tempoKredit) || 30,
+        };
+
         this.showToast(isUpdate ? 'Customer berhasil diupdate' : 'Customer berhasil ditambahkan', 'success');
         this.closeCustomerModal();
         await this.loadCustomers();
+
+        // ✅ Alur kredit: setelah customer disimpan, langsung panggil simpanTransaksi kredit
+        const tempoKredit = Number(this.selectedCustomer.tempoKredit) || 30;
+        const today = new Date();
+        const dueDate = new Date(today);
+        dueDate.setDate(dueDate.getDate() + tempoKredit);
+        const dueDateStr = dueDate.toISOString().split('T')[0];
+
+        await this.simpanTransaksi({
+          method: 'kredit',
+          customerId: this.selectedCustomer.id,
+          customerName: this.selectedCustomer.name,
+          dueDate: dueDateStr,
+        });
       } else {
         this.showToast(json.error || 'Gagal menyimpan customer', 'error');
       }
@@ -4272,6 +4299,8 @@ async loadMoreProducts() {
 
     drafts.push(draft);
     localStorage.setItem('dapur_pos_drafts', JSON.stringify(drafts));
+    // ✅ Reaktivitas Alpine agar counter drafts berubah
+    this.drafts = [...drafts];
 
     this.showToast('Draft berhasil disimpan: ' + draft.label, 'success');
     this.playSound('click');
