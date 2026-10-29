@@ -962,6 +962,7 @@ window.accountingApp = function() {
     // ========================================================================
 
     showSoaModal(type, entityName) {
+      console.log("[SOA-CLICK] Membuka:", entityName, "Tipe:", type);
       this.activeSoaType = type;
       this.activeSoaEntity = entityName;
 
@@ -973,7 +974,7 @@ window.accountingApp = function() {
           j.lines.forEach(l => {
             const acc = String(l.acc || l.code || '').trim();
             if (acc === targetAcc) {
-              const entity = type === 'piutang'
+              let entity = type === 'piutang'
                 ? (j.customerName || j.customer || '')
                 : (j.supplierName || j.supplier || j.desc || 'Supplier');
 
@@ -1017,14 +1018,17 @@ window.accountingApp = function() {
         }
       });
 
-      // Hitung running balance (kumulatif): Saldo = Total Debit - Total Kredit
+      // Urutkan berdasarkan tanggal (terlama ke terbaru)
+      transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Hitung running balance (kumulatif): Saldo = (Saldo Sebelumnya) + Debit - Kredit
       let runningBalance = 0;
       transactions.forEach(t => {
         runningBalance += t.debit - t.credit;
         t.runningBalance = runningBalance;
       });
 
-      this.soaTransactions = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+      this.soaTransactions = transactions;
       this.soaModalOpen = true;
     },
 
