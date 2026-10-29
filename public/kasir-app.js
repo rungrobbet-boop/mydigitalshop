@@ -9051,6 +9051,24 @@ async loadMoreProducts() {
       let totalTunai = 0;
       let grandTotal = 0;
 
+      // ✅ BAGIAN 3: Ambil data isCredit langsung dari Firestore products (sumber kebenaran)
+      // inventoryList dari RTDB tidak punya field isCredit, jadi kita ambil dari Firestore
+      let isCreditMap = new Map();
+      if (typeof FB_FS !== 'undefined' && FB_FS) {
+        try {
+          const snap = await FB_FS.collection('products').get();
+          snap.forEach(doc => {
+            const d = doc.data() || {};
+            const prodId = d.id || doc.id;
+            const isCr = d.isCredit === true || d.isCredit === 'true' || d.isCredit === 1 || d.isCredit === 'Y' || Boolean(d.isCredit);
+            isCreditMap.set(prodId, isCr);
+          });
+          console.log(`[SALDO-AWAL] Loaded ${isCreditMap.size} produk dari Firestore dengan isCredit`);
+        } catch (e) {
+          console.warn('[SALDO-AWAL] Gagal ambil isCredit dari Firestore:', e);
+        }
+      }
+
       this.inventoryList.forEach(item => {
         const stock = Number(item.stock !== undefined ? item.stock : item.stok) || 0;
         const price = Number(item.purchasePrice) || 0;
@@ -9058,10 +9076,10 @@ async loadMoreProducts() {
         if (totalValue <= 0) return;
         grandTotal += totalValue;
 
-        // PENGECEKAN isCredit (boolean, string 'true'/'Y', angka 1)
-        const isKredit = item.isCredit === true || item.isCredit === 'true' || item.isCredit === 1 || item.isCredit === 'Y' || Boolean(item.isCredit);
+        // Ambil isCredit dari Firestore map, fallback ke inventoryList item
+        const isKredit = isCreditMap.has(item.id) ? isCreditMap.get(item.id) : (item.isCredit === true || item.isCredit === 'true' || item.isCredit === 1 || item.isCredit === 'Y' || Boolean(item.isCredit));
 
-        console.log(`[SALDO-AWAL] ${item.name} | isCredit: ${item.isCredit} | Stock: ${stock} | Price: ${price} | Total: ${totalValue} | Masuk ke: ${isKredit ? 'HUTANG (201)' : 'MODAL (301)'}`);
+        console.log(`[SALDO-AWAL] ${item.name} | isCredit: ${item.isCredit} | Firestore isCredit: ${isCreditMap.has(item.id) ? isCreditMap.get(item.id) : 'N/A'} | Stock: ${stock} | Total: ${totalValue} | Masuk ke: ${isKredit ? 'HUTANG (201)' : 'MODAL (301)'}`);
 
         if (isKredit) {
           const supName = item.supplierName || item.supplier || 'Tanpa Supplier';
