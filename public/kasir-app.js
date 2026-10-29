@@ -4221,6 +4221,39 @@ async loadMoreProducts() {
     );
   },
 
+  // Pilih customer dari daftar (LANGSUNG eksekusi transaksi kredit)
+  async selectCustomer(cust) {
+    if (!cust) return;
+    if (this.cart.length === 0) {
+      this.showToast('Keranjang kosong, tidak bisa buat invoice kredit', 'error');
+      return;
+    }
+
+    this.selectedCustomer = cust;
+
+    // Hitung dueDate (hari ini + tempo kredit)
+    const tempo = Number(cust.tempoKredit) || 30;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + tempo);
+
+    // Tutup modal customer
+    this.showCustomerModal = false;
+
+    try {
+      // PANGGIL SIMPAN TRANSAKSI DI SINI
+      await this.simpanTransaksi({
+        method: 'kredit',
+        customerId: cust.id,
+        customerName: cust.name,
+        dueDate: dueDate.toISOString().slice(0, 10),
+      });
+      this.showToast(`Invoice Kredit untuk ${cust.name} berhasil dibuat!`, 'success');
+    } catch (error) {
+      console.error("[KREDIT-ERROR]", error);
+      this.showToast('Gagal membuat Invoice Kredit: ' + error.message, 'error');
+    }
+  },
+
   // Edit customer dari daftar (buka form dengan data existing)
   editCustomer(customer) {
     this.selectedCustomer = customer;
