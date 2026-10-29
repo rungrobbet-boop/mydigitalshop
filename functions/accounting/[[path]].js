@@ -736,7 +736,7 @@ export async function onRequest(context) {
         } else {
           const isBank = pm.includes('qris') || pm.includes('transfer') || pm.includes('bank')
                     || pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo') || pm.includes('dana');
-          debitAcc = isBank ? '1002' : '1001';
+          debitAcc = isBank ? '102' : '101';
         }
 
         // 2. Jurnal Revenue
@@ -902,7 +902,7 @@ export async function onRequest(context) {
         const amount = toNum(body.amount || body.totalPaid);
         const pm = String(body.paymentMethod || 'cash').toLowerCase();
         const isBank = pm.includes('transfer') || pm.includes('bank') || pm.includes('qris');
-        const creditAcc = isBank ? '1002' : '1001';
+        const creditAcc = isBank ? '102' : '101';
         const ref = String(body.ref || body.settlementId || `STL-${Date.now()}`);
         const desc = body.desc || `Bayar Konsinyasi: ${body.supplierName || 'Semua'} (${pm.toUpperCase()})`;
 
