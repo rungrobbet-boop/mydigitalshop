@@ -4328,72 +4328,208 @@ async loadMoreProducts() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a5'); // Landscape A5 (210 x 148 mm)
 
-    // --- 1. HEADER TOKO ---
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(this.siteInfo?.brandName || 'TOKO BANGUNAN', 105, 15, { align: 'center' });
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(this.siteInfo?.address || 'Alamat Toko', 105, 20, { align: 'center' });
-    doc.text('Telp: ' + (this.siteInfo?.phone || '-'), 105, 25, { align: 'center' });
+    // ========================================================================
+    // 1. AMBIL DATA DENGAN AMAN
+    // ========================================================================
+    const grandTotal = Number(tx.tot || tx.total || tx.amount) || 0;
 
-    // --- 2. JUDUL DOKUMEN ---
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('INVOICE / SURAT JALAN', 105, 35, { align: 'center' });
+    // Cari data customer
+    let customer = null;
+    if (tx.customerId) {
+      customer = this.customerList?.find(c => String(c.id) === String(tx.customerId));
+    }
+    const customerName = customer?.name || tx.customerName || '-';
+    const customerPhone = customer?.phone || tx.customerPhone || '-';
+    const customerAddress = customer?.addressKirim || tx.customerAddress || '-';
 
-    // --- 3. INFO CUSTOMER & TRANSAKSI ---
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    const startY = 45;
-    doc.text('No. Invoice : ' + tx.id, 20, startY);
-    doc.text('Tanggal     : ' + this.formatDate(tx.t), 20, startY + 5);
-    doc.text('Jatuh Tempo : ' + (tx.dueDate || '-'), 20, startY + 10);
+    const txDate = this.formatDate(tx.t);
+    const dueDate = tx.dueDate || '-';
 
-    doc.text('Kepada Yth:', 120, startY);
-    doc.text('Nama        : ' + (tx.customerName || '-'), 120, startY + 5);
-    doc.text('No. HP      : ' + (tx.customerPhone || '-'), 120, startY + 10);
+    // Diskon, PPN, Service Charge
+    const disc = Number(tx.disc || 0) || 0;
+    const tax = Number(tx.tax || 0) || 0;
+    const serviceCharge = Number(tx.serviceCharge || 0) || 0;
+    const subtotal = grandTotal - disc - tax - serviceCharge;
 
-    // --- 4. TABEL BARANG ---
-    const tableData = (tx.items || []).map(item => {
-      const itemId = Array.isArray(item) ? item[0] : item.id;
-      const qty = Array.isArray(item) ? item[1] : item.qty;
-      const price = Array.isArray(item) ? item[2] : item.price;
+    // ========================================================================
+    // 2. BUAT 2 INSTANCE jsPDF (Invoice & Surat Jalan)
+    // ========================================================================
+    const docInvoice = new jsPDF('l', 'mm', 'a5');
+    const docSuratJalan = new jsPDF('l', 'mm', 'a5');
 
-      // Cari nama di menuList/inventoryList
-      const foundMenu = this.menuList.find(m => String(m.id) === String(itemId));
-      const foundInv = this.inventoryList.find(i => String(i.id) === String(itemId));
-      const itemName = foundMenu ? foundMenu.name : (foundInv ? foundInv.name : itemId);
+    const brandName = this.siteInfo?.brandName || 'MyDigitalShop';
+    const brandAddress = this.siteInfo?.address || 'Alamat Toko';
+    const brandPhone = this.siteInfo?.phone || '-';
 
-      return [itemName, qty, this.formatRupiah(price), this.formatRupiah(qty * price)];
+    // Helper: cetak header toko (tengah)
+    const printTokoHeader = (doc, title) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(title, 105, 12, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(brandName, 105, 18, { align: 'center' });
+      doc.text(brandAddress, 105, 23, { align: 'center' });
+      doc.text('Telp: ' + brandPhone, 105, 28, { align: 'center' });
+    };
+
+    // Helper: cetak tabel barang
+    const printItemTable = (doc, startY, includePrice = true) => {
+      const tableData = (tx.items || []).map((item, idx) => {
+        const itemId = Array.isArray(item) ? item[0] : item.id;
+        const qty = Array.isArray(item) ? item[1] : item.qty;
+        const price = Array.isArray(item) ? item[2] : item.price;
+
+        // Lookup nama barang dari menuList
+        const foundMenu = this.menuList.find(m => String(m.id) === String(itemId));
+        const itemName = foundMenu ? foundMenu.name : (Array.isArray(item) ? item[0] : item.name || itemId);
+
+        if (includePrice) {
+          return [String(idx + 1), itemName, String(qty), this.formatRupiah(price), this.formatRupiah(qty * price)];
+        }
+        return [String(idx + 1), itemName, String(qty)];
+      });
+
+      const head = includePrice
+        ? [['No', 'Nama Barang', 'Qty', 'Harga Satuan', 'Total']]
+        : [['No', 'Nama Barang', 'Qty']];
+
+      doc.autoTable({
+        startY: startY,
+        head: head,
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8, cellWidth: 'wrap', halign: 'center' },
+        headStyles: { fillColor: [41, 37, 36], textColor: 255 },
+        margin: { left: 20, right: 20 },
+        columnStyles: includePrice
+          ? { 0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 15 }, 3: { cellWidth: 35 }, 4: { cellWidth: 35 } }
+          : { 0: { cellWidth: 10 }, 1: { cellWidth: 80 }, 2: { cellWidth: 15 } },
+      });
+      return doc.lastAutoTable.finalY;
+    };
+
+    // ========================================================================
+    // 3. DESAIN PDF INVOICE (docInvoice)
+    // ========================================================================
+    printTokoHeader(docInvoice, 'INVOICE');
+
+    // Info Transaksi (Kiri)
+    docInvoice.setFontSize(9);
+    docInvoice.setFont('helvetica', 'normal');
+    let y = 40;
+    docInvoice.text('No. Invoice : ' + tx.id, 20, y);
+    docInvoice.text('Tanggal     : ' + txDate, 20, y + 5);
+    docInvoice.text('Jatuh Tempo : ' + dueDate, 20, y + 10);
+
+    // Info Customer (Kanan)
+    docInvoice.text('Kepada Yth:', 130, y);
+    docInvoice.text('Nama        : ' + customerName, 130, y + 5);
+    docInvoice.text('No. HP      : ' + customerPhone, 130, y + 10);
+    docInvoice.text('Alamat Kirim: ' + customerAddress, 130, y + 15);
+
+    // Tabel Barang (dengan harga)
+    const tableEndY = printItemTable(docInvoice, y + 22, true);
+
+    // Rincian bawah tabel
+    let detailY = tableEndY + 10;
+    docInvoice.setFontSize(9);
+    docInvoice.setFont('helvetica', 'normal');
+
+    docInvoice.text('Subtotal', 150, detailY);
+    docInvoice.text(this.formatRupiah(subtotal), 190, detailY, { align: 'right' });
+    detailY += 5;
+
+    if (disc > 0) {
+      docInvoice.text('Diskon', 150, detailY);
+      docInvoice.text('- ' + this.formatRupiah(disc), 190, detailY, { align: 'right' });
+      detailY += 5;
+    }
+
+    if (tax > 0) {
+      docInvoice.text('PPN', 150, detailY);
+      docInvoice.text(this.formatRupiah(tax), 190, detailY, { align: 'right' });
+      detailY += 5;
+    }
+
+    if (serviceCharge > 0) {
+      docInvoice.text('Service Charge', 150, detailY);
+      docInvoice.text(this.formatRupiah(serviceCharge), 190, detailY, { align: 'right' });
+      detailY += 5;
+    }
+
+    // Total Tagihan (Bold)
+    docInvoice.setFontSize(11);
+    docInvoice.setFont('helvetica', 'bold');
+    docInvoice.text('TOTAL TAGIHAN', 150, detailY);
+    docInvoice.text(this.formatRupiah(grandTotal), 190, detailY, { align: 'right' });
+    detailY += 12;
+
+    // Tanda Tangan (dua kolom berdampingan)
+    docInvoice.setFontSize(8);
+    docInvoice.setFont('helvetica', 'normal');
+    docInvoice.text('Penerima', 70, detailY);
+    docInvoice.text('Dibuat Oleh', 140, detailY);
+    docInvoice.text('___________________', 70, detailY + 8);
+    docInvoice.text('___________________', 140, detailY + 8);
+    docInvoice.text('(Nama & Tanda Tangan)', 70, detailY + 13);
+    docInvoice.text('(Kasir)', 140, detailY + 13);
+    detailY += 22;
+
+    // Footer
+    docInvoice.setFontSize(7);
+    docInvoice.setFont('helvetica', 'italic');
+    const footerText = 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan. Terima kasih atas kepercayaan Anda berbelanja di ' + brandName + '.';
+    docInvoice.text(footerText, 105, detailY, { align: 'center' });
+
+    // Simpan Invoice
+    docInvoice.save('Invoice_' + tx.id + '.pdf');
+
+    // ========================================================================
+    // 4. DESAIN PDF SURAT JALAN (docSuratJalan)
+    // ========================================================================
+    printTokoHeader(docSuratJalan, 'SURAT JALAN');
+
+    // Info Transaksi (Kiri)
+    docSuratJalan.setFontSize(9);
+    docSuratJalan.setFont('helvetica', 'normal');
+    let sjY = 40;
+    docSuratJalan.text('No. Invoice : ' + tx.id, 20, sjY);
+    docSuratJalan.text('Tanggal     : ' + txDate, 20, sjY + 5);
+
+    // Info Customer (Kanan)
+    docSuratJalan.text('Kepada Yth:', 130, sjY);
+    docSuratJalan.text('Nama        : ' + customerName, 130, sjY + 5);
+    docSuratJalan.text('No. HP      : ' + customerPhone, 130, sjY + 10);
+    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 130, sjY + 15);
+
+    // Tabel Barang (tanpa harga)
+    const sjTableEndY = printItemTable(docSuratJalan, sjY + 22, false);
+
+    // Tanda Tangan (empat kolom berdampingan)
+    let sjSignY = sjTableEndY + 12;
+    docSuratJalan.setFontSize(8);
+    docSuratJalan.setFont('helvetica', 'normal');
+
+    const signCols = [
+      { x: 40, label: 'Penerima' },
+      { x: 100, label: 'Pengirim' },
+      { x: 160, label: 'Dicek Oleh' },
+      { x: 220, label: 'Dibuat Oleh' },
+    ];
+
+    signCols.forEach((col, idx) => {
+      docSuratJalan.text(col.label, col.x, sjSignY);
+      docSuratJalan.text('___________________', col.x, sjSignY + 8);
+      docSuratJalan.text('(Tanda Tangan)', col.x, sjSignY + 13);
     });
 
-    doc.autoTable({
-      startY: startY + 15,
-      head: [['Nama Barang', 'Qty', 'Harga Satuan', 'Total']],
-      body: tableData,
-      theme: 'grid',
-      styles: { fontSize: 9, cellWidth: 'wrap' },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255 },
-      margin: { left: 20, right: 20 }
-    });
+    // Simpan Surat Jalan
+    docSuratJalan.save('SuratJalan_' + tx.id + '.pdf');
 
-    // --- 5. TOTAL & FOOTER ---
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL TAGIHAN:', 150, finalY);
-    doc.text(this.formatRupiah(tx.total), 190, finalY, { align: 'right' });
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
-    doc.text('Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.', 105, finalY + 15, { align: 'center' });
-    doc.text('Terima kasih atas kepercayaan Anda.', 105, finalY + 20, { align: 'center' });
-
-    // Simpan PDF
-    doc.save(`Invoice_${tx.id}.pdf`);
+    this.showToast('Invoice & Surat Jalan berhasil dicetak', 'success');
   },
 
   /** =========================================================================
