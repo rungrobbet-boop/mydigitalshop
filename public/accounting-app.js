@@ -1087,7 +1087,7 @@ window.accountingApp = function() {
         t.desc,
         t.debit > 0 ? this.formatRupiah(t.debit) : '-',
         t.credit > 0 ? this.formatRupiah(t.credit) : '-',
-        this.formatRupiah(t.runningBalance || 0)
+        t.runningBalance >= 0 ? this.formatRupiah(t.runningBalance) : this.formatRupiah(Math.abs(t.runningBalance)) + ' (Kewajiban)'
       ]);
 
       const head = [['Tanggal', 'No. Ref', 'Deskripsi', 'Debit', 'Kredit', 'Saldo Berjalan']];
@@ -1113,7 +1113,7 @@ window.accountingApp = function() {
       doc.text('Total Kredit:', 120, finalY + 6);
       doc.text(this.formatRupiah(totalCredit), 190, finalY + 6, { align: 'right' });
       doc.text('Saldo Akhir:', 120, finalY + 12);
-      doc.text(this.formatRupiah(finalBalance), 190, finalY + 12, { align: 'right' });
+      doc.text(finalBalance >= 0 ? this.formatRupiah(finalBalance) : this.formatRupiah(Math.abs(finalBalance)) + ' (Kewajiban)', 190, finalY + 12, { align: 'right' });
 
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');

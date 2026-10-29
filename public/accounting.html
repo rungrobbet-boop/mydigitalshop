@@ -3034,7 +3034,7 @@
                 <td class="px-3 py-2 text-stone-700" x-text="t.desc"></td>
                 <td class="px-3 py-2 text-stone-700 text-right" x-text="t.debit > 0 ? formatRupiah(t.debit) : '-'"></td>
                 <td class="px-3 py-2 text-stone-700 text-right" x-text="t.credit > 0 ? formatRupiah(t.credit) : '-'"></td>
-                <td class="px-3 py-2 font-mono text-right" x-text="formatRupiah(t.runningBalance !== undefined ? t.runningBalance : (t.debit - t.credit))"></td>
+                <td class="px-3 py-2 font-mono text-right" x-text="t.runningBalance !== undefined ? (t.runningBalance >= 0 ? formatRupiah(t.runningBalance) : formatRupiah(Math.abs(t.runningBalance)) + ' (Kewajiban)') : (t.debit - t.credit >= 0 ? formatRupiah(t.debit - t.credit) : formatRupiah(Math.abs(t.debit - t.credit)) + ' (Kewajiban)'))"></td>
               </tr>
             </template>
             <tr x-show="soaTransactions.length === 0">
@@ -3048,7 +3048,7 @@
       <div class="flex justify-between items-center pt-4 border-t border-stone-100">
         <div>
           <p class="text-xs text-stone-500">Total Saldo Akhir</p>
-          <p class="text-sm font-bold font-mono text-stone-800" x-text="formatRupiah(soaTransactions.reduce((s, t) => s + t.debit - t.credit, 0))"></p>
+          <p class="text-sm font-bold font-mono text-stone-800" x-text="soaTransactions.reduce((s, t) => s + t.debit - t.credit, 0) >= 0 ? formatRupiah(soaTransactions.reduce((s, t) => s + t.debit - t.credit, 0)) : formatRupiah(Math.abs(soaTransactions.reduce((s, t) => s + t.debit - t.credit, 0))) + ' (Kewajiban)'"></p>
         </div>
       </div>
 
@@ -3274,8 +3274,7 @@
           </button>
           <button
             @click="submitPembayaranHutang()"
-            :disabled="!hutangPaymentAmount || hutangPaymentAmount <= 0"
-            class="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition"
+            class="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition flex items-center gap-1.5"
           >
             Simpan Pembayaran
           </button>
