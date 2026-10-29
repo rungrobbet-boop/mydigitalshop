@@ -156,6 +156,7 @@ window.accountingApp = function() {
     splashAkunSubtitle: '',
     activeTab: 'dashboard',
     reportSubTab: 'pl',
+    subledgerSubTab: 'piutang',
     mobileMenuOpen: false,
     siteName: '',  // fallback, akan di-load dari site_config/brandName
         // ✅ PIN Accounting gate
@@ -167,7 +168,13 @@ window.accountingApp = function() {
     _journalUnsub: null,
     _ledgerUnsub: null,
     _summaryUnsub: null,
-    
+
+    // SOA Modal State
+    showSoaModal: false,
+    soaEntityType: 'piutang', // 'piutang' | 'hutang'
+    soaEntityName: '',
+    soaTransactions: [],
+
     // Filter & Periode
     bulanAktif: '2026-09',
     tahunAktif: 2026,
@@ -825,6 +832,185 @@ window.accountingApp = function() {
         s.labaBulanIni === 0 &&
         (!this.jurnalList || this.jurnalList.length === 0)
       );
+    },
+
+    // ========================================================================
+    // SUBLEDGER: Piutang & Hutang Lists
+    // ========================================================================
+    get piutangList() {
+      const list = [];
+      const entityMap = {};
+      const targetBulan = this.bulanAktif;
+
+      (this.jurnalList || []).forEach(j => {
+        // Cari akun 103 (Piutang Usaha) di lines
+        if (Array.isArray(j.lines)) {
+          j.lines.forEach(l => {
+            const acc = String(l.acc || l.code || '').trim();
+            if (acc === '103') {
+              const entity = j.customerName || j.desc || 'Pelanggan';
+              if (!entityMap[entity]) {
+                entityMap[entity] = { entity: entity, total: 0, dueDate: j.dueDate || '-' };
+              }
+              entityMap[entity].total += Number(l.credit) || 0 - (Number(l.debit) || 0);
+              if (j.dueDate && (!entityMap[entity].dueDate || j.dueDate < entityMap[entity].dueDate)) {
+                entityMap[entity].dueDate = j.dueDate;
+              }
+            }
+          });
+        }
+      });
+
+      Object.values(entityMap).forEach(v => list.push(v));
+      return list.sort((a, b) => b.total - a.total);
+    },
+
+    get hutangList() {
+      const list = [];
+      const entityMap = {};
+
+      (this.jurnalList || []).forEach(j => {
+        // Cari akun 201 (Hutang Supplier) di lines
+        if (Array.isArray(j.lines)) {
+          j.lines.forEach(l => {
+            const acc = String(l.acc || l.code || '').trim();
+            if (acc === '201') {
+              const entity = j.desc || j.ref || 'Supplier';
+              if (!entityMap[entity]) {
+                entityMap[entity] = { entity: entity, total: 0 };
+              }
+              entityMap[entity].total += Number(l.debit) || 0 - (Number(l.credit) || 0);
+            }
+          });
+        }
+      });
+
+      Object.values(entityMap).forEach(v => list.push(v));
+      return list.sort((a, b) => b.total - a.total);
+    },
+
+    // ========================================================================
+    // SOA MODAL & PDF
+    // ========================================================================
+
+    showSoaModal(type, entityName) {
+      this.soaEntityType = type;
+      this.soaEntityName = entityName;
+
+      const targetAcc = type === 'piutang' ? '103' : '201';
+      const transactions = [];
+
+      (this.jurnalList || []).forEach(j => {
+        if (Array.isArray(j.lines)) {
+          j.lines.forEach(l => {
+            const acc = String(l.acc || l.code || '').trim();
+            if (acc === targetAcc) {
+              const entity = type === 'piutang'
+                ? (j.customerName || j.desc || 'Pelanggan')
+                : (j.desc || j.ref || 'Supplier');
+
+              if (entity === entityName) {
+                transactions.push({
+                  date: j.date || formatDate(j.timestamp),
+                  ref: j.ref || j.noEntry || j.id || '-',
+                  desc: j.desc || j.keterangan || '-',
+                  debit: Number(l.debit) || 0,
+                  credit: Number(l.credit) || 0
+                });
+              }
+            }
+          });
+        }
+      });
+
+      this.soaTransactions = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+      this.showSoaModal = true;
+    },
+
+    closeSoaModal() {
+      this.showSoaModal = false;
+      this.soaEntityType = 'piutang';
+      this.soaEntityName = '';
+      this.soaTransactions = [];
+    },
+
+    async downloadSoaPdf() {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        this.showToast('Library PDF belum siap', 'error');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const typeLabel = this.soaEntityType === 'piutang' ? 'PIUTANG' : 'HUTANG';
+      const entityLabel = this.soaEntityType === 'piutang' ? 'Customer' : 'Supplier';
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('LAPORAN STATEMENT OF ACCOUNT (SOA)', 105, 20, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(this.siteInfo?.brandName || 'TOKO BANGUNAN', 105, 28, { align: 'center' });
+      doc.text(this.siteInfo?.address || 'Alamat Toko', 105, 33, { align: 'center' });
+      doc.text('Telp: ' + (this.siteInfo?.phone || '-'), 105, 38, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${typeLabel} - ${entityLabel}`, 20, 50);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nama ${entityLabel.toLowerCase()}: ${this.soaEntityName}`, 20, 56);
+      doc.text(`Periode: ${this.bulanAktif}`, 20, 62);
+
+      const tableData = this.soaTransactions.map(t => [
+        t.date,
+        t.ref,
+        t.desc,
+        t.debit > 0 ? this.formatRupiah(t.debit) : '-',
+        t.credit > 0 ? this.formatRupiah(t.credit) : '-'
+      ]);
+
+      let runningBalance = 0;
+      this.soaTransactions.forEach(t => {
+        runningBalance += t.debit - t.credit;
+        tableData[tableData.length - 1].push(this.formatRupiah(runningBalance));
+      });
+
+      const head = [['Tanggal', 'No. Ref', 'Deskripsi', 'Debit', 'Kredit', 'Saldo Berjalan']];
+
+      doc.autoTable({
+        startY: 70,
+        head: head,
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 37, 36], textColor: 255 }
+      });
+
+      const totalDebit = this.soaTransactions.reduce((sum, t) => sum + t.debit, 0);
+      const totalCredit = this.soaTransactions.reduce((sum, t) => sum + t.credit, 0);
+      const finalBalance = totalDebit - totalCredit;
+
+      const finalY = doc.lastAutoTable.finalY + 15;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Total Debit:', 120, finalY);
+      doc.text(this.formatRupiah(totalDebit), 190, finalY, { align: 'right' });
+      doc.text('Total Kredit:', 120, finalY + 6);
+      doc.text(this.formatRupiah(totalCredit), 190, finalY + 6, { align: 'right' });
+      doc.text('Saldo Akhir:', 120, finalY + 12);
+      doc.text(this.formatRupiah(finalBalance), 190, finalY + 12, { align: 'right' });
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Diperbuat di ' + (this.siteInfo?.city || 'Jakarta'), 20, finalY + 25);
+      doc.text('Tanggal: ' + new Date().toLocaleDateString('id-ID'), 20, finalY + 30);
+      doc.text('Hormat kami,', 20, finalY + 38);
+      doc.text('_________________________', 20, finalY + 45);
+      doc.text('Penerima / ' + entityLabel, 20, finalY + 50);
+
+      doc.save(`SOA_${this.soaEntityName}_${this.bulanAktif}.pdf`);
+      this.showToast('SOA PDF berhasil diunduh', 'success');
     },
 
     // ------------------------------------------------------------------------

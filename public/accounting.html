@@ -83,6 +83,7 @@
 
   <!-- jsPDF CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <!-- SheetJS (XLSX) CDN — export .xlsx -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -501,13 +502,23 @@
         </button>
 
         <!-- 4. Buku Besar (Ledger) -->
-        <button 
-          type="button" 
+        <button
+          type="button"
           @click="setTab('ledger')"
           :class="activeTab === 'ledger' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
           class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
           <i class="fa-solid fa-book-open-reader w-5 text-center" :class="activeTab === 'ledger' ? 'text-brand-600' : 'text-stone-400'"></i>
           <span>Buku Besar (Ledger)</span>
+        </button>
+
+        <!-- 5. Hutang & Piutang (Subledger) -->
+        <button
+          type="button"
+          @click="setTab('subledger')"
+          :class="activeTab === 'subledger' ? 'bg-brand-50 text-brand-700 font-extrabold border-brand-200 shadow-xs' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-transparent'"
+          class="w-full h-11 px-3.5 rounded-xl border flex items-center gap-3 text-sm font-semibold transition text-left cursor-pointer">
+          <i class="fa-solid fa-users w-5 text-center" :class="activeTab === 'subledger' ? 'text-brand-600' : 'text-stone-400'"></i>
+          <span>Hutang &amp; Piutang</span>
         </button>
 
         <!-- 5. Laporan Keuangan (Dengan Submenu) -->
@@ -1138,6 +1149,112 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB: HUTANG & PIUTANG (SUBLEDGER)                                   -->
+      <!-- ================================================================= -->
+      <div x-show="activeTab === 'subledger'" x-cloak class="space-y-6">
+        <!-- Header -->
+        <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+          <div>
+            <h2 class="text-xl font-bold text-stone-900">Hutang & Piutang</h2>
+            <p class="text-sm text-stone-500">Buku pembantu Piutang Usaha (103) dan Hutang Supplier (201)</p>
+          </div>
+          <span class="text-xs font-bold text-stone-400 uppercase tracking-wider">Periode: <span x-text="bulanAktif"></span></span>
+        </div>
+
+        <!-- Sub tabs: Piutang / Hutang -->
+        <div class="flex gap-2 bg-stone-100 p-1 rounded-xl">
+          <button
+            @click="subledgerSubTab = 'piutang'"
+            :class="subledgerSubTab === 'piutang' ? 'bg-white text-orange-700 font-bold shadow-sm' : 'text-stone-500 hover:text-stone-800'"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-arrow-trend-up w-4"></i>
+            <span>Piutang (Customer)</span>
+          </button>
+          <button
+            @click="subledgerSubTab = 'hutang'"
+            :class="subledgerSubTab === 'hutang' ? 'bg-white text-stone-700 font-bold shadow-sm' : 'text-stone-500 hover:text-stone-800'"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-arrow-trend-down w-4"></i>
+            <span>Hutang (Supplier)</span>
+          </button>
+        </div>
+
+        <!-- Piutang Table -->
+        <div x-show="subledgerSubTab === 'piutang'" class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-stone-100">
+            <h3 class="text-sm font-bold text-stone-700 uppercase tracking-wider">Daftar Piutang</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-stone-50">
+                <tr>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase">Customer</th>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase">Total Piutang</th>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase">Jatuh Tempo Terdekat</th>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="piutang in piutangList" :key="piutang.entity">
+                  <tr class="border-b border-stone-50 hover:bg-stone-50 last:border-0">
+                    <td class="px-4 py-3 text-sm text-stone-800" x-text="piutang.entity"></td>
+                    <td class="px-4 py-3 text-sm font-mono text-stone-700" x-text="formatRupiah(piutang.total)"></td>
+                    <td class="px-4 py-3 text-sm text-stone-600" x-text="piutang.dueDate || '-'"></td>
+                    <td class="px-4 py-3 text-right">
+                      <button
+                        @click="showSoaModal('piutang', piutang.entity)"
+                        class="px-3 py-1.5 rounded-md bg-orange-600 text-white text-xs font-bold hover:bg-orange-700 transition">
+                        Lihat Detail
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="piutangList.length === 0">
+                  <td colspan="4" class="px-4 py-8 text-center text-stone-400 text-sm">Belum ada piutang</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Hutang Table -->
+        <div x-show="subledgerSubTab === 'hutang'" class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-stone-100">
+            <h3 class="text-sm font-bold text-stone-700 uppercase tracking-wider">Daftar Hutang</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-stone-50">
+                <tr>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase">Supplier</th>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase">Total Hutang</th>
+                  <th class="px-4 py-3 text-xs font-bold text-stone-500 uppercase text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="hutang in hutangList" :key="hutang.entity">
+                  <tr class="border-b border-stone-50 hover:bg-stone-50 last:border-0">
+                    <td class="px-4 py-3 text-sm text-stone-800" x-text="hutang.entity"></td>
+                    <td class="px-4 py-3 text-sm font-mono text-stone-700" x-text="formatRupiah(hutang.total)"></td>
+                    <td class="px-4 py-3 text-right">
+                      <button
+                        @click="showSoaModal('hutang', hutang.entity)"
+                        class="px-3 py-1.5 rounded-md bg-orange-600 text-white text-xs font-bold hover:bg-orange-700 transition">
+                        Lihat Detail
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="hutangList.length === 0">
+                  <td colspan="3" class="px-4 py-8 text-center text-stone-400 text-sm">Belum ada hutang</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- ================================================================= -->
@@ -2848,6 +2965,107 @@
           class="min-h-[44px] rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer">
           <i class="fa-solid fa-trash-can text-xs"></i>
           <span>Hapus Permanen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SOA (Statement of Account) -->
+  <div
+    x-show="showSoaModal"
+    x-cloak
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+  >
+    <div
+      @click.self="closeSoaModal()"
+      class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative"
+    >
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-file-invoice"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-lg text-stone-900" x-text="soaEntityType === 'piutang' ? 'SOA Piutang' : 'SOA Hutang'"></h3>
+          <p class="text-xs text-stone-500" x-text="soaEntityName"></p>
+        </div>
+        <button
+          @click="closeSoaModal()"
+          class="w-8 h-8 rounded-lg bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition"
+        >
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Info Entity -->
+      <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-stone-50 rounded-lg border border-stone-100">
+        <div>
+          <p class="text-xs font-bold text-stone-500 uppercase">Jenis</p>
+          <p class="text-sm text-stone-800" x-text="soaEntityType === 'piutang' ? 'Piutang Usaha (Customer)' : 'Hutang Supplier (Supplier)'"></p>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-stone-500 uppercase">Periode</p>
+          <p class="text-sm text-stone-800" x-text="bulanAktif"></p>
+        </div>
+        <div class="col-span-2">
+          <p class="text-xs font-bold text-stone-500 uppercase">Total Transaksi</p>
+          <p class="text-sm text-stone-800 font-mono" x-text="soaTransactions.length + ' transaksi'"></p>
+        </div>
+      </div>
+
+      <!-- Tabel Transaksi -->
+      <div class="max-h-64 overflow-y-auto mb-6 border border-stone-200 rounded-lg">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-stone-50">
+            <tr>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase">Tanggal</th>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase">No. Ref</th>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase">Deskripsi</th>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase text-right">Debit</th>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase text-right">Kredit</th>
+              <th class="px-3 py-2 font-bold text-stone-500 uppercase text-right">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="t in soaTransactions" :key="t.ref + t.date">
+              <tr class="border-b border-stone-50 last:border-0">
+                <td class="px-3 py-2 text-stone-700" x-text="t.date"></td>
+                <td class="px-3 py-2 text-stone-600 font-mono" x-text="t.ref"></td>
+                <td class="px-3 py-2 text-stone-700" x-text="t.desc"></td>
+                <td class="px-3 py-2 text-stone-700 text-right" x-text="t.debit > 0 ? formatRupiah(t.debit) : '-'"></td>
+                <td class="px-3 py-2 text-stone-700 text-right" x-text="t.credit > 0 ? formatRupiah(t.credit) : '-'"></td>
+                <td class="px-3 py-2 font-mono text-right" x-text="formatRupiah((t.debit - t.credit))"></td>
+              </tr>
+            </template>
+            <tr x-show="soaTransactions.length === 0">
+              <td colspan="6" class="px-3 py-4 text-center text-stone-400 text-sm">Tidak ada transaksi</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Total -->
+      <div class="flex justify-between items-center pt-4 border-t border-stone-100">
+        <div>
+          <p class="text-xs text-stone-500">Total Saldo Akhir</p>
+          <p class="text-sm font-bold font-mono text-stone-800" x-text="formatRupiah(soaTransactions.reduce((s, t) => s + t.debit - t.credit, 0))"></p>
+        </div>
+      </div>
+
+      <!-- Tombol Aksi -->
+      <div class="flex justify-end gap-2 pt-6">
+        <button
+          @click="closeSoaModal()"
+          class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition"
+        >
+          Tutup
+        </button>
+        <button
+          @click="downloadSoaPdf()"
+          class="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition flex items-center gap-1.5"
+        >
+          <i class="fa-solid fa-file-pdf"></i>
+          <span>Download PDF SOA</span>
         </button>
       </div>
     </div>
