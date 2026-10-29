@@ -710,7 +710,14 @@
         },
 
         get totalRevenue() {
+          var self = this;
           return this.posTransactions.reduce(function(sum, tx) {
+            var pm = String(tx.pm || '').toLowerCase();
+            var isKredit = pm === 'kredit' || tx.isCredit === true;
+            // Hanya hitung transaksi penjualan (kecuali Setoran Modal & non-penjualan)
+            var validPm = pm === 'cash' || pm === 'tunai' || pm === 'qris' ||
+                           pm === 'transfer' || pm === 'ewallet' || isKredit;
+            if (!validPm) return sum; // Skip Setoran Modal dan transaksi non-penjualan
             return sum + Number(tx.tot || tx.total || tx.amount || 0);
           }, 0);
         },

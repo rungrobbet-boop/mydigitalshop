@@ -8573,28 +8573,31 @@ async loadMoreProducts() {
       // Fetch semua transaksi dalam range
       const txList = await this.fetchTransactionsInRange(start, end);
 
-      let totalSales = 0;
       let totalPenjualanKredit = 0;
       const breakdown = { cash: 0, qris: 0, transfer: 0, ewallet: 0 };
 
       for (const tx of txList) {
         if (tx.voided === true) continue; // Lewati transaksi yang sudah di-void
-        // ✅ Pakai field short-form 'tot'
         const amt = Number(tx.tot || tx.total || tx.amount || 0);
-        totalSales += amt;
 
         const pm = String(tx.pm || tx.paymentMethod || '').toLowerCase();
-        if (pm.includes('tunai') || pm.includes('cash')) breakdown.cash += amt;
-        else if (pm.includes('qris')) breakdown.qris += amt;
-        else if (pm.includes('transfer') || pm.includes('bca') || pm.includes('mandiri')) breakdown.transfer += amt;
-        else if (pm.includes('ewallet') || pm.includes('gopay') || pm.includes('ovo')) breakdown.ewallet += amt;
-        else breakdown.cash += amt;
+        const isKredit = pm === 'kredit' || tx.isCredit === true;
+
+        // Hanya hitung transaksi penjualan (kecuali Setoran Modal & non-penjualan)
+        const validPm = pm === 'cash' || pm === 'tunai' || pm === 'qris' ||
+                         pm === 'transfer' || pm === 'ewallet' || isKredit;
+        if (!validPm) continue; // Skip Setoran Modal dan transaksi non-penjualan
+
+        if (pm === 'cash' || pm === 'tunai') breakdown.cash += amt;
+        else if (pm === 'qris') breakdown.qris += amt;
+        else if (pm === 'transfer') breakdown.transfer += amt;
+        else if (pm === 'ewallet') breakdown.ewallet += amt;
 
         // Penjualan Kredit (Piutang)
-        if (pm === 'kredit' || tx.isCredit === true) {
-          totalPenjualanKredit += amt;
-        }
+        if (isKredit) totalPenjualanKredit += amt;
       }
+
+      const totalSales = breakdown.cash + breakdown.qris + breakdown.transfer + breakdown.ewallet + totalPenjualanKredit;
 
       const summary = {
         totalSales,
