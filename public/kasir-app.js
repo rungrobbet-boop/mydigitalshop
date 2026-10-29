@@ -13688,6 +13688,8 @@ async loadMoreProducts() {
                 ref: `VOID-${txId}`,
                 status: 'approved',
                 createdBy: this.kasirInfo?.username || 'kasir',
+                customerName: existingData?.customerName || existingData?.cust || 'Tanpa Nama',
+                customerId: existingData?.customerId || '',
                 lines: lines
               })
             });
