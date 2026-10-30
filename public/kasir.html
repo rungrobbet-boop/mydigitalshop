@@ -8410,26 +8410,3 @@
 
 </body>
 </html>
-<!-- Overlay untuk menutup keranjang mobile -->
-<div 
-    x-show="showCartMobile" 
-    @click="showCartMobile = false"
-    x-transition.opacity.duration.200ms
-    class="fixed inset-0 bg-black/50 z-[65] md:hidden" 
-    style="display: none;">
-</div>
-
-<!-- FAB Keranjang Mobile -->
-<button 
-    @click="showCartMobile = true" 
-    class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white"
-    title="Buka Keranjang">
-    <i class="fa-solid fa-cart-shopping text-xl"></i>
-    <span 
-        x-text="cart.reduce((sum, i) => sum + (i.qty || 1), 0)"
-        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-    </span>
-</button>
-
-</body>
-</html>

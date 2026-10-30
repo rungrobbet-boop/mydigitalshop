@@ -4448,11 +4448,11 @@ async loadMoreProducts() {
         columnStyles: includePrice
           ? {
               0: { cellWidth: 10, halign: 'center' },    // No
-              1: { cellWidth: 90, halign: 'left' },      // Nama Barang (Sangat Lebar)
+              1: { cellWidth: 70, halign: 'left' },      // Nama Barang
               2: { cellWidth: 15, halign: 'center' },    // Qty
-              3: { cellWidth: 20, halign: 'center' },    // Diskon
-              4: { cellWidth: 30, halign: 'right' },     // Harga Satuan
-              5: { cellWidth: 35, halign: 'right' }      // Total (Lebar Penuh)
+              3: { cellWidth: 25, halign: 'center' },    // Diskon
+              4: { cellWidth: 35, halign: 'right' },     // Harga Satuan
+              5: { cellWidth: 35, halign: 'right' }      // Total
             }
           : {
               0: { cellWidth: 10, halign: 'center' },    // No
