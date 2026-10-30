@@ -4456,11 +4456,11 @@ async loadMoreProducts() {
               5: { cellWidth: 35, halign: 'right' }      // Total (Lebar Penuh)
             }
           : {
-              0: { cellWidth: 15, halign: 'center' },    // No
-              1: { cellWidth: 35, halign: 'center' },    // ID/Barcode
-              2: { cellWidth: 90, halign: 'left' },      // Nama Barang (Paling Lebar)
-              3: { cellWidth: 20, halign: 'center' },    // Qty
-              4: { cellWidth: 'auto', halign: 'left' }    // Keterangan (Sisa ruang)
+              0: { cellWidth: 10 },    // No
+              1: { cellWidth: 30 },    // ID/Barcode
+              2: { cellWidth: 70 },    // Nama Barang
+              3: { cellWidth: 20, halign: 'center' }, // Qty
+              4: { cellWidth: 'auto' } // Keterangan (Otomatis mengisi sisa ruang)
             },
       });
       return doc.lastAutoTable.finalY;
@@ -4570,17 +4570,15 @@ async loadMoreProducts() {
     docSuratJalan.setFont('helvetica', 'normal');
     let sjY = 33;
 
-    // No. Surat Jalan manual (di atas info transaksi)
-    docSuratJalan.text('No. Surat Jalan : ____________________', 10, sjY, { align: 'left' });
-
     // Kolom Kiri (x=10) — rata kiri (Info Customer)
-    docSuratJalan.text('Kepada Yth: ' + customerName, 10, sjY + 6, { align: 'left' });
-    docSuratJalan.text('No. HP: ' + customerPhone, 10, sjY + 11, { align: 'left' });
-    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 10, sjY + 16, { align: 'left' });
+    docSuratJalan.text('Kepada Yth: ' + customerName, 10, sjY, { align: 'left' });
+    docSuratJalan.text('No. HP: ' + customerPhone, 10, sjY + 5, { align: 'left' });
+    docSuratJalan.text('Alamat Kirim: ' + customerAddress, 10, sjY + 10, { align: 'left' });
 
     // Kolom Kanan (x=200) — rata kanan (Info Transaksi)
-    docSuratJalan.text('No. Invoice : ' + tx.id, 200, sjY + 6, { align: 'right' });
-    docSuratJalan.text('Tanggal     : ' + txDate, 200, sjY + 11, { align: 'right' });
+    docSuratJalan.text('No. Surat Jalan: ______________________', 200, sjY, { align: 'right' });
+    docSuratJalan.text('No. Invoice: ' + tx.id, 200, sjY + 5, { align: 'right' });
+    docSuratJalan.text('Tanggal: ' + txDate, 200, sjY + 10, { align: 'right' });
 
     // Tabel Barang (tanpa harga & total)
     const sjTableEndY = printItemTable(docSuratJalan, sjY + 18, false);
