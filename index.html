@@ -552,6 +552,51 @@
             </div>
           </button>
 
+          <!-- 2. Pesanan B2B -->
+          <button
+            type="button"
+            @click="activeTab = 'catering'; isNavMenuOpen = false; scrollToSection('catering-section')"
+            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95"
+            :class="activeTab === 'catering' ? 'border-brand-500 bg-brand-50/80 text-brand-700 font-black ring-2 ring-brand-500/20' : 'border-stone-200 bg-white hover:border-brand-300 hover:bg-stone-50 text-stone-800 font-bold'">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0"
+              :class="activeTab === 'catering' ? 'bg-brand-600 text-white shadow-xs' : 'bg-stone-100 text-stone-700 group-hover:bg-brand-100 group-hover:text-brand-600'">
+              <i class="fa-solid fa-boxes-packing text-base"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-xs sm:text-sm block truncate">Pesanan B2B</span>
+              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Order material skala besar</span>
+            </div>
+          </button>
+
+          <!-- 3. Supply Proyek -->
+          <button
+            type="button"
+            @click="activeTab = 'menu'; isNavMenuOpen = false; scrollToSection('tab-section')"
+            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0 bg-stone-100 text-stone-700 group-hover:bg-brand-100 group-hover:text-brand-600">
+              <i class="fa-solid fa-truck text-base"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-xs sm:text-sm block truncate">Supply Proyek</span>
+              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Suplai bahan bangunan proyek</span>
+            </div>
+          </button>
+
+          <!-- 4. Link Online Shop -->
+          <button
+            type="button"
+            @click="openWhatsAppOrder(); isNavMenuOpen = false"
+            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0"
+              class="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white">
+              <i class="fa-brands fa-whatsapp text-lg"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-xs sm:text-sm block truncate">Link Online Shop</span>
+              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Belanja via WhatsApp</span>
+            </div>
+          </button>
+
           <!-- 5. Lacak Pesanan Realtime -->
           <button 
             type="button"
@@ -1582,14 +1627,14 @@
             Pesan Juga Lewat Food Delivery Favorit Anda
           </h3>
           <p class="text-stone-500 text-xs sm:text-sm mt-1.5 leading-relaxed">
-            Lebih praktis pesan lewat aplikasi langganan Anda? Kami telah bermitra resmi di ShopeeFood, GrabFood, dan GoFood dengan promo voucher diskon ongkir & cashback setiap hari.
+            Lebih praktis pesan lewat aplikasi langganan Anda? Kami telah bermitra resmi di Shopee, Tokopedia, dan Blibli dengan promo voucher diskon ongkir & cashback setiap hari.
           </p>
         </div>
 
         <!-- 3 Mitra Food Delivery Apps (Rapih, Responsif, Tidak Tumpuk/Luber) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 lg:gap-5">
           
-          <!-- ShopeeFood Card -->
+          <!-- Shopee Card -->
           <a :href="siteConfig.deliveryLinks.shopeefood" target="_blank" rel="noopener noreferrer" class="group relative p-4 sm:p-5 rounded-2xl border-2 border-orange-100 hover:border-orange-500 bg-gradient-to-br from-orange-50/50 to-white hover:shadow-lg hover:shadow-orange-500/10 transition-all flex items-center justify-between gap-3 overflow-hidden">
             <div class="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
               <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center text-xl sm:text-2xl shadow-md shadow-orange-500/30 group-hover:scale-110 transition flex-shrink-0">
@@ -1597,7 +1642,7 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 flex-nowrap">
-                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">ShopeeFood</span>
+                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">Shopee</span>
                   <span class="text-[10px] bg-orange-100 text-orange-700 font-bold px-1.5 py-0.5 rounded-md leading-none whitespace-nowrap flex-shrink-0">Official</span>
                 </div>
                 <p class="text-[11px] sm:text-xs text-stone-500 mt-1 leading-snug truncate" title="Voucher Diskon s.d 40% & Koin">Voucher Diskon s.d 40% & Koin</p>
@@ -1608,7 +1653,7 @@
             </div>
           </a>
 
-          <!-- GrabFood Card -->
+          <!-- Blibli Card -->
           <a :href="siteConfig.deliveryLinks.grabfood" target="_blank" rel="noopener noreferrer" class="group relative p-4 sm:p-5 rounded-2xl border-2 border-emerald-100 hover:border-emerald-500 bg-gradient-to-br from-emerald-50/50 to-white hover:shadow-lg hover:shadow-emerald-500/10 transition-all flex items-center justify-between gap-3 overflow-hidden">
             <div class="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
               <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl sm:text-2xl shadow-md shadow-emerald-500/30 group-hover:scale-110 transition flex-shrink-0">
@@ -1616,10 +1661,10 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 flex-nowrap">
-                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">GrabFood</span>
-                  <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-md leading-none whitespace-nowrap flex-shrink-0">GrabMerchant</span>
+                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">Blibli</span>
+                  <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-md leading-none whitespace-nowrap flex-shrink-0">Official Store</span>
                 </div>
-                <p class="text-[11px] sm:text-xs text-stone-500 mt-1 leading-snug truncate" title="Pengiriman Cepat & GrabUnlimited">Pengiriman Cepat & GrabUnlimited</p>
+                <p class="text-[11px] sm:text-xs text-stone-500 mt-1 leading-snug truncate" title="Pengiriman Cepat & Blibli Plus">Pengiriman Cepat & Blibli Plus</p>
               </div>
             </div>
             <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition flex-shrink-0 shadow-2xs">
@@ -1627,7 +1672,7 @@
             </div>
           </a>
 
-          <!-- GoFood Card -->
+          <!-- Tokopedia Card -->
           <a :href="siteConfig.deliveryLinks.gofood" target="_blank" rel="noopener noreferrer" class="group relative p-4 sm:p-5 rounded-2xl border-2 border-red-100 hover:border-red-500 bg-gradient-to-br from-red-50/50 to-white hover:shadow-lg hover:shadow-red-500/10 transition-all flex items-center justify-between gap-3 overflow-hidden">
             <div class="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
               <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center text-xl sm:text-2xl shadow-md shadow-red-500/30 group-hover:scale-110 transition flex-shrink-0">
@@ -1635,10 +1680,10 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 flex-nowrap">
-                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">GoFood</span>
+                  <span class="font-black text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">Tokopedia</span>
                   <span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-md leading-none whitespace-nowrap flex-shrink-0">Super Partner</span>
                 </div>
-                <p class="text-[11px] sm:text-xs text-stone-500 mt-1 leading-snug truncate" title="Promo GoPay Plus & Diskon Menu">Promo GoPay Plus & Diskon Menu</p>
+                <p class="text-[11px] sm:text-xs text-stone-500 mt-1 leading-snug truncate" title="Promo Diskon & Kupon">Promo Diskon & Kupon</p>
               </div>
             </div>
             <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition flex-shrink-0 shadow-2xs">
@@ -4010,7 +4055,7 @@
         <!-- TAB 5: MITRA FOOD DELIVERY & MEDIA SOSIAL -->
         <div x-show="adminActiveTab === 'delivery_sosmed'" class="space-y-5">
           <div class="bg-stone-50 p-4 rounded-2xl border border-stone-200">
-            <h4 class="font-extrabold text-stone-900 text-sm">Tautan ShopeeFood, GrabFood, GoFood & Media Sosial</h4>
+            <h4 class="font-extrabold text-stone-900 text-sm">Tautan Shopee, Tokopedia, Blibli & Media Sosial</h4>
             <p class="text-xs text-stone-500">Tautan ini ditampilkan tepat di antara formulir pesanan dan formulir catering B2B.</p>
           </div>
 
@@ -4018,7 +4063,7 @@
             <div>
               <label class="block text-xs font-bold text-orange-600 uppercase mb-1 flex items-center gap-1.5">
                 <i class="fa-solid fa-bag-shopping"></i>
-                <span>Tautan Toko ShopeeFood</span>
+                <span>Tautan Toko Shopee</span>
               </label>
               <input type="url" x-model="siteConfig.deliveryLinks.shopeefood" placeholder="https://shopee.co.id/..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white" />
             </div>
@@ -4026,17 +4071,17 @@
             <div>
               <label class="block text-xs font-bold text-emerald-600 uppercase mb-1 flex items-center gap-1.5">
                 <i class="fa-solid fa-motorcycle"></i>
-                <span>Tautan Toko GrabFood</span>
+                <span>Tautan Toko Blibli</span>
               </label>
-              <input type="url" x-model="siteConfig.deliveryLinks.grabfood" placeholder="https://food.grab.com/..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white" />
+              <input type="url" x-model="siteConfig.deliveryLinks.grabfood" placeholder="https://blibli.com/..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white" />
             </div>
 
             <div>
               <label class="block text-xs font-bold text-red-600 uppercase mb-1 flex items-center gap-1.5">
                 <i class="fa-solid fa-utensils"></i>
-                <span>Tautan Toko GoFood</span>
+                <span>Tautan Toko Tokopedia</span>
               </label>
-              <input type="url" x-model="siteConfig.deliveryLinks.gofood" placeholder="https://gofood.co.id/..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white" />
+              <input type="url" x-model="siteConfig.deliveryLinks.gofood" placeholder="https://tokopedia.com/..." class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-white" />
             </div>
 
             <div class="pt-3 border-t border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -6061,6 +6106,7 @@ git push -u origin main</pre>
         platformRedirectTarget: null,
         isNavMenuOpen: false,
         showSearchMobile: false,
+        searchQuery: '',
         isProcessingPayment: false,
         isLoadingOngkir: false,
         isLocationModalOpen: false,
@@ -7192,9 +7238,18 @@ git push -u origin main</pre>
             deduped.push(item);
           }
           const visible = deduped.filter(item => item.showOnMain !== false);
-          if (this.selectedCategory === 'all' || this.selectedCategory === 'semua') return visible;
+
+          // Filter by search query (case-insensitive, nama produk)
+          const q = String(this.searchQuery || '').toLowerCase().trim();
+          const afterSearch = q === '' ? visible : visible.filter(item => {
+            const name = String(item.name || item.nama || '').toLowerCase();
+            const sku = String(item.sku || '').toLowerCase();
+            return name.includes(q) || sku.includes(q);
+          });
+
+          if (this.selectedCategory === 'all' || this.selectedCategory === 'semua') return afterSearch;
           const sel = String(this.selectedCategory || '').toLowerCase();
-          return visible.filter(item => {
+          return afterSearch.filter(item => {
             const itemCatId = String(item.categoryId || item.category || item.categoryLabel || '').toLowerCase();
             return itemCatId === sel;
           });
