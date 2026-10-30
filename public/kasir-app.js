@@ -4444,8 +4444,7 @@ async loadMoreProducts() {
         theme: 'grid',
         styles: { fontSize: 8 },
         headStyles: { fillColor: [41, 37, 36], textColor: 255 },
-        margin: { left: 5, right: 5 },
-        tableWidth: 'wrap',
+        margin: { left: 10, right: 10 },
         columnStyles: includePrice
           ? {
               0: { cellWidth: 10, halign: 'center' },    // No
@@ -4456,11 +4455,11 @@ async loadMoreProducts() {
               5: { cellWidth: 35, halign: 'right' }      // Total (Lebar Penuh)
             }
           : {
-              0: { cellWidth: 10 },    // No
-              1: { cellWidth: 30 },    // ID/Barcode
-              2: { cellWidth: 70 },    // Nama Barang
-              3: { cellWidth: 20, halign: 'center' }, // Qty
-              4: { cellWidth: 'auto' } // Keterangan (Otomatis mengisi sisa ruang)
+              0: { cellWidth: 10, halign: 'center' },    // No
+              1: { cellWidth: 30, halign: 'center' },    // ID/Barcode
+              2: { cellWidth: 80, halign: 'left' },      // Nama Barang (Lebih Lebar)
+              3: { cellWidth: 15, halign: 'center' },    // Qty
+              4: { cellWidth: 55, halign: 'left' }       // Keterangan (Sisa Ruang)
             },
       });
       return doc.lastAutoTable.finalY;
