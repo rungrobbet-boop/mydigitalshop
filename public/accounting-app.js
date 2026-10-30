@@ -173,6 +173,8 @@ window.accountingApp = function() {
     soaModalOpen: false,
     activeSoaType: 'piutang', // 'piutang' | 'hutang'
     activeSoaEntity: '',
+    soaEntityType: 'piutang',
+    soaEntityName: '',
     soaTransactions: [],
 
     // Ledger Rekanan State
