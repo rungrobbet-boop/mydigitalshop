@@ -8332,19 +8332,19 @@
 
             </div>
           </div>
-<!-- FAB Keranjang Mobile (hardcode, selalu tampil) -->
-  <button id="fab-keranjang-final"
+<!-- FAB Keranjang Mobile (teleport ke body) -->
+<template x-teleport="body">
+  <button
     type="button"
-    onclick="window.dispatchEvent(new CustomEvent('buka-keranjang'))"
-    class="fab-keranjang fixed bottom-24 right-4 z-[99999] bg-orange-500 text-white rounded-full p-4 shadow-xl flex items-center justify-center border-2 border-white pointer-events-auto"
-    style="position: fixed !important; bottom: 5rem !important; right: 1rem !important; z-index: 999999 !important; pointer-events: auto !important; display: flex !important; visibility: visible !important; opacity: 1 !important;"
+    @click="showCartMobile = true"
+    class="fixed bottom-24 right-4 z-[99999] bg-orange-500 text-white rounded-full p-4 shadow-xl flex items-center justify-center border-2 border-white pointer-events-auto"
+    style="position: fixed !important; bottom: 5rem !important; right: 1rem !important; z-index: 99999 !important; display: flex !important;"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>
-    <span id="fab-badge-final"
-        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center"
-        style="display: none;">
-        0
-    </span>
+    <span class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center"
+          x-text="getCartTotalItems()"
+          x-show="getCartTotalItems() > 0"></span>
   </button>
+</template>
 </body>
 </html>
