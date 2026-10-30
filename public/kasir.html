@@ -830,7 +830,7 @@
             <!-- Grid Menu Produk (grid-cols-2 sm:grid-cols-3 xl:grid-cols-4) -->
             <div 
               x-show="!isLoadingMenu" 
-              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 overflow-y-auto max-h-[calc(100dvh-140px)] pr-2">
               
               <template x-for="(menu, idx) in filteredMenuList()" :key="menu.id + '-' + idx">
                 <div 
@@ -959,7 +959,7 @@
               </div>
 
               <!-- List Item Keranjang (Scrollable Container) -->
-              <div class="max-h-[320px] overflow-y-auto space-y-3 pr-1 divide-y divide-stone-100">
+              <div class="overflow-y-auto max-h-[calc(100dvh-140px)] space-y-3 pr-1 divide-y divide-stone-100 flex-1">
                 
                 <!-- State Keranjang Kosong -->
                 <div x-show="cart.length === 0" class="py-12 text-center text-stone-400 space-y-2">
