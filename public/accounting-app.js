@@ -2191,6 +2191,16 @@ this.jurnalList.forEach(j => {
         return;
       }
 
+      // Validasi saldo mencukupi untuk akun Aset (Kas 101 / Bank 102) sebagai Kredit
+      const creditAccObj2 = this.coaList.find(c => c.code === creditAccount);
+      if (creditAccObj2 && (creditAccount === '101' || creditAccount === '102' || creditAccObj2.type === 'Aset')) {
+        const currentBalance = Number(creditAccObj2.currentBalance) || 0;
+        if (currentBalance < amt) {
+          this.showToast('Gagal: Saldo Kas/Bank tidak mencukupi untuk pengeluaran ini.', 'error');
+          return;
+        }
+      }
+
       // Validasi Double-Entry: Total Debit = Total Kredit
       if (!validateDoubleEntry(amt, amt)) {
         this.showToast('Transaksi tidak seimbang (Double-entry mismatch)', 'error');
