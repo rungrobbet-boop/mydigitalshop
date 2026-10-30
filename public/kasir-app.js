@@ -834,6 +834,7 @@ window.kasirApp = () => ({
    * Inisialisasi Aplikasi Kasir
    */
   async initKasir() {
+    try {
         // 1. Cek sessionStorage "dapur_kasir_session"
     try {
       let rawSession = sessionStorage.getItem('dapur_kasir_session') || localStorage.getItem('dapur_kasir_session');
@@ -1025,7 +1026,12 @@ try {
     if (typeof window.__splashStart === 'undefined') window.__splashStart = Date.now();
     const _elapsed = Date.now() - window.__splashStart;
     const _remaining = Math.max(0, 1800 - _elapsed);
-    setTimeout(() => { this.appReady = true; }, _remaining);
+    await new Promise(r => setTimeout(r, _remaining));
+    } catch (e) {
+      console.warn('[KASIR] Init error:', e);
+    } finally {
+      this.appReady = true;
+    }
   },
 
   // =========================================================================
