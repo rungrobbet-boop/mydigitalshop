@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+.fab-keranjang {
+    position: fixed !important;
+    bottom: 5rem !important;
+    right: 1rem !important;
+    z-index: 999999 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    border-radius: 9999px !important;
+    background-color: #f97316 !important;
+    color: #fff !important;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+    border: 2px solid #fff !important;
+}
