@@ -221,22 +221,78 @@
   <!-- Alpine.js CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 </head>
-<body
-  x-data="kasirApp()"
-  x-on:buka-keranjang.window="showCartMobile = true"
-  class="min-h-[100dvh] font-sans text-stone-800 antialiased flex flex-col bg-stone-100 selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
-
-  <script>
-    setTimeout(function() {
-      const splash = document.getElementById('splash-screen');
-      if (splash) splash.style.display = 'none';
-    }, 2000);
-  </script>
-
+<body 
+  x-data="typeof kasirApp === 'function' ? kasirApp() : {
+    activeTab: 'transaksi',
+    mobileMenuOpen: false,
+    cart: [],
+    menuList: [],
+    categories: ['semua', 'semen', 'cat', 'besi', 'lainnya'],
+    selectedCategory: 'semua',
+    searchQuery: '',
+    isLoadingMenu: false,
+    orderNote: '',
+    voucherCode: '',
+    discountAmount: 0,
+    
+    // Modal state
+    paymentModal: false,
+    cashModal: false,
+    qrisModal: false,
+    receiptModal: false,
+    receiptWAPhone: '', // ✅ FEATURE-3: nomor WA pelanggan untuk kirim struk
+    closeShiftModal: false,
+    reconcileModal: false,
+    
+    // Transaksi & Pembayaran state
+    selectedPaymentMethod: 'tunai',
+    cashReceived: 0,
+    currentOrder: null,
+    
+    // Rekonsiliasi state
+    reconciliationList: [],
+    pendingReconcile: 0,
+    reconcileFilter: 'semua',
+    reconcileDateRange: 'today',
+    selectedReconcileIds: [],
+    activeReconcileItem: null,
+    
+    // Shift state
+    shiftSummary: {
+      totalSales: 2450000,
+      cashSales: 980000,
+      qrisSales: 1120000,
+      transferSales: 350000,
+      transactionCount: 42,
+      startCash: 200000,
+      startTime: '08:00 WIB'
+    },
+    shiftHistory: [],
+    physicalCashCount: 0,
+    shiftClosingNotes: '',
+    
+    // Inventory state
+    inventoryList: [],
+    inventorySearch: '',
+    editStockModal: false,
+    selectedStockItem: { id: '', name: '', stock: 0, minStock: 0, unit: 'unit', purchasePrice: 0, isCountable: true },
+    newStockValue: 0,
+    stockChangeReason: '',
+    editPurchasePrice: 0,
+    
+    // Laporan state
+    todayTotalRevenue: 2450000,
+    reportPeriod: 'today',
+    
+    // Sesi Kasir & Waktu
+    kasirInfo: { username: 'kasir', name: 'Kasir Utama', shiftId: 'S-2026-09-18-01' },
+    currentTime: '',
+    appReady: false
+  }" 
+  class="h-full font-sans text-stone-800 antialiased flex flex-col bg-stone-100 selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
 
   <!-- ✅ SPLASH SCREEN -->
-  <div id="splash-screen"
-       x-show="!appReady"
+  <div x-show="!appReady"
        x-transition.opacity.duration.300ms
        class="fixed inset-0 z-[9999] bg-gradient-to-br from-stone-900 to-stone-800 flex flex-col items-center justify-center gap-5 pointer-events-none">
     <div class="w-20 h-20 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-2xl">
@@ -654,89 +710,73 @@
           <!-- KOLOM KIRI (8 cols desktop): Search + Kategori + Grid Menu -->
           <div class="lg:col-span-7 xl:col-span-8 space-y-4">
             
-            <!-- Sticky Toolbar: Search + Quick Tools -->
-            <div class="sticky top-0 z-40 bg-stone-100/95 backdrop-blur-md pt-2 pb-3 px-3 border-b border-stone-200 shadow-sm space-y-2">
-              <!-- Baris 1: Search Bar + Tombol Keranjang -->
-              <div class="flex items-center gap-2 sm:flex-row flex-wrap">
-                <div class="relative w-full sm:w-auto flex-1">
-                  <input
-                    type="text"
-                    x-model="searchQuery"
-                    placeholder="Cari menu, SKU, atau Barcode..."
-                    class="w-full min-h-[48px] pl-11 pr-10 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition" />
-                  <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400">
-                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
-                  </div>
-                  <!-- Tombol Hapus Input -->
-                  <button
-                    type="button"
-                    x-show="searchQuery"
-                    @click="searchQuery = ''"
-                    class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
-                    <i class="fa-solid fa-xmark text-xs"></i>
-                  </button>
+            <!-- Search Bar & Quick Tools -->
+            <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <!-- Input Pencarian -->
+              <div class="relative w-full">
+                <input 
+                  type="text" 
+                  x-model="searchQuery"
+                  placeholder="Cari menu, SKU, atau Barcode..."
+                  class="w-full min-h-[48px] pl-11 pr-4 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition" 
+                />
+                <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <i class="fa-solid fa-magnifying-glass text-sm"></i>
                 </div>
-
-                <!-- Tombol Keranjang -->
-                <button
-                  type="button"
-                  @click="showCartMobile = true"
-                  class="w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center relative shadow-md">
-                  <i class="fa-solid fa-cart-shopping text-lg"></i>
-                  <span class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center"
-                        x-text="getCartTotalItems()"
-                        x-show="getCartTotalItems() > 0"></span>
+                <!-- Tombol Hapus Input -->
+                <button 
+                  type="button" 
+                  x-show="searchQuery" 
+                  @click="searchQuery = ''"
+                  class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                  <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
               </div>
 
-              <!-- Baris 2: Quick Tools -->
-              <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-                <div x-show="scannerEnabled !== false"
-                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Scanner Ready</span>
-                </div>
+              <div x-show="scannerEnabled !== false"
+                   class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Scanner Ready</span>
+              </div>
 
-                <!-- Multi Scan -->
-                <button
-                    type="button"
-                    x-show="scannerEnabled"
-                    @click="openMultiScanModal()"
-                    class="min-h-[48px] px-4 rounded-xl border-2 border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-extrabold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
-                    title="Multi scan transaksi — maks 50 menu per sesi">
+              <!-- ✅ FITUR BARU: Multi Scan Transaksi (Hanya tampil jika Hardware Scanner ON) -->   
+              <button
+                  type="button"
+                  x-show="scannerEnabled"
+                  @click="openMultiScanModal()"
+                  class="min-h-[48px] px-4 rounded-xl border-2 border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-extrabold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
+                  title="Multi scan transaksi — maks 50 menu per sesi">
                   <i class="fa-solid fa-barcode text-sm text-violet-600"></i>
                   <span>Multi Scan</span>
                   <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-violet-200 text-violet-900">≤50</span>
                 </button>
-                <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                  <button
-                    type="button"
-                    @click="openTransactionHistoryModal()"
-                    class="min-h-[48px] px-4 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
-                    title="Lihat riwayat transaksi kasir & recall/cetak ulang struk">
-                    <i class="fa-solid fa-clock-rotate-left text-sm text-emerald-600"></i>
-                    <span>Riwayat<br>Transaksi</span>
-                  </button>
+              <!-- Quick Refresh & Riwayat Transaksi -->
+              <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                <button 
+                  type="button" 
+                  @click="openTransactionHistoryModal()"
+                  class="min-h-[48px] px-4 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
+                  title="Lihat riwayat transaksi kasir & recall/cetak ulang struk">
+                  <i class="fa-solid fa-clock-rotate-left text-sm text-emerald-600"></i>
+                  <span>Riwayat<br>Transaksi</span>
+                </button>
 
-                  <button
-                    type="button"
-                    @click="listenMenuItems()"
-                    class="min-h-[48px] px-3.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer"
-                    title="Refresh Data Menu">
-                    <i class="fa-solid fa-rotate text-xs"></i>
-                    <span class="hidden sm:inline">Sync</span>
-                  </button>
-                  <label class="flex items-center gap-2 cursor-pointer bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 ml-2">
-                    <input type="checkbox"
-                           :checked="isQtyLocked"
-                           @click.prevent="toggleQtyLock()"
+                <button 
+                  type="button" 
+                  @click="listenMenuItems()"
+                  class="min-h-[48px] px-3.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer"
+                  title="Refresh Data Menu">
+                  <i class="fa-solid fa-rotate text-xs"></i>
+                  <span class="hidden sm:inline">Sync</span>
+                </button>
+                <label class="flex items-center gap-2 cursor-pointer bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 ml-2">
+                  <input type="checkbox" 
+                         :checked="isQtyLocked" 
+                         @click.prevent="toggleQtyLock()" 
                          class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 border-stone-300">
                     <span class="text-xs font-bold text-stone-700">Qty<br>Lock</span>
-                  </label>
-                </div>
+                </label>
               </div>
-            </div>
-
             </div>
 
             <!-- Filter Kategori (Pill Buttons Horizontally Scrollable) -->
@@ -861,6 +901,292 @@
 
           </div>
 
+          <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
+          <div class="lg:col-span-5 xl:col-span-4 sticky top-20 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[70] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full'">
+            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4 md:h-full md:overflow-hidden md:flex md:flex-col">
+              
+              <!-- Header Keranjang: Judul + Hapus Semua -->
+              <div class="flex items-center justify-between pb-3 border-b border-stone-200">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">🛒</span>
+                  <h3 class="font-extrabold text-base text-stone-900">Keranjang Kasir</h3>
+                  <span 
+                    class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono" 
+                    x-text="getCartTotalItems() + ' item'">
+                  </span>
+                </div>
+                
+                <button 
+                  type="button" 
+                  @click="showCartMobile = false"
+                  class="md:hidden text-stone-500 hover:text-stone-800 p-2"
+                  title="Tutup Keranjang">
+                  <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <button 
+                  type="button" 
+                  x-show="cart.length > 0"
+                  @click="clearCart()"
+                  class="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 transition cursor-pointer"
+                  title="Hapus Semua Isi Keranjang">
+                  <i class="fa-solid fa-trash-can text-[11px]"></i>
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              <!-- List Item Keranjang (Scrollable Container) -->
+              <div class="max-h-[320px] overflow-y-auto space-y-3 pr-1 divide-y divide-stone-100">
+                
+                <!-- State Keranjang Kosong -->
+                <div x-show="cart.length === 0" class="py-12 text-center text-stone-400 space-y-2">
+                  <div class="w-14 h-14 rounded-2xl bg-stone-100 text-stone-400 mx-auto flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-cart-arrow-down"></i>
+                  </div>
+                  <p class="font-bold text-sm text-stone-700">Keranjang Masih Kosong</p>
+                  <p class="text-xs text-stone-400">Klik salah satu menu di sebelah kiri untuk menambah pesanan.</p>
+                </div>
+
+                <!-- Toggle Harga Grosir -->
+<div class="flex bg-stone-100 p-1 rounded-xl mb-3">
+    <button @click="applyPriceLevelToCart('ecer')" 
+            :class="cartPriceLevel === 'ecer' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Ecer
+    </button>
+    <button @click="applyPriceLevelToCart('partai')" 
+            :class="cartPriceLevel === 'partai' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Partai
+    </button>
+    <button @click="applyPriceLevelToCart('agen')" 
+            :class="cartPriceLevel === 'agen' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
+            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
+        Agen
+    </button>
+</div>
+
+<!-- Daftar Item Keranjang (M4: layout 2-baris mobile-friendly) -->
+<template x-for="(item, idx) in cart" :key="item.id + '-' + idx">
+  <div class="pt-3 first:pt-0 border-b border-stone-100 pb-2 space-y-2">
+
+    <!-- Baris 1: Nama full-width + Harga Satuan + Tombol Hapus -->
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
+        <!-- Info Harga & Min Order -->
+        <div class="text-[11px] font-semibold mt-1">
+            <!-- Tampilkan Ecer -->
+            <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
+                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+            </span>
+
+            <!-- Tampilkan Partai -->
+            <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
+            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'partai')"></span>
+            </span>
+
+            <!-- Tampilkan Agen -->
+            <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
+            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
+            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'agen')"></span>
+            </span>
+        </div>
+        <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          <template x-if="item.itemDiscountValue > 0">
+            <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black font-mono whitespace-nowrap">
+              Disc <span x-text="item.itemDiscountType === 'nominal' ? formatRupiah(item.itemDiscountValue) : item.itemDiscountValue + '%'"></span>
+            </span>
+          </template>
+        </div>
+      </div>
+      <button 
+        type="button"
+        @click="removeItemFromCart(item)"
+        class="w-7 h-7 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition cursor-pointer flex-shrink-0"
+        title="Hapus Item">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
+
+    <!-- Baris 2: Qty Control + Subtotal -->
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl flex-shrink-0">
+        <button 
+          type="button"
+          @click="decreaseQty(item)"
+          class="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95">
+          <i class="fa-solid fa-minus text-[10px]"></i>
+        </button>
+        <input 
+          type="number" 
+          min="1"
+          :max="getMenuCalculatedStock(item.id)"
+          x-model.number="item.qty"
+          @change="updateItemQty(item, item.qty)"
+          class="w-12 text-center bg-white rounded-lg border border-stone-200 font-extrabold text-xs font-mono text-stone-900 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        />
+        <button 
+          type="button"
+          @click="increaseQty(item)"
+          class="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+        </button>
+      </div>
+
+      <span class="font-extrabold text-sm text-stone-900 font-mono flex-shrink-0" x-text="formatRupiah(getItemUnitPriceAfterDiscount(item) * item.qty)"></span>
+    </div>
+
+    <!-- Baris 3: Link Diskon Per Item -->
+    <div class="flex items-center justify-between text-[11px] text-stone-500 pl-1">
+      <button 
+        type="button" 
+        @click="openItemDiscountModal(item)"
+        class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer">
+        <i class="fa-solid fa-tags text-[10px]"></i>
+        <span x-text="item.itemDiscountValue > 0 ? 'Edit Diskon Item' : '+ Diskon Item'"></span>
+      </button>
+
+      <template x-if="getItemDiscountNominal(item) > 0">
+        <span class="text-amber-700 font-mono font-bold">
+          Potongan: -<span x-text="formatRupiah(getItemDiscountNominal(item))"></span>
+        </span>
+      </template>
+    </div>
+  </div>
+</template>
+
+              </div>
+
+              <!-- Divider Subtle & Pengaturan Tagihan -->
+              <div class="border-t border-stone-200 pt-3 space-y-2.5 text-xs text-stone-600">
+                
+                <!-- Input Catatan Opsional -->
+                <div>
+                  <label class="block font-bold text-stone-700 text-[11px] uppercase mb-1">
+                    Catatan Pesanan (Opsional)
+                  </label>
+                  <input 
+                    type="text" 
+                    x-model="orderNote"
+                    placeholder="Contoh: Meja 4 / Bungkus / Tanpa Sambal" 
+                    class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none" 
+                  />
+                </div>
+
+                <!-- Tombol Pengaturan Diskon Total Belanja -->
+                <div class="flex items-center justify-between bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
+                  <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-percent text-emerald-600 text-xs"></i>
+                    <span class="font-bold text-stone-800 text-xs">Diskon Total Belanja</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    @click="openOrderDiscountModal()"
+                    class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs">
+                    <span x-text="orderDiscountValue > 0 ? 'Ubah Diskon' : '+ Set Diskon'"></span>
+                  </button>
+                </div>
+
+                <!-- Baris Rincian Diskon Total (Sebelum Subtotal / Total Tagihan) -->
+                <template x-if="getOrderDiscountAmount() > 0">
+                  <div class="flex items-center justify-between text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200/60 font-medium">
+                    <span class="flex items-center gap-1">
+                      <i class="fa-solid fa-circle-minus text-[10px]"></i>
+                      <span>Diskon Total Belanja (<span x-text="orderDiscountType === 'nominal' ? 'Nominal' : orderDiscountValue + '%'"></span>)</span>
+                    </span>
+                    <span class="font-bold font-mono text-xs" x-text="'- ' + formatRupiah(getOrderDiscountAmount())"></span>
+                  </div>
+                </template>
+
+                <!-- Subtotal Murni -->
+                <div class="flex items-center justify-between pt-1">
+                  <span>Subtotal Belanja</span>
+                  <span class="font-bold text-stone-900 font-mono" x-text="formatRupiah(getCartSubtotal())"></span>
+                </div>
+
+                                <!-- Checkbox Opsional Pajak (PPN 11%) -->
+                <div class="py-0.5 space-y-1">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        x-model="isTaxEnabled" 
+                        class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
+                      />
+                      <span class="font-semibold text-stone-700">Pajak (PPN) (11%)</span>
+                    </label>
+                    <span class="font-bold font-mono" :class="isTaxEnabled ? 'text-stone-900' : 'text-stone-400 line-through'" x-text="formatRupiah(getCartTax())"></span>
+                  </div>
+
+                  <!-- ✅ PATCH H: Sub-toggle Include/Exclude PPN -->
+                  <div x-show="isTaxEnabled" x-cloak class="flex items-center justify-between pl-6 text-[11px]">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        x-model="isTaxIncluded" 
+                        class="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
+                      />
+                      <span class="font-semibold text-stone-600">Harga sudah <strong>termasuk</strong> PPN (Include)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Input Manual Ongkir / Biaya Lainnya -->
+                <div class="flex items-center justify-between py-0.5">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <span class="font-semibold text-stone-700">Ongkir / Biaya Lainnya (Rp)</span>
+                  </label>
+                  <input
+                    type="number"
+                    x-model.number="manualServiceCharge"
+                    class="w-24 border rounded p-2 text-sm text-right font-mono"
+                  />
+                </div>
+
+                <!-- TOTAL BESAR TAGIHAN -->
+                <div class="pt-2 border-t border-stone-200 flex items-baseline justify-between">
+                  <span class="text-sm font-extrabold text-stone-900 uppercase tracking-tight">Total Tagihan</span>
+                  <span class="text-2xl font-black text-stone-900 font-mono tracking-tight" x-text="formatRupiah(getCartGrandTotal())"></span>
+                </div>
+              </div>
+
+              <!-- Tombol Pembayaran Kasir (h-14 emerald) + Simpan Draft -->
+              <div class="pt-2 space-y-2">
+                <!-- Tombol [BAYAR] -->
+                <button 
+                  type="button" 
+                  @click="openPaymentModal()"
+                  :disabled="cart.length === 0"
+                  class="w-full h-14 min-h-[56px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-98">
+                  <i class="fa-solid fa-credit-card text-lg"></i>
+                  <span>BAYAR SEKARANG</span>
+                  <span class="text-xs bg-emerald-700/80 px-2 py-0.5 rounded-md font-mono" x-text="formatRupiah(getCartGrandTotal())"></span>
+                </button>
+
+                <!-- Tombol [Simpan Draft] (Min h-12) -->
+                <button
+                  type="button"
+                  @click="saveDraftOrder()"
+                  :disabled="cart.length === 0"
+                  class="w-full min-h-[48px] rounded-xl border border-stone-300 hover:bg-stone-100 disabled:opacity-50 text-stone-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                  <i class="fa-regular fa-bookmark text-stone-500"></i>
+                  <span>Simpan Sebagai Draft</span>
+                </button>
+
+                <!-- Tombol [Daftar Draft] -->
+                <button
+                  type="button"
+                  @click="openDraftModal()"
+                  class="w-full min-h-[48px] rounded-xl border-2 border-blue-300 hover:bg-blue-50 disabled:opacity-50 text-blue-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                  <i class="fa-solid fa-list text-blue-600"></i>
+                  <span>📋 Daftar Draft (<span x-text="drafts.length">0</span>)</span>
+                </button>
+
+              </div>
+
+            </div>
+          </div>
 
         </div>
 
@@ -3496,7 +3822,7 @@
   <div 
     x-cloak 
     x-show="paymentModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="paymentModal = false" 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-6">
@@ -3605,7 +3931,7 @@
   <div 
     x-cloak 
     x-show="cashModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="cashModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -3700,7 +4026,7 @@
   <div 
     x-cloak 
     x-show="qrisModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="qrisModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -3806,7 +4132,7 @@
   <div 
     x-cloak 
     x-show="transferModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="transferModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -3876,7 +4202,7 @@
   <div 
     x-cloak 
     x-show="ewalletModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="ewalletModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -3922,7 +4248,7 @@
   <div 
     x-cloak 
     x-show="splitModal" 
-    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="splitModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4011,7 +4337,7 @@
   <div 
     x-cloak 
     x-show="showRekonsiliasiModal || pendingReconcileModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
       
@@ -4279,7 +4605,7 @@
     x-show="showShiftCalcModal" 
     @click.away="closeShiftCalculator()"
     @keydown.escape.window="showShiftCalcModal && closeShiftCalculator()"
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[65] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative space-y-5 my-8">
 
       <button 
@@ -4425,7 +4751,7 @@
   <div 
     x-cloak 
     x-show="closeShiftModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="closeShiftModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4499,7 +4825,7 @@
   <div 
     x-cloak 
     x-show="reconcileModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="reconcileModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4633,7 +4959,7 @@
   <div 
     x-cloak 
     x-show="editStockModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="editStockModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4897,7 +5223,7 @@
   <div 
     x-cloak 
     x-show="addInventoryModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="addInventoryModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5172,7 +5498,7 @@
   <div 
     x-cloak 
     x-show="productModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="productModal = false" 
       class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-4">
@@ -5342,7 +5668,7 @@
   <div 
     x-cloak 
     x-show="newMenuModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="newMenuModal = false" 
       class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5623,7 +5949,7 @@
     x-show="showPinModal"
     @click.away="cancelSupervisorPin()"
     @keydown.escape.window="showPinModal && cancelSupervisorPin()"
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border-2 border-red-200 relative space-y-5">
 
@@ -6004,7 +6330,7 @@
   <div 
     x-cloak 
     x-show="showJournalFormModal" 
-    class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="showJournalFormModal = false" 
       class="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-6 my-8">
@@ -6267,7 +6593,7 @@
   x-cloak 
   x-show="showTxHistoryModal" 
   @click.self="showTxHistoryModal = false"
-  class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+  class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div 
     class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 my-6">
       
@@ -6637,7 +6963,7 @@
     x-show="scanModal.open" 
     x-cloak 
     @click.self="closeScanModal()"
-    class="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[80] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7465,7 +7791,7 @@
     x-cloak 
     x-show="showOwnerReportModal" 
     @click.self="showOwnerReportModal = false"
-    class="fixed inset-0 z-[9990] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 my-8">
       
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
@@ -7700,7 +8026,7 @@
 </div>
 
 <!-- MODAL CUSTOMER (Pilih/Buat Customer untuk Piutang Kredit) -->
-<div x-show="showCustomerModal" x-cloak class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+<div x-show="showCustomerModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div
     @click.away="closeCustomerModal"
     class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -7871,7 +8197,7 @@
 </div>
 
 <!-- MODAL DRAFT (Daftar Draft Pesanan) -->
-<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div
     @click.away="closeDraftModal()"
     class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -7956,7 +8282,7 @@
 <div
   x-show="showPelunasanModal"
   x-cloak
-  class="fixed inset-0 z-[9990] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+  class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
 >
   <div
     @click.self="closePelunasanModal()"
@@ -8062,302 +8388,16 @@
   </div>
 </div>
 
-
-<!-- Overlay / Backdrop Keranjang Mobile (z-9990) -->
-  <div
-    x-show="showCartMobile"
+<!-- Overlay untuk menutup keranjang mobile -->
+<div 
+    x-show="showCartMobile" 
     @click="showCartMobile = false"
     x-transition.opacity.duration.200ms
-    class="fixed inset-0 bg-black/50 z-[9990] md:hidden pointer-events-auto"
-  ></div>
-
-<template x-teleport="body">
-          <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-          <div class="fixed inset-0 z-[99990] bg-black/60 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4" :class="showCartMobile ? '' : 'hidden'" x-show="showCartMobile">
-                      <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl max-h-[90dvh] overflow-y-auto">
-              
-              <!-- Header Keranjang: Judul + Hapus Semua -->
-              <div class="flex items-center justify-between pb-3 border-b border-stone-200">
-                <div class="flex items-center gap-2">
-                  <span class="text-lg">🛒</span>
-                  <h3 class="font-extrabold text-base text-stone-900">Keranjang Kasir</h3>
-                  <span 
-                    class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono" 
-                    x-text="getCartTotalItems() + ' item'">
-                  </span>
-                </div>
-                
-                <button
-                  type="button"
-                  @click="showCartMobile = false"
-                  class="text-stone-500 hover:text-stone-800 p-2"
-                  title="Tutup Keranjang">
-                  <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
-                <button 
-                  type="button" 
-                  x-show="cart.length > 0"
-                  @click="clearCart()"
-                  class="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 transition cursor-pointer"
-                  title="Hapus Semua Isi Keranjang">
-                  <i class="fa-solid fa-trash-can text-[11px]"></i>
-                  <span>Reset</span>
-                </button>
-              </div>
-
-              <!-- List Item Keranjang (Scrollable Container) -->
-              <div class="max-h-[320px] overflow-y-auto space-y-3 pr-1 divide-y divide-stone-100">
-                
-                <!-- State Keranjang Kosong -->
-                <div x-show="cart.length === 0" class="py-12 text-center text-stone-400 space-y-2">
-                  <div class="w-14 h-14 rounded-2xl bg-stone-100 text-stone-400 mx-auto flex items-center justify-center text-xl">
-                    <i class="fa-solid fa-cart-arrow-down"></i>
-                  </div>
-                  <p class="font-bold text-sm text-stone-700">Keranjang Masih Kosong</p>
-                  <p class="text-xs text-stone-400">Klik salah satu menu di sebelah kiri untuk menambah pesanan.</p>
-                </div>
-
-                <!-- Toggle Harga Grosir -->
-<div class="flex bg-stone-100 p-1 rounded-xl mb-3">
-    <button @click="applyPriceLevelToCart('ecer')" 
-            :class="cartPriceLevel === 'ecer' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
-            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
-        Ecer
-    </button>
-    <button @click="applyPriceLevelToCart('partai')" 
-            :class="cartPriceLevel === 'partai' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
-            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
-        Partai
-    </button>
-    <button @click="applyPriceLevelToCart('agen')" 
-            :class="cartPriceLevel === 'agen' ? 'bg-white shadow-sm text-orange-600' : 'text-stone-500 hover:text-stone-700'" 
-            class="flex-1 py-2 text-xs font-bold rounded-lg transition-all">
-        Agen
-    </button>
+    class="fixed inset-0 bg-black/50 z-[65] md:hidden" 
+    style="display: none;">
 </div>
 
-<!-- Daftar Item Keranjang (M4: layout 2-baris mobile-friendly) -->
-<template x-for="(item, idx) in cart" :key="item.id + '-' + idx">
-  <div class="pt-3 first:pt-0 border-b border-stone-100 pb-2 space-y-2">
+<!-- FAB Keranjang Mobile (dihapus - menggunakan tombol keranjang di sticky header) -->
 
-    <!-- Baris 1: Nama full-width + Harga Satuan + Tombol Hapus -->
-    <div class="flex items-start justify-between gap-2">
-      <div class="min-w-0 flex-1">
-        <h5 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug" x-text="item.name"></h5>
-        <!-- Info Harga & Min Order -->
-        <div class="text-[11px] font-semibold mt-1">
-            <!-- Tampilkan Ecer -->
-            <span x-show="cartPriceLevel === 'ecer'" class="text-stone-500">
-                <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            </span>
-
-            <!-- Tampilkan Partai -->
-            <span x-show="cartPriceLevel === 'partai'" class="text-green-600">
-            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'partai')"></span>
-            </span>
-
-            <!-- Tampilkan Agen -->
-            <span x-show="cartPriceLevel === 'agen'" class="text-red-600">
-            <span x-text="formatRupiah(item.price)"></span> / <span x-text="item.unit || 'pcs'"></span>
-            <span x-text="' | MIN: ' + getProductMinOrder(item.id, 'agen')"></span>
-            </span>
-        </div>
-        <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          <template x-if="item.itemDiscountValue > 0">
-            <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black font-mono whitespace-nowrap">
-              Disc <span x-text="item.itemDiscountType === 'nominal' ? formatRupiah(item.itemDiscountValue) : item.itemDiscountValue + '%'"></span>
-            </span>
-          </template>
-        </div>
-      </div>
-      <button 
-        type="button"
-        @click="removeItemFromCart(item)"
-        class="w-7 h-7 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition cursor-pointer flex-shrink-0"
-        title="Hapus Item">
-        <i class="fa-solid fa-xmark text-xs"></i>
-      </button>
-    </div>
-
-    <!-- Baris 2: Qty Control + Subtotal -->
-    <div class="flex items-center justify-between gap-2">
-      <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl flex-shrink-0">
-        <button 
-          type="button"
-          @click="decreaseQty(item)"
-          class="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95">
-          <i class="fa-solid fa-minus text-[10px]"></i>
-        </button>
-        <input 
-          type="number" 
-          min="1"
-          :max="getMenuCalculatedStock(item.id)"
-          x-model.number="item.qty"
-          @change="updateItemQty(item, item.qty)"
-          class="w-12 text-center bg-white rounded-lg border border-stone-200 font-extrabold text-xs font-mono text-stone-900 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        />
-        <button 
-          type="button"
-          @click="increaseQty(item)"
-          class="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95">
-          <i class="fa-solid fa-plus text-[10px]"></i>
-        </button>
-      </div>
-
-      <span class="font-extrabold text-sm text-stone-900 font-mono flex-shrink-0" x-text="formatRupiah(getItemUnitPriceAfterDiscount(item) * item.qty)"></span>
-    </div>
-
-    <!-- Baris 3: Link Diskon Per Item -->
-    <div class="flex items-center justify-between text-[11px] text-stone-500 pl-1">
-      <button 
-        type="button" 
-        @click="openItemDiscountModal(item)"
-        class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer">
-        <i class="fa-solid fa-tags text-[10px]"></i>
-        <span x-text="item.itemDiscountValue > 0 ? 'Edit Diskon Item' : '+ Diskon Item'"></span>
-      </button>
-
-      <template x-if="getItemDiscountNominal(item) > 0">
-        <span class="text-amber-700 font-mono font-bold">
-          Potongan: -<span x-text="formatRupiah(getItemDiscountNominal(item))"></span>
-        </span>
-      </template>
-    </div>
-  </div>
-</template>
-
-              </div>
-
-              <!-- Divider Subtle & Pengaturan Tagihan -->
-              <div class="border-t border-stone-200 pt-3 space-y-2.5 text-xs text-stone-600">
-                
-                <!-- Input Catatan Opsional -->
-                <div>
-                  <label class="block font-bold text-stone-700 text-[11px] uppercase mb-1">
-                    Catatan Pesanan (Opsional)
-                  </label>
-                  <input 
-                    type="text" 
-                    x-model="orderNote"
-                    placeholder="Contoh: Meja 4 / Bungkus / Tanpa Sambal" 
-                    class="w-full h-10 px-3 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-xs font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none" 
-                  />
-                </div>
-
-                <!-- Tombol Pengaturan Diskon Total Belanja -->
-                <div class="flex items-center justify-between bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                  <div class="flex items-center gap-1.5">
-                    <i class="fa-solid fa-percent text-emerald-600 text-xs"></i>
-                    <span class="font-bold text-stone-800 text-xs">Diskon Total Belanja</span>
-                  </div>
-                  <button 
-                    type="button" 
-                    @click="openOrderDiscountModal()"
-                    class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs">
-                    <span x-text="orderDiscountValue > 0 ? 'Ubah Diskon' : '+ Set Diskon'"></span>
-                  </button>
-                </div>
-
-                <!-- Baris Rincian Diskon Total (Sebelum Subtotal / Total Tagihan) -->
-                <template x-if="getOrderDiscountAmount() > 0">
-                  <div class="flex items-center justify-between text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200/60 font-medium">
-                    <span class="flex items-center gap-1">
-                      <i class="fa-solid fa-circle-minus text-[10px]"></i>
-                      <span>Diskon Total Belanja (<span x-text="orderDiscountType === 'nominal' ? 'Nominal' : orderDiscountValue + '%'"></span>)</span>
-                    </span>
-                    <span class="font-bold font-mono text-xs" x-text="'- ' + formatRupiah(getOrderDiscountAmount())"></span>
-                  </div>
-                </template>
-
-                <!-- Subtotal Murni -->
-                <div class="flex items-center justify-between pt-1">
-                  <span>Subtotal Belanja</span>
-                  <span class="font-bold text-stone-900 font-mono" x-text="formatRupiah(getCartSubtotal())"></span>
-                </div>
-
-                                <!-- Checkbox Opsional Pajak (PPN 11%) -->
-                <div class="py-0.5 space-y-1">
-                  <div class="flex items-center justify-between">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        x-model="isTaxEnabled" 
-                        class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
-                      />
-                      <span class="font-semibold text-stone-700">Pajak (PPN) (11%)</span>
-                    </label>
-                    <span class="font-bold font-mono" :class="isTaxEnabled ? 'text-stone-900' : 'text-stone-400 line-through'" x-text="formatRupiah(getCartTax())"></span>
-                  </div>
-
-                  <!-- ✅ PATCH H: Sub-toggle Include/Exclude PPN -->
-                  <div x-show="isTaxEnabled" x-cloak class="flex items-center justify-between pl-6 text-[11px]">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        x-model="isTaxIncluded" 
-                        class="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" 
-                      />
-                      <span class="font-semibold text-stone-600">Harga sudah <strong>termasuk</strong> PPN (Include)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Input Manual Ongkir / Biaya Lainnya -->
-                <div class="flex items-center justify-between py-0.5">
-                  <label class="flex items-center gap-2 cursor-pointer select-none">
-                    <span class="font-semibold text-stone-700">Ongkir / Biaya Lainnya (Rp)</span>
-                  </label>
-                  <input
-                    type="number"
-                    x-model.number="manualServiceCharge"
-                    class="w-24 border rounded p-2 text-sm text-right font-mono"
-                  />
-                </div>
-
-                <!-- TOTAL BESAR TAGIHAN -->
-                <div class="pt-2 border-t border-stone-200 flex items-baseline justify-between">
-                  <span class="text-sm font-extrabold text-stone-900 uppercase tracking-tight">Total Tagihan</span>
-                  <span class="text-2xl font-black text-stone-900 font-mono tracking-tight" x-text="formatRupiah(getCartGrandTotal())"></span>
-                </div>
-              </div>
-
-              <!-- Tombol Pembayaran Kasir (h-14 emerald) + Simpan Draft -->
-              <div class="pt-2 space-y-2">
-                <!-- Tombol [BAYAR] -->
-                <button 
-                  type="button" 
-                  @click="openPaymentModal()"
-                  :disabled="cart.length === 0"
-                  class="w-full h-14 min-h-[56px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-98">
-                  <i class="fa-solid fa-credit-card text-lg"></i>
-                  <span>BAYAR SEKARANG</span>
-                  <span class="text-xs bg-emerald-700/80 px-2 py-0.5 rounded-md font-mono" x-text="formatRupiah(getCartGrandTotal())"></span>
-                </button>
-
-                <!-- Tombol [Simpan Draft] (Min h-12) -->
-                <button
-                  type="button"
-                  @click="saveDraftOrder()"
-                  :disabled="cart.length === 0"
-                  class="w-full min-h-[48px] rounded-xl border border-stone-300 hover:bg-stone-100 disabled:opacity-50 text-stone-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                  <i class="fa-regular fa-bookmark text-stone-500"></i>
-                  <span>Simpan Sebagai Draft</span>
-                </button>
-
-                <!-- Tombol [Daftar Draft] -->
-                <button
-                  type="button"
-                  @click="openDraftModal()"
-                  class="w-full min-h-[48px] rounded-xl border-2 border-blue-300 hover:bg-blue-50 disabled:opacity-50 text-blue-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                  <i class="fa-solid fa-list text-blue-600"></i>
-                  <span>📋 Daftar Draft (<span x-text="drafts.length">0</span>)</span>
-                </button>
-
-              </div>
-
-            </div>
-          </div>
-</template>
 </body>
 </html>
