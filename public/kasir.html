@@ -360,6 +360,17 @@
           <span class="hidden md:inline">Printer POS</span>
         </button>
 
+        <!-- Tombol Keranjang Desktop -->
+        <button
+          type="button"
+          @click="showCartMobile = true"
+          class="hidden md:flex h-10 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs items-center gap-2 transition shadow-md cursor-pointer">
+          <i class="fa-solid fa-cart-shopping text-sm"></i>
+          <span>Keranjang</span>
+          <span class="px-1.5 py-0.5 rounded bg-white/20 text-white text-[10px] font-black" x-text="getCartTotalItems()"></span>
+        </button>
+
+
       
         <template x-if="shiftStatus === 'paused'">
           <button 
@@ -704,7 +715,7 @@
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <section x-show="activeTab === 'transaksi'" x-cloak class="space-y-6">
       <!-- Sticky Toolbar: Search + Keranjang -->
-      <div class="sticky top-0 z-40 bg-stone-100/95 backdrop-blur-md pt-2 pb-3 px-3 border-b border-stone-200 shadow-sm space-y-2">
+      <div class="sticky top-0 z-40 bg-white/95 backdrop-blur-md pt-2 pb-3 px-3 border-b border-stone-200 shadow-sm space-y-2 md:hidden">
         <!-- Baris 1: Search Bar + Keranjang -->
         <div class="flex items-center gap-2 sm:flex-row flex-wrap">
           <!-- Input Pencarian -->
