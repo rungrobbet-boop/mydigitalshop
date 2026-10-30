@@ -3496,7 +3496,7 @@
   <div 
     x-cloak 
     x-show="paymentModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="paymentModal = false" 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-6">
@@ -3605,7 +3605,7 @@
   <div 
     x-cloak 
     x-show="cashModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="cashModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -3700,7 +3700,7 @@
   <div 
     x-cloak 
     x-show="qrisModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="qrisModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -3806,7 +3806,7 @@
   <div 
     x-cloak 
     x-show="transferModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="transferModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -3876,7 +3876,7 @@
   <div 
     x-cloak 
     x-show="ewalletModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="ewalletModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -3922,7 +3922,7 @@
   <div 
     x-cloak 
     x-show="splitModal" 
-    class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="splitModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -7871,7 +7871,7 @@
 </div>
 
 <!-- MODAL DRAFT (Daftar Draft Pesanan) -->
-<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-[9992] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div
     @click.away="closeDraftModal()"
     class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -8073,7 +8073,7 @@
 
 <template x-teleport="body">
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-          <div class="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4" :class="showCartMobile ? '' : 'hidden'" x-show="showCartMobile">
+          <div class="fixed inset-0 z-[99990] bg-black/60 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4" :class="showCartMobile ? '' : 'hidden'" x-show="showCartMobile">
                       <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl max-h-[90dvh] overflow-y-auto">
               
               <!-- Header Keranjang: Judul + Hapus Semua -->
