@@ -372,13 +372,18 @@
         </div>
       </div>
 
-      <!-- Navigation links (Desktop XL) -->
-      <nav class="hidden xl:flex items-center gap-6 text-sm font-semibold text-slate-700">
-        <button @click="activeTab = 'menu'; scrollToSection('tab-section')" :class="activeTab === 'menu' ? 'text-blue-700 border-b-2 border-blue-700 pb-1' : 'hover:text-blue-700 pb-1'" x-text="siteConfig.navMenuText || 'Katalog Material'"></button>
-        <button @click="activeTab = 'catering'; scrollToSection('catering-section')" :class="activeTab === 'catering' ? 'text-blue-700 border-b-2 border-blue-700 pb-1' : 'hover:text-blue-700 pb-1'" x-text="siteConfig.navCateringText || 'Suplai Proyek'"></button>
-        <a href="#ongkir-calculator" class="hover:text-blue-700">Cek Ongkir Truk</a>
-        <a href="#b2b-section" class="hover:text-blue-700">Pengadaan Proyek</a>
-      </nav>
+      <!-- Search Bar (Desktop XL) -->
+      <div class="hidden xl:flex items-center flex-1 max-w-md px-4">
+        <div class="relative w-full">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs"></i>
+          <input
+            type="text"
+            x-model="searchQuery"
+            placeholder="Cari material..."
+            class="w-full px-4 py-1.5 pl-9 pr-3 rounded-xl border border-stone-200 bg-stone-50 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition shadow-xs"
+          />
+        </div>
+      </div>
 
       <!-- Action Buttons (Menu 3 Garis, Analitik, Admin Lock, Keranjang) - Responsif Bebas Potong di Mobile -->
       <div class="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
@@ -393,6 +398,30 @@
           <i :class="isNavMenuOpen ? 'fa-solid fa-xmark text-sm sm:text-base' : 'fa-solid fa-bars text-sm sm:text-base'"></i>
           <span class="text-xs font-black hidden sm:inline" x-text="isNavMenuOpen ? 'Tutup' : 'Menu'"></span>
         </button>
+
+        <!-- Tombol Cari Mobile (🔍) -->
+        <button
+          type="button"
+          @click="showSearchMobile = !showSearchMobile"
+          class="sm:hidden w-8 h-8 flex items-center justify-center gap-1.5 rounded-xl border border-stone-300 text-stone-700 hover:text-brand-600 hover:border-brand-500 hover:bg-stone-50 transition shadow-2xs active:scale-95 flex-shrink-0"
+          title="Cari Produk">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i>
+          <span x-show="showSearchMobile" class="text-[10px] font-black" x-text="showSearchMobile ? 'Tutup' : 'Cari'"></span>
+        </button>
+
+        <!-- Search Bar Mobile (muncul saat showSearchMobile) -->
+        <div x-show="showSearchMobile" x-transition class="sm:hidden mt-2 mb-2 flex flex-col gap-1 px-2">
+          <div class="relative w-full">
+            <i class="fa-solid fa-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-[10px]"></i>
+            <input
+              type="text"
+              x-model="searchQuery"
+              placeholder="Cari material..."
+              @change="showSearchMobile = false"
+              class="w-full px-3 py-1.5 pl-8 pr-2 rounded-xl border border-stone-200 bg-white text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition shadow-xs"
+            />
+          </div>
+        </div>
 
         <!-- Dasbor Analitik Link -->
         <a href="/analytics.html" class="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 flex items-center justify-center gap-1.5 text-brand-700 bg-brand-50 rounded-xl border border-brand-200 hover:bg-brand-100 transition text-xs font-bold whitespace-nowrap shadow-2xs flex-shrink-0" title="Dasbor Analitik Penjualan">
@@ -520,50 +549,6 @@
             <div class="min-w-0">
               <span class="text-xs sm:text-sm block truncate" x-text="siteConfig.navMenuText || 'Menu Harian'"></span>
               <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Pesan hidangan lezat</span>
-            </div>
-          </button>
-
-          <!-- 2. Paket Catering -->
-          <button 
-            type="button"
-            @click="activeTab = 'catering'; isNavMenuOpen = false; scrollToSection('catering-section')"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95"
-            :class="activeTab === 'catering' ? 'border-brand-500 bg-brand-50/80 text-brand-700 font-black ring-2 ring-brand-500/20' : 'border-stone-200 bg-white hover:border-brand-300 hover:bg-stone-50 text-stone-800 font-bold'">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0"
-              :class="activeTab === 'catering' ? 'bg-brand-600 text-white shadow-xs' : 'bg-stone-100 text-stone-700 group-hover:bg-brand-100 group-hover:text-brand-600'">
-              <i class="fa-solid fa-boxes-packing text-base"></i>
-            </div>
-            <div class="min-w-0">
-              <span class="text-xs sm:text-sm block truncate" x-text="siteConfig.navCateringText || 'Paket Catering'"></span>
-              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Box syukuran &amp; prasmanan</span>
-            </div>
-          </button>
-
-          <!-- 3. Cek Ongkir -->
-          <button 
-            type="button"
-            @click="isNavMenuOpen = false; scrollToSection('ongkir-calculator')"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border border-stone-200 bg-white hover:border-brand-300 hover:bg-stone-50 text-stone-800 font-bold transition-all text-left group shadow-2xs active:scale-95">
-            <div class="w-10 h-10 rounded-xl bg-stone-100 text-stone-700 group-hover:bg-blue-100 group-hover:text-blue-600 flex items-center justify-center transition flex-shrink-0">
-              <i class="fa-solid fa-truck-fast text-base"></i>
-            </div>
-            <div class="min-w-0">
-              <span class="text-xs sm:text-sm block truncate" x-text="siteConfig.navOngkirText || 'Cek Ongkir'"></span>
-              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Hitung tarif kurir</span>
-            </div>
-          </button>
-
-          <!-- 4. Catering B2B -->
-          <button 
-            type="button"
-            @click="isNavMenuOpen = false; scrollToSection('b2b-section')"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border border-stone-200 bg-white hover:border-brand-300 hover:bg-stone-50 text-stone-800 font-bold transition-all text-left group shadow-2xs active:scale-95">
-            <div class="w-10 h-10 rounded-xl bg-stone-100 text-stone-700 group-hover:bg-amber-100 group-hover:text-amber-600 flex items-center justify-center transition flex-shrink-0">
-              <i class="fa-solid fa-building text-base"></i>
-            </div>
-            <div class="min-w-0">
-              <span class="text-xs sm:text-sm block truncate" x-text="siteConfig.navB2bText || 'Catering B2B'"></span>
-              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Kantor, seminar &amp; event</span>
             </div>
           </button>
 
@@ -6075,6 +6060,7 @@ git push -u origin main</pre>
         showPlatformRedirectModal: false,
         platformRedirectTarget: null,
         isNavMenuOpen: false,
+        showSearchMobile: false,
         isProcessingPayment: false,
         isLoadingOngkir: false,
         isLocationModalOpen: false,

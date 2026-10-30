@@ -739,9 +739,10 @@
                 <span>Scanner Ready</span>
               </div>
 
-              <!-- ✅ FITUR BARU: Multi Scan Transaksi -->    
-              <button 
-                  type="button" 
+              <!-- ✅ FITUR BARU: Multi Scan Transaksi (Hanya tampil jika Hardware Scanner ON) -->   
+              <button
+                  type="button"
+                  x-show="scannerEnabled"
                   @click="openMultiScanModal()"
                   class="min-h-[48px] px-4 rounded-xl border-2 border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-extrabold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
                   title="Multi scan transaksi — maks 50 menu per sesi">
@@ -8397,8 +8398,9 @@
 </div>
 
 <!-- FAB Keranjang Mobile -->
-<button 
-    @click="showCartMobile = true" 
+<button
+    type="button"
+    @click="showCartMobile = true"
     class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>

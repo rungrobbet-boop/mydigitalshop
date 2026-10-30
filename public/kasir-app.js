@@ -4347,7 +4347,9 @@ async loadMoreProducts() {
     const customerAddress = customer?.addressKirim || tx.customerAddress || '-';
 
     const txDate = this.formatDate(tx.t);
-    const dueDate = tx.dueDate || '-';
+    const dueDate = tx.dueDate 
+        ? new Date(tx.dueDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : '-';
 
     // Diskon, PPN, Service Charge
     const disc = Number(tx.disc || 0) || 0;
