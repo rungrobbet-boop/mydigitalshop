@@ -222,74 +222,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 </head>
 <body
-  x-data="typeof kasirApp === 'function' ? kasirApp() : {"
+  x-data="kasirApp()"
   x-on:buka-keranjang.window="showCartMobile = true"
-    activeTab: 'transaksi',
-    mobileMenuOpen: false,
-    cart: [],
-    menuList: [],
-    categories: ['semua', 'semen', 'cat', 'besi', 'lainnya'],
-    selectedCategory: 'semua',
-    searchQuery: '',
-    isLoadingMenu: false,
-    orderNote: '',
-    voucherCode: '',
-    discountAmount: 0,
-    
-    // Modal state
-    paymentModal: false,
-    cashModal: false,
-    qrisModal: false,
-    receiptModal: false,
-    receiptWAPhone: '', // ✅ FEATURE-3: nomor WA pelanggan untuk kirim struk
-    closeShiftModal: false,
-    reconcileModal: false,
-    
-    // Transaksi & Pembayaran state
-    selectedPaymentMethod: 'tunai',
-    cashReceived: 0,
-    currentOrder: null,
-    
-    // Rekonsiliasi state
-    reconciliationList: [],
-    pendingReconcile: 0,
-    reconcileFilter: 'semua',
-    reconcileDateRange: 'today',
-    selectedReconcileIds: [],
-    activeReconcileItem: null,
-    
-    // Shift state
-    shiftSummary: {
-      totalSales: 2450000,
-      cashSales: 980000,
-      qrisSales: 1120000,
-      transferSales: 350000,
-      transactionCount: 42,
-      startCash: 200000,
-      startTime: '08:00 WIB'
-    },
-    shiftHistory: [],
-    physicalCashCount: 0,
-    shiftClosingNotes: '',
-    
-    // Inventory state
-    inventoryList: [],
-    inventorySearch: '',
-    editStockModal: false,
-    selectedStockItem: { id: '', name: '', stock: 0, minStock: 0, unit: 'unit', purchasePrice: 0, isCountable: true },
-    newStockValue: 0,
-    stockChangeReason: '',
-    editPurchasePrice: 0,
-    
-    // Laporan state
-    todayTotalRevenue: 2450000,
-    reportPeriod: 'today',
-    
-    // Sesi Kasir & Waktu
-    kasirInfo: { username: 'kasir', name: 'Kasir Utama', shiftId: 'S-2026-09-18-01' },
-    currentTime: '',
-    appReady: false
-  }" 
   class="min-h-[100dvh] font-sans text-stone-800 antialiased flex flex-col bg-stone-100 selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
 
   <!-- ✅ SPLASH SCREEN -->
