@@ -645,73 +645,85 @@
           <!-- KOLOM KIRI (8 cols desktop): Search + Kategori + Grid Menu -->
           <div class="lg:col-span-7 xl:col-span-8 space-y-4">
             
-            <!-- Search Bar & Quick Tools -->
-            <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <!-- Input Pencarian -->
-              <div class="relative w-full">
-                <input 
-                  type="text" 
-                  x-model="searchQuery"
-                  placeholder="Cari menu, SKU, atau Barcode..."
-                  class="w-full min-h-[48px] pl-11 pr-4 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition" 
-                />
-                <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <i class="fa-solid fa-magnifying-glass text-sm"></i>
-                </div>
-                <!-- Tombol Hapus Input -->
-                <button 
-                  type="button" 
-                  x-show="searchQuery" 
-                  @click="searchQuery = ''"
-                  class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
-                  <i class="fa-solid fa-xmark text-xs"></i>
-                </button>
-              </div>
+            <!-- Sticky Toolbar: Search + Quick Tools -->
+                        <div class="sticky top-0 z-40 bg-stone-100/95 backdrop-blur-md pt-2 pb-3 px-3 border-b border-stone-200 shadow-sm space-y-2">
+                          <!-- Input Pencarian -->
+                          <div class="relative w-full sm:w-auto flex-1">
+                            <input
+                              type="text"
+                              x-model="searchQuery"
+                              placeholder="Cari menu, SKU, atau Barcode..."
+                              class="w-full min-h-[48px] pl-11 pr-4 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition" />
+                            <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400">
+                              <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                            </div>
+                            <!-- Tombol Hapus Input -->
+                            <button
+                              type="button"
+                              x-show="searchQuery"
+                              @click="searchQuery = ''"
+                              class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                              <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                          </div>
 
-              <div x-show="scannerEnabled !== false"
-                   class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Scanner Ready</span>
-              </div>
+                          <!-- Tombol Keranjang -->
+                          <button
+                            type="button"
+                            @click="showCartMobile = true"
+                            class="relative min-h-[48px] px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-md">
+                            <i class="fa-solid fa-cart-shopping text-lg"></i>
+                            <span class="hidden sm:inline">Keranjang</span>
+                            <span class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center"
+                                  x-text="getCartTotalItems()"
+                                  x-show="getCartTotalItems() > 0"></span>
+                          </button>
 
-              <!-- ✅ FITUR BARU: Multi Scan Transaksi (Hanya tampil jika Hardware Scanner ON) -->   
-              <button
-                  type="button"
-                  x-show="scannerEnabled"
-                  @click="openMultiScanModal()"
-                  class="min-h-[48px] px-4 rounded-xl border-2 border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-extrabold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
-                  title="Multi scan transaksi — maks 50 menu per sesi">
-                  <i class="fa-solid fa-barcode text-sm text-violet-600"></i>
-                  <span>Multi Scan</span>
-                  <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-violet-200 text-violet-900">≤50</span>
-                </button>
-              <!-- Quick Refresh & Riwayat Transaksi -->
-              <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                <button 
-                  type="button" 
-                  @click="openTransactionHistoryModal()"
-                  class="min-h-[48px] px-4 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
-                  title="Lihat riwayat transaksi kasir & recall/cetak ulang struk">
-                  <i class="fa-solid fa-clock-rotate-left text-sm text-emerald-600"></i>
-                  <span>Riwayat<br>Transaksi</span>
-                </button>
+                          <div x-show="scannerEnabled !== false"
+                               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Scanner Ready</span>
+                          </div>
 
-                <button 
-                  type="button" 
-                  @click="listenMenuItems()"
-                  class="min-h-[48px] px-3.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer"
-                  title="Refresh Data Menu">
-                  <i class="fa-solid fa-rotate text-xs"></i>
-                  <span class="hidden sm:inline">Sync</span>
-                </button>
-                <label class="flex items-center gap-2 cursor-pointer bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 ml-2">
-                  <input type="checkbox" 
-                         :checked="isQtyLocked" 
-                         @click.prevent="toggleQtyLock()" 
-                         class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 border-stone-300">
-                    <span class="text-xs font-bold text-stone-700">Qty<br>Lock</span>
-                </label>
-              </div>
+                          <!-- ✅ FITUR BARU: Multi Scan Transaksi (Hanya tampil jika Hardware Scanner ON) -->
+                          <button
+                              type="button"
+                              x-show="scannerEnabled"
+                              @click="openMultiScanModal()"
+                              class="min-h-[48px] px-4 rounded-xl border-2 border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-extrabold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
+                              title="Multi scan transaksi — maks 50 menu per sesi">
+                              <i class="fa-solid fa-barcode text-sm text-violet-600"></i>
+                              <span>Multi Scan</span>
+                              <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-violet-200 text-violet-900">≤50</span>
+                            </button>
+                          <!-- Quick Refresh & Riwayat Transaksi -->
+                          <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                            <button
+                              type="button"
+                              @click="openTransactionHistoryModal()"
+                              class="min-h-[48px] px-4 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition flex-1 sm:flex-initial shadow-xs cursor-pointer"
+                              title="Lihat riwayat transaksi kasir & recall/cetak ulang struk">
+                              <i class="fa-solid fa-clock-rotate-left text-sm text-emerald-600"></i>
+                              <span>Riwayat<br>Transaksi</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              @click="listenMenuItems()"
+                              class="min-h-[48px] px-3.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer"
+                              title="Refresh Data Menu">
+                              <i class="fa-solid fa-rotate text-xs"></i>
+                              <span class="hidden sm:inline">Sync</span>
+                            </button>
+                            <label class="flex items-center gap-2 cursor-pointer bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 ml-2">
+                              <input type="checkbox"
+                                     :checked="isQtyLocked"
+                                     @click.prevent="toggleQtyLock()"
+                                     class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 border-stone-300">
+                              <span class="text-xs font-bold text-stone-700">Qty<br>Lock</span>
+                            </label>
+                          </div>
+                        </div>
             </div>
 
             <!-- Filter Kategori (Pill Buttons Horizontally Scrollable) -->
@@ -8332,19 +8344,5 @@
 
             </div>
           </div>
-<!-- FAB Keranjang Mobile (teleport ke body) -->
-<template x-teleport="body">
-  <button
-    type="button"
-    @click="showCartMobile = true"
-    class="fixed bottom-24 right-4 z-[99999] bg-orange-500 text-white rounded-full p-4 shadow-xl flex items-center justify-center border-2 border-white pointer-events-auto"
-    style="position: fixed !important; bottom: 5rem !important; right: 1rem !important; z-index: 99999 !important; display: flex !important;"
-    title="Buka Keranjang">
-    <i class="fa-solid fa-cart-shopping text-xl"></i>
-    <span class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center"
-          x-text="getCartTotalItems()"
-          x-show="getCartTotalItems() > 0"></span>
-  </button>
-</template>
 </body>
 </html>
