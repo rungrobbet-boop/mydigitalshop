@@ -8388,19 +8388,20 @@
   </div>
 </div>
 
-<!-- Overlay untuk menutup keranjang mobile (backdrop miliknya sendiri) -->
-<div
+<div x-teleport="body">
+  <!-- Overlay untuk menutup keranjang mobile (backdrop miliknya sendiri) -->
+  <div
     x-show="showCartMobile"
     @click="showCartMobile = false"
     x-transition.opacity.duration.200ms
     class="fixed inset-0 bg-black/50 z-[999998] md:hidden pointer-events-auto"
-></div>
+  ></div>
 
-<!-- FAB Keranjang Mobile (sembunyi saat drawer keranjang terbuka) -->
-<button
+  <!-- FAB Keranjang Mobile (sembunyi saat drawer keranjang terbuka) -->
+  <button
     type="button"
     x-show="!showCartMobile"
-    @click="
+    @click.stop="
         paymentModal = false;
         showDraftModal = false;
         cashModal = false;
@@ -8414,11 +8415,12 @@
     class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white pointer-events-auto"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>
-    <span 
+    <span
         x-text="cart.reduce((sum, i) => sum + (i.qty || 1), 0)"
         class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
     </span>
-</button>
+  </button>
+</div>
 
 </body>
 </html>
