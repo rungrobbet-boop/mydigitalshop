@@ -4835,6 +4835,7 @@ async loadMoreProducts() {
     localStorage.setItem('dapur_pos_drafts', JSON.stringify(this.drafts));
 
     this.showDraftModal = false;
+    this.showCartMobile = true;
     this.showToast('Draft "' + draft.label + '" dibuka ke keranjang', 'success');
     this.playSound('notify');
   },
