@@ -885,6 +885,19 @@
 
             </div>
 
+            <!-- Paginasi / Load More (selalu terlihat di mobile & desktop) -->
+            <div class="flex flex-wrap justify-center py-4 md:py-6 gap-2">
+              <button
+                type="button"
+                @click="loadMoreProducts()"
+                :disabled="!hasMoreProducts || isLoadingMoreProducts"
+                class="px-6 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-bold text-sm transition disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span x-text="!hasMoreProducts ? 'Semua Dimuat' : 'Muat Lebih Banyak'"></span>
+              </button>
+              <span x-show="isLoadingMoreProducts" class="px-2 py-1 text-xs text-stone-500 animate-pulse">Memuat…</span>
+            </div>
+
           </div>
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
@@ -5647,23 +5660,6 @@
         </div>
       </div>
 
-      <!-- Tombol Simpan & Batal -->
-      <div class="pt-2 border-t border-stone-100 flex items-center gap-2">
-        <button
-          type="button"
-          @click="productModal = false"
-          class="min-h-[46px] px-5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
-          Batal
-        </button>
-        <button
-          type="button"
-          @click="saveProductRecipe()"
-          class="flex-1 min-h-[46px] rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition cursor-pointer">
-          <i class="fa-solid fa-floppy-disk text-xs"></i>
-          <span>SIMPAN PERUBAHAN &amp; SINKRONKAN</span>
-        </button>
-      </div>
-
     </div>
   </div>
 
@@ -5849,19 +5845,6 @@
 
 
         <!-- Tombol Simpan & Batal Menu Baru -->
-        <div class="pt-1 flex items-center gap-2">
-          <button 
-            type="button" 
-            @click="newMenuModal = false" 
-            class="min-h-[46px] px-5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer">
-            Batal
-          </button>
-          <button 
-            type="submit" 
-            class="flex-1 min-h-[46px] rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition cursor-pointer">
-            <i class="fa-solid fa-plus text-xs"></i>
-            <span>SIMPAN &amp; SINKRONKAN</span>
-          </button>
         </div>
       </form>
 
@@ -7993,82 +7976,6 @@
   </div>
 
   <!-- ===================================================================== -->
-  <!-- 5. BOTTOM NAVIGATION BAR UNTUK MOBILE                                  -->
-  <!-- ===================================================================== -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 px-2 py-1.5 flex items-center justify-around shadow-lg">
-    <button 
-      type="button" 
-      @click="activeTab = 'transaksi'"
-      :class="activeTab === 'transaksi' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] cursor-pointer">
-      <i class="fa-solid fa-cart-shopping text-base mb-0.5"></i>
-      <span>Kasir</span>
-    </button>
-
-    <button 
-      type="button" 
-      @click="activeTab = 'rekonsiliasi'"
-      :class="activeTab === 'rekonsiliasi' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] relative cursor-pointer">
-      <i class="fa-solid fa-clipboard-check text-base mb-0.5"></i>
-      <span>Rekon</span>
-      <span 
-        x-show="pendingReconcile > 0"
-        class="absolute top-0 right-2 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center" 
-        x-text="pendingReconcile">
-      </span>
-    </button>
-
-    <!-- ==== RTO: NAV MOBILE ORDER ONLINE (BLOK BARU) ==== -->
-        <button 
-      type="button" 
-      @click="activeTab = 'orderonline'; loadOrderOnline()"
-      :class="activeTab === 'orderonline' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] relative cursor-pointer">
-      <span class="relative inline-flex mb-0.5">
-        <i class="fa-solid fa-bag-shopping text-base"></i>
-        <span
-          x-show="pendingPaymentCount > 0"
-          x-cloak
-          class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse ring-2 ring-white"
-          title="Ada order pending"></span>
-      </span>
-      <span>Online</span>
-      <span 
-        x-show="orderOnlineQueueCount > 0"
-        class="absolute top-0 right-2 w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center" 
-        x-text="orderOnlineQueueCount">
-      </span>
-    </button>
-    <!-- ==== /RTO ==== -->
-
-    <button 
-      type="button" 
-      @click="activeTab = 'shift'"
-      :class="activeTab === 'shift' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] cursor-pointer">
-      <i class="fa-solid fa-business-time text-base mb-0.5"></i>
-      <span>Shift</span>
-    </button>
-
-    <button 
-      type="button" 
-      @click="activeTab = 'inventory'"
-      :class="activeTab === 'inventory' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] cursor-pointer">
-      <i class="fa-solid fa-boxes-stacked text-base mb-0.5"></i>
-      <span>Stok</span>
-    </button>
-
-    <button 
-      type="button" 
-      @click="activeTab = 'laporan'"
-      :class="activeTab === 'laporan' ? 'text-emerald-600 font-bold' : 'text-stone-500'"
-      class="flex flex-col items-center justify-center py-1 px-2 text-[10px] min-w-[56px] cursor-pointer">
-      <i class="fa-solid fa-chart-line text-base mb-0.5"></i>
-      <span>Laporan</span>
-    </button>
-  </nav>
 
 <!-- MODAL VOID TRANSAKSI -->
 <div x-show="showVoidModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
@@ -8492,8 +8399,7 @@
 <!-- FAB Keranjang Mobile -->
 <button 
     @click="showCartMobile = true" 
-    class="fixed bottom-20 right-4 z-[60] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center hover:bg-orange-700 transition-all border-2 border-white"
-    x-show="cart && cart.length > 0"
+    class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>
     <span 
@@ -8516,8 +8422,7 @@
 <!-- FAB Keranjang Mobile -->
 <button 
     @click="showCartMobile = true" 
-    class="fixed bottom-20 right-4 z-[60] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center hover:bg-orange-700 transition-all border-2 border-white"
-    x-show="cart && cart.length > 0"
+    class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>
     <span 
