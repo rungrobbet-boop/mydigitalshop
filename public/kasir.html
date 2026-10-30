@@ -289,7 +289,7 @@
     currentTime: '',
     appReady: false
   }" 
-  class="h-full font-sans text-stone-800 antialiased flex flex-col bg-stone-100 selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
+  class="min-h-[100dvh] font-sans text-stone-800 antialiased flex flex-col bg-stone-100 selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
 
   <!-- ✅ SPLASH SCREEN -->
   <div x-show="!appReady"
@@ -8397,9 +8397,10 @@
     style="display: none;">
 </div>
 
-<!-- FAB Keranjang Mobile -->
+<!-- FAB Keranjang Mobile (sembunyi saat drawer keranjang terbuka) -->
 <button
     type="button"
+    x-show="!showCartMobile"
     @click="showCartMobile = true"
     class="fixed bottom-20 right-4 z-[9999] md:hidden w-14 h-14 rounded-full bg-orange-600 text-white shadow-2xl flex items-center justify-center border-2 border-white pointer-events-auto"
     title="Buka Keranjang">

@@ -582,20 +582,24 @@
             </div>
           </button>
 
-          <!-- 4. Link Online Shop -->
-          <button
-            type="button"
-            @click="openWhatsAppOrder(); isNavMenuOpen = false"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0"
-              class="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white">
-              <i class="fa-brands fa-whatsapp text-lg"></i>
-            </div>
-            <div class="min-w-0">
-              <span class="text-xs sm:text-sm block truncate">Link Online Shop</span>
-              <span class="text-[10px] text-stone-500 block font-normal mt-0.5">Belanja via WhatsApp</span>
-            </div>
-          </button>
+          <!-- 4. Link Online Shop (Shopee, Tokopedia, Blibli) -->
+          <div class="flex gap-2 sm:flex-wrap p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-95">
+            <a :href="siteConfig.deliveryLinks.shopeefood" target="_blank" rel="noopener noreferrer"
+               class="flex-1 min-w-[70px] flex flex-col items-center gap-1.5 p-2 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold transition">
+              <i class="fa-solid fa-bag-shopping text-sm"></i>
+              <span>Shopee</span>
+            </a>
+            <a :href="siteConfig.deliveryLinks.gofood" target="_blank" rel="noopener noreferrer"
+               class="flex-1 min-w-[70px] flex flex-col items-center gap-1.5 p-2 rounded-xl border border-red-100 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition">
+              <i class="fa-brands fa-tokopedia text-sm"></i>
+              <span>Tokopedia</span>
+            </a>
+            <a :href="siteConfig.deliveryLinks.grabfood" target="_blank" rel="noopener noreferrer"
+               class="flex-1 min-w-[70px] flex flex-col items-center gap-1.5 p-2 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition">
+              <i class="fa-solid fa-store text-sm"></i>
+              <span>Blibli</span>
+            </a>
+          </div>
 
           <!-- 5. Lacak Pesanan Realtime -->
           <button 
@@ -1624,7 +1628,7 @@
             <span>Mitra Resmi & Platform Online</span>
           </span>
           <h3 class="text-xl sm:text-3xl font-extrabold text-stone-900 font-serif mt-2.5">
-            Pesan Juga Lewat Food Delivery Favorit Anda
+            Belanja Material Lewat Platform Favorit Anda
           </h3>
           <p class="text-stone-500 text-xs sm:text-sm mt-1.5 leading-relaxed">
             Lebih praktis pesan lewat aplikasi langganan Anda? Kami telah bermitra resmi di Shopee, Tokopedia, dan Blibli dengan promo voucher diskon ongkir & cashback setiap hari.
