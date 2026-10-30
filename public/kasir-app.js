@@ -4589,10 +4589,10 @@ async loadMoreProducts() {
     docSuratJalan.setFont('helvetica', 'normal');
 
     const signCols = [
-      { x: 15, label: 'Penerima' },
-      { x: 70, label: 'Pengirim' },
-      { x: 125, label: 'Dicek Oleh' },
-      { x: 175, label: 'Dibuat Oleh' },
+      { x: 15, label: 'Penerima', endX: 50 },
+      { x: 65, label: 'Pengirim', endX: 100 },
+      { x: 115, label: 'Dicek Oleh', endX: 150 },
+      { x: 165, label: 'Dibuat Oleh', endX: 200 },
     ];
 
     signCols.forEach((col) => {
@@ -4605,7 +4605,7 @@ async loadMoreProducts() {
     docSuratJalan.setLineWidth(0.5);
     docSuratJalan.setDrawColor(41, 37, 36);
     signCols.forEach((col) => {
-      docSuratJalan.line(col.x, sjSigY, col.x + 50, sjSigY);
+      docSuratJalan.line(col.x, sjSigY, col.endX, sjSigY);
     });
 
     // Teks "Tanda Tangan" di currentY + 25
