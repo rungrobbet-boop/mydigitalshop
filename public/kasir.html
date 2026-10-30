@@ -8397,26 +8397,18 @@
 
             </div>
           </div>
-<!-- FAB Keranjang Mobile (sembunyi saat drawer keranjang terbuka) -->
-  <button
+<!-- FAB Keranjang Mobile (hardcode, selalu tampil) -->
+  <button id="fab-force-cart"
     type="button"
-    @click.stop="
-        paymentModal = false;
-        showDraftModal = false;
-        cashModal = false;
-        qrisModal = false;
-        transferModal = false;
-        ewalletModal = false;
-        splitModal = false;
-        showCartMobile = true;
-    "
-    class="fab-keranjang !fixed !bottom-24 !right-4 !z-[9999] !bg-orange-500 !text-white !rounded-full !p-4 !shadow-lg flex items-center justify-center border-2 border-white pointer-events-auto"
-    style="position: fixed !important; bottom: 5rem !important; right: 1rem !important; z-index: 9999 !important; pointer-events: auto !important;"
+    onclick="showCartMobile = true"
+    class="fab-keranjang fixed bottom-24 right-4 z-[99999] bg-orange-500 text-white rounded-full p-4 shadow-xl flex items-center justify-center border-2 border-white pointer-events-auto"
+    style="position: fixed !important; bottom: 5rem !important; right: 1rem !important; z-index: 99999 !important; pointer-events: auto !important; display: flex !important;"
     title="Buka Keranjang">
     <i class="fa-solid fa-cart-shopping text-xl"></i>
-    <span
-        x-text="cart.reduce((sum, i) => sum + (i.qty || 1), 0)"
-        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+    <span id="fab-badge"
+        class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center"
+        style="display: none;">
+        0
     </span>
   </button>
 </body>
