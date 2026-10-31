@@ -3465,12 +3465,7 @@ async loadMoreProducts() {
     }
     this.todayTotalRevenue = (this.todayTotalRevenue || 0) + grandTotal;
 
-    // 10. Auto-download struk (hanya kasir langsung)
-    if (!paymentData.skipReceiptModal) {
-      this.downloadStrukPDF(this.currentOrder);
-    }
-
-    // 11. Clear cart
+    // 10 & 11. Clear cart (lakukan lebih awal)
     if (!isReconciliation) {
       this.cart = [];
       this.orderNote = '';
@@ -3478,14 +3473,25 @@ async loadMoreProducts() {
       localStorage.removeItem('dapur_pos_draft_cart');
     }
 
-        // 12. Sound & Toast
-        this.playSound('success');
-        if (!isReconciliation) {
-          this.showToast('Transaksi berhasil!', 'success');
-          this.receiptModal = true;
-          this.receiptWAPhone = ''; // ✅ FEATURE-3: reset field WA tiap struk baru
-          this.receiptWaAuto = false; // FASE 5: reset mode auto-populate (struk kasir walk-in)
+    // 12. Auto-download struk & Feedback
+    this.playSound('success');
+    if (!isReconciliation) {
+      if (pm === 'kredit') {
+        // ✅ FITUR BARU: Alur Khusus Kredit
+        this.showToast(`✅ Invoice Kredit untuk ${paymentData.customerName} berhasil dibuat. Surat Jalan & Invoice siap dicetak.`, 'success');
+        // Tidak membuka receiptModal, tidak mendownload PDF struk tunai.
+        // (User bisa cetak Invoice via tombol "Invoice" di Riwayat Transaksi)
+      } else {
+        // Alur Normal (Tunai/QRIS/Transfer)
+        this.showToast('Transaksi berhasil!', 'success');
+        if (!paymentData.skipReceiptModal) {
+          this.downloadStrukPDF(this.currentOrder);
         }
+        this.receiptModal = true;
+        this.receiptWAPhone = '';
+        this.receiptWaAuto = false;
+      }
+    }
         // ✅ Refresh daftar jurnal agar transaksi barusan muncul di tab Jurnal Umum (Kasir)
         if (typeof this.loadJournalListForKasir === 'function') {
           await this.loadJournalListForKasir();
