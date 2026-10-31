@@ -861,7 +861,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           <!-- KOLOM KIRI (8 cols desktop): Search + Kategori + Grid Menu -->
-          <div class="lg:col-span-7 xl:col-span-8 space-y-4 md:max-h-[calc(100vh-160px)] md:overflow-y-auto md:pr-2">
+          <div class="lg:col-span-7 xl:col-span-8 space-y-4 md:max-h-[calc(100vh-160px)] md:overflow-y-auto md:pr-2 overflow-x-hidden md:overflow-x-visible">
             
 
             <!-- Filter Kategori (Pill Buttons Horizontally Scrollable) -->
@@ -987,7 +987,7 @@
           </div>
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-          <div class="lg:col-span-5 xl:col-span-4 sticky top-2 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[70] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out overflow-y-auto max-h-[calc(100dvh-120px)]" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full'">
+          <div class="lg:col-span-5 xl:col-span-4 top-0 md:top-2 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[70] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out overflow-y-auto max-h-[calc(100dvh-120px)]" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full'">
             <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4 md:h-full md:overflow-hidden md:flex md:flex-col pointer-events-auto">
               
               <!-- Header Keranjang: Judul + Hapus Semua -->
@@ -8473,7 +8473,13 @@
   </div>
 </div>
 
-<!-- Overlay untuk menutup keranjang mobile (dihapus - gunakan tombol X di header keranjang) -->
+<!-- Overlay untuk menutup keranjang mobile -->
+<div 
+    x-show="showCartMobile" 
+    @click="showCartMobile = false"
+    x-transition.opacity.duration.200ms
+    class="fixed inset-0 bg-black/50 z-[50] md:hidden pointer-events-auto">
+</div>
 
 <!-- FAB Keranjang Mobile (dihapus - menggunakan tombol keranjang di sticky header) -->
 
