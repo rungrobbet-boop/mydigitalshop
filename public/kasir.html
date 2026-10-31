@@ -987,8 +987,8 @@
           </div>
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-          <div class="lg:col-span-5 xl:col-span-4 top-0 md:top-2 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[99999] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out overflow-y-auto h-[100dvh] md:h-auto md:max-h-none">
-            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4 md:h-full md:overflow-hidden md:flex md:flex-col pointer-events-auto">
+          <div class="lg:col-span-5 xl:col-span-4 top-0 md:top-2 md:relative md:translate-x-0 fixed inset-y-0 right-0 z-[99999] w-full max-w-md bg-stone-50 md:bg-transparent md:w-auto md:max-w-none md:z-auto md:fixed-none shadow-xl md:shadow-none transition-transform duration-300 ease-in-out overflow-y-auto h-[100dvh] md:h-auto md:max-h-none pointer-events-auto">
+            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-md flex flex-col space-y-4 md:h-full md:overflow-hidden md:flex md:flex-col pointer-events-auto h-full">
               
               <!-- Header Keranjang: Judul + Hapus Semua -->
               <div class="flex items-center justify-between pb-3 border-b border-stone-200">
@@ -1237,7 +1237,7 @@
               </div>
 
               <!-- Tombol Pembayaran Kasir (h-14 emerald) + Simpan Draft -->
-              <div class="pt-2 space-y-2 relative z-20">
+              <div class="pt-2 space-y-2 relative z-20 pointer-events-auto">
                 <!-- Tombol [BAYAR] -->
                 <button 
                   type="button" 
@@ -8471,14 +8471,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<!-- Overlay untuk menutup keranjang mobile -->
-<div 
-    x-show="showCartMobile" 
-    @click="showCartMobile = false"
-    x-transition.opacity.duration.200ms
-    class="fixed inset-0 bg-black/50 z-[9990] md:hidden pointer-events-none">
 </div>
 
 <!-- FAB Keranjang Mobile (dihapus - menggunakan tombol keranjang di sticky header) -->
