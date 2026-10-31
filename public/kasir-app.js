@@ -2870,7 +2870,6 @@ async loadMoreProducts() {
    */
   selectPaymentMethod(method) {
     this.selectedPaymentMethod = method;
-    this.paymentModal = false;
 
     if (method === 'tunai' || method === 'cash') {
       this.bayarTunai();
