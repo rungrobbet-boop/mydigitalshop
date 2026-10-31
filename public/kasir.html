@@ -1012,7 +1012,7 @@
                 <button 
                   type="button" 
                   @click="showCartMobile = false"
-                  class="md:hidden text-stone-500 hover:text-stone-800 p-2"
+                  class="relative z-[99999] pointer-events-auto text-stone-500 hover:text-stone-800 p-2"
                   title="Tutup Keranjang">
                   <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
@@ -1020,7 +1020,7 @@
                   type="button" 
                   x-show="cart.length > 0"
                   @click="clearCart()"
-                  class="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 transition cursor-pointer"
+                  class="pointer-events-auto text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 transition cursor-pointer"
                   title="Hapus Semua Isi Keranjang">
                   <i class="fa-solid fa-trash-can text-[11px]"></i>
                   <span>Reset</span>
@@ -1244,11 +1244,11 @@
             </div>
 
             <!-- Tombol Pembayaran Kasir (h-14 emerald) + Simpan Draft -->
-            <div class="flex-shrink-0 p-4 border-t bg-white relative z-50 pointer-events-auto">
+            <div class="flex-shrink-0 p-4 border-t bg-white relative z-[99999] pointer-events-auto">
                 <!-- Tombol [BAYAR] -->
                 <button 
                   type="button" 
-                  @click="openPaymentModal()"
+                  @click.stop="openPaymentModal()"
                   :disabled="cart.length === 0"
                   class="w-full h-14 min-h-[56px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-98">
                   <i class="fa-solid fa-credit-card text-lg"></i>
@@ -1259,7 +1259,7 @@
                 <!-- Tombol [Simpan Draft] (Min h-12) -->
                 <button
                   type="button"
-                  @click="saveDraftOrder()"
+                  @click.stop="saveDraftOrder()"
                   :disabled="cart.length === 0"
                   class="w-full min-h-[48px] rounded-xl border border-stone-300 hover:bg-stone-100 disabled:opacity-50 text-stone-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
                   <i class="fa-regular fa-bookmark text-stone-500"></i>
@@ -3914,7 +3914,7 @@
   <div 
     x-cloak 
     x-show="paymentModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="paymentModal = false" 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-6">
@@ -8118,7 +8118,7 @@
 </div>
 
 <!-- MODAL CUSTOMER (Pilih/Buat Customer untuk Piutang Kredit) -->
-<div x-show="showCustomerModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+<div x-show="showCustomerModal" x-cloak class="fixed inset-0 z-[999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div
     @click.away="closeCustomerModal"
     class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -8289,7 +8289,7 @@
 </div>
 
 <!-- MODAL DRAFT (Daftar Draft Pesanan) -->
-<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+<div x-show="showDraftModal" x-cloak class="fixed inset-0 z-[999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div
     @click.away="closeDraftModal()"
     class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
