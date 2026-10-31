@@ -266,6 +266,8 @@ window.kasirApp = () => ({
     nominalBayar: 0,
     drafts: [],
     showDraftModal: false,
+    showPdfPreviewModal: false,
+    previewPdfUrl: '',
 
     // Fitur Diskon, Pajak & Biaya Lainnya Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
@@ -4845,6 +4847,15 @@ async loadMoreProducts() {
     this.showCartMobile = true;
     this.showToast('Draft "' + draft.label + '" dibuka ke keranjang', 'success');
     this.playSound('notify');
+  },
+
+  // Fungsi Preview PDF (BARU)
+  openPdfPreviewModal(tx) {
+    this.previewPdfUrl = 'about:blank';
+    this.showPdfPreviewModal = true;
+  },
+  sharePdfToWA() {
+    /* Logika WA */
   },
 
   // Muat draft lalu buka modal pembayaran (Bayar)
