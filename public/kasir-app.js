@@ -269,6 +269,7 @@ window.kasirApp = () => ({
     showPdfPreviewModal: false,
     previewPdfUrl: '',
     currentSJUrl: '',
+    viewMode: 'grid-large',
 
     // Fitur Diskon, Pajak & Biaya Lainnya Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
@@ -3778,14 +3779,36 @@ async loadMoreProducts() {
 
       doc.setFont('courier', 'bold');
       doc.setFontSize(11);
-      doc.text('MyDigitalShop POS', 40, 9, { align: 'center' });
+
+      // Ambil dari siteInfo (Firebase), fallback jika kosong
+      const brandName = (this.siteInfo && this.siteInfo.brandName) ? String(this.siteInfo.brandName).toUpperCase() : 'MYDIGITALSHOP';
+      const brandAddress = (this.siteInfo && this.siteInfo.address) ? String(this.siteInfo.address) : '-';
+      const brandPhone = (this.siteInfo && this.siteInfo.phone) ? String(this.siteInfo.phone) : '-';
+
+      // Judul Toko (Split text jika kepanjang)
+      const titleLines = doc.splitTextToSize(brandName, 70);
+      titleLines.forEach((line, idx) => {
+        doc.text(line, 40, 9 + (idx * 4), { align: 'center' });
+      });
+      let headerY = 9 + (titleLines.length * 4);
+
       doc.setFont('courier', 'normal');
       doc.setFontSize(7.5);
-      doc.text('Jl. Raya Toko Bangunan No. 88, Jaksel', 40, 13, { align: 'center' });
-      doc.text('Telp/WA: 0812-3456-7890', 40, 17, { align: 'center' });
-      doc.text('================================', 40, 21, { align: 'center' });
 
-      let y = 25;
+      // Alamat Toko (Split text)
+      const addrLines = doc.splitTextToSize(brandAddress, 70);
+      addrLines.forEach((line, idx) => {
+        doc.text(line, 40, headerY + (idx * 3.5), { align: 'center' });
+      });
+      headerY += (addrLines.length * 3.5);
+
+      // Telepon
+      doc.text(`Telp/WA: ${brandPhone}`, 40, headerY + 2, { align: 'center' });
+      headerY += 6;
+
+      // Garis Pembatas Header
+      doc.text('================================', 40, headerY, { align: 'center' });
+      let y = headerY + 4; // Lanjutkan variabel y untuk isi struk
       doc.text(`No. Order : ${order.id || 'T' + Date.now()}`, 5, y); y += 4;
       doc.text(`Tanggal   : ${order.date || this.formatDate(Date.now())}`, 5, y); y += 4;
       doc.text(`Waktu     : ${order.time || this.formatTime(Date.now())}`, 5, y); y += 4;

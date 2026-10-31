@@ -777,7 +777,14 @@
               <span>Riwayat<br>Transaksi</span>
             </button>
 
-            <button 
+            <!-- View Toggle (Mobile) -->
+            <div class="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
+              <button type="button" @click="viewMode = 'grid-large'" :class="viewMode === 'grid-large' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-table-cells-large"></i></button>
+              <button type="button" @click="viewMode = 'grid-small'" :class="viewMode === 'grid-small' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-table-cells"></i></button>
+              <button type="button" @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-bars"></i></button>
+            </div>
+
+            <button
               type="button" 
               @click="listenMenuItems()"
               class="min-h-[48px] px-3.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer"
@@ -798,6 +805,12 @@
 
         <!-- Desktop Search Bar (hidden on mobile, shown on desktop) -->
         <div class="hidden md:flex items-center gap-3 px-3 py-2 bg-white rounded-2xl border border-stone-200 shadow-xs">
+          <!-- View Toggle -->
+          <div class="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
+            <button type="button" @click="viewMode = 'grid-large'" :class="viewMode === 'grid-large' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-table-cells-large"></i></button>
+            <button type="button" @click="viewMode = 'grid-small'" :class="viewMode === 'grid-small' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-table-cells"></i></button>
+            <button type="button" @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-white shadow-xs text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-bars"></i></button>
+          </div>
           <div class="relative flex-1 max-w-xl">
             <input
               type="text"
@@ -891,16 +904,22 @@
             <!-- Grid Menu Produk (grid-cols-2 sm:grid-cols-3 xl:grid-cols-4) -->
             <div 
               x-show="!isLoadingMenu" 
-              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              :class="{
+                'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4': viewMode === 'grid-large',
+                'grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3': viewMode === 'grid-small',
+                'flex flex-col gap-2': viewMode === 'list'
+              }">
               
               <template x-for="(menu, idx) in filteredMenuList()" :key="menu.id + '-' + idx">
                 <div 
                   @click="addToCart(menu)"
-                  class="bg-white rounded-2xl p-3 border border-stone-200 hover:border-emerald-500 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group cursor-pointer active:scale-98 select-none">
+                  :class="viewMode === 'list' 
+                    ? 'bg-white rounded-xl p-2.5 border border-stone-200 hover:border-emerald-500 shadow-xs hover:shadow-md transition-all duration-200 flex flex-row items-center gap-3 cursor-pointer active:scale-98 select-none w-full' 
+                    : 'bg-white rounded-2xl p-3 border border-stone-200 hover:border-emerald-500 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group cursor-pointer active:scale-98 select-none'">
                   
                   <div class="space-y-2.5">
                     <!-- Foto Produk Aspect-Square -->
-                    <div class="aspect-square rounded-xl overflow-hidden bg-stone-100 relative">
+                    <div :class="viewMode === 'list' ? 'w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-stone-100 relative' : 'aspect-square rounded-xl overflow-hidden bg-stone-100 relative'">
                       <img
                         x-init="console.log('CEK UI GAMBAR:', menu.name, menu.imageUrl)"
                         x-bind:src="(menu.imageUrl && menu.imageUrl.trim() !== '') ? menu.imageUrl : 'https://placehold.co/400x400?text=No+Image'"
@@ -921,14 +940,17 @@
                     </div>
 
                     <!-- Nama Menu -->
-                    <div>
+                    <div :class="viewMode === 'list' ? 'flex-1 min-w-0' : 'mt-2'">
                       <h4 class="font-bold text-xs sm:text-sm text-stone-900 leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2" x-text="menu.name"></h4>
-                      <p class="text-[11px] text-stone-400 mt-0.5 line-clamp-1" x-text="menu.desc || 'Bahan bangunan siap pakai'"></p>
+                      <p x-show="viewMode !== 'list'" class="text-[11px] text-stone-400 mt-0.5 line-clamp-1" x-text="menu.desc || 'Bahan bangunan siap pakai'"></p>
+                      <div x-show="viewMode === 'list'" class="mt-1">
+                         <span class="font-extrabold text-xs text-brand-600 font-mono" x-text="formatRupiah(menu.priceEcer || menu.price)"></span>
+                      </div>
                     </div>
                   </div>
 
                   <!-- Harga & Tombol Tambah / Edit Komponen -->
-                  <div class="pt-3 mt-2 border-t border-stone-100 flex items-center justify-between gap-1">
+                  <div x-show="viewMode !== 'list'" class="pt-3 mt-2 border-t border-stone-100 flex items-center justify-between gap-1">
                     <div class="flex flex-col">
                       <span class="font-extrabold text-xs sm:text-sm text-brand-600 font-mono" x-text="formatRupiah(menu.priceEcer || menu.price)"></span>
                       <button 
@@ -944,6 +966,13 @@
                     <button 
                       type="button" 
                       class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition shadow-2xs">
+                      <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                  </div>
+
+                  <div x-show="viewMode === 'list'" class="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span class="text-[10px] font-bold text-stone-500" x-text="getMenuDisplayStock(menu) + ' ' + (menu.unit || 'pcs')"></span>
+                    <button type="button" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition shadow-2xs">
                       <i class="fa-solid fa-plus text-xs"></i>
                     </button>
                   </div>
