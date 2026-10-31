@@ -4820,10 +4820,11 @@ async loadMoreProducts() {
     }
 
     // Pindahkan items ke cart
-    this.cart = draft.items.map(it => ({
-      id: it.id,
-      qty: Number(it.qty || 1),
-      price: Number(it.price || 0)
+    this.cart = draft.items.map(item => ({
+        ...item,
+        name: item.name || item.nama || item.productName || 'Produk Tanpa Nama',
+        price: item.price || item.harga || 0,
+        qty: item.qty || item.quantity || 1
     }));
 
     this.orderNote = draft.label || '';
