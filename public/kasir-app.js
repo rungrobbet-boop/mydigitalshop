@@ -4819,13 +4819,14 @@ async loadMoreProducts() {
       return;
     }
 
-    // Pindahkan items ke cart
-    this.cart = draft.items.map(item => ({
-        ...item,
-        name: item.name || item.nama || item.productName || 'Produk Tanpa Nama',
-        price: item.price || item.harga || 0,
-        qty: item.qty || item.quantity || 1
-    }));
+    // Pindahkan items ke cart - mapping ulang dari menuList untuk nama & harga asli
+    this.cart = draft.items.map(item => {
+        const menuAsli = this.menuList.find(m => m.id === item.id);
+        if (menuAsli) {
+            return { ...item, name: menuAsli.name, price: menuAsli.price };
+        }
+        return { ...item, name: item.name || item.nama || item.productName || 'Produk Tanpa Nama', price: item.price || item.harga || 0 };
+    });
 
     this.orderNote = draft.label || '';
     this.discountAmount = 0;
