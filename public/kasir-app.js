@@ -3795,13 +3795,22 @@ async loadMoreProducts() {
       doc.text('--------------------------------', 40, y, { align: 'center' }); y += 4;
 
         (order.items || []).forEach(it => {
-        const name = it.name || (Array.isArray(it) ? it[0] : 'Menu');
+        let itemName;
+        if (it.name) {
+            itemName = it.name;
+        } else if (Array.isArray(it)) {
+            const menuId = it[0];
+            const menu = (this.menuList || []).find(m => String(m.id) === String(menuId));
+            itemName = menu ? menu.name : menuId;
+        } else {
+            itemName = it.id || 'Menu';
+        }
         const qty = it.qty || (Array.isArray(it) ? it[1] : 1);
         const basePrice = (it.basePrice !== undefined) ? Number(it.basePrice) : (Number(it.price) || (Array.isArray(it) ? Number(it[2]) : 0));
         const itemDiscount = Number(it.itemDiscount) || 0;
         const itemTotal = qty * basePrice;
         doc.setFont('courier', 'bold');
-        const nameLines = doc.splitTextToSize(String(name), 50);
+        const nameLines = doc.splitTextToSize(String(itemName), 50);
         nameLines.forEach((line, idx) => {
           doc.text(line, 5, y);
           if (idx === nameLines.length - 1) {

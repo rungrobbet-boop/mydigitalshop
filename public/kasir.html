@@ -707,7 +707,7 @@
     <!-- ===================================================================== -->
     <!-- 3. KONTEN AREA UTAMA (Flex-1)                                          -->
     <!-- ===================================================================== -->
-    <main class="flex-1 min-h-0 overflow-y-auto bg-stone-100 p-4 sm:p-6 lg:p-8">
+    <main class="flex-1 min-h-0 lg:overflow-hidden overflow-y-auto bg-stone-100 p-4 sm:p-6 lg:p-8">
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- TAB 1: TRANSAKSI BARU                                               -->
@@ -996,7 +996,7 @@
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
           <div class="fixed inset-y-0 right-0 z-[9999] w-full max-w-md h-[100dvh] bg-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:h-auto lg:max-w-none lg:w-auto lg:shadow-none lg:bg-transparent lg:transform-none lg:col-span-4" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full lg:hidden'">
-            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-none flex flex-col space-y-4 pointer-events-auto h-full">
+            <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-none flex flex-col space-y-4 pointer-events-auto h-full lg:h-[calc(100vh-140px)] lg:overflow-hidden">
               
               <!-- Header Keranjang: Judul + Hapus Semua (FIX FINAL) -->
               <div class="flex-shrink-0 flex flex-row items-center justify-between pb-3 border-b border-stone-200 gap-2">
@@ -1025,7 +1025,7 @@
               </div>
 
               <!-- List Item Keranjang (Scrollable Container) -->
-              <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 divide-y divide-stone-100 max-h-[calc(100vh-380px)] lg:max-h-none">
+              <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 divide-y divide-stone-100">
                 
                 <!-- State Keranjang Kosong -->
                 <div x-show="cart.length === 0" class="py-12 text-center text-stone-400 space-y-2">
