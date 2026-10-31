@@ -851,7 +851,7 @@
             <!-- Grid Menu Produk (grid-cols-2 sm:grid-cols-3 xl:grid-cols-4) -->
             <div 
               x-show="!isLoadingMenu" 
-              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 overflow-y-auto max-h-[calc(100dvh-140px)] pr-2">
+              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               
               <template x-for="(menu, idx) in filteredMenuList()" :key="menu.id + '-' + idx">
                 <div 
@@ -8433,13 +8433,7 @@
   </div>
 </div>
 
-<!-- Overlay untuk menutup keranjang mobile -->
-<div 
-    x-show="showCartMobile" 
-    @click="showCartMobile = false"
-    x-transition.opacity.duration.200ms
-    class="fixed inset-0 bg-black/50 z-40 md:hidden pointer-events-auto">
-</div>
+<!-- Overlay untuk menutup keranjang mobile (dihapus - gunakan tombol X di header keranjang) -->
 
 <!-- FAB Keranjang Mobile (dihapus - menggunakan tombol keranjang di sticky header) -->
 
