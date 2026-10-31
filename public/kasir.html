@@ -999,16 +999,13 @@
             <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-none flex flex-col space-y-4 pointer-events-auto h-full">
               
               <!-- Header Keranjang: Judul + Hapus Semua (FIX FINAL) -->
-              <div class="flex-shrink-0 flex items-center justify-between pb-3 border-b border-stone-200 gap-2">
-                <!-- Kiri: Judul & Item Count -->
-                <div class="flex items-center gap-2 min-w-0">
+              <div class="flex-shrink-0 flex flex-row items-center justify-between pb-3 border-b border-stone-200 gap-2">
+                <div class="flex flex-row items-center gap-2 min-w-0 flex-1">
                   <span class="text-lg flex-shrink-0">🛒</span>
                   <h3 class="font-extrabold text-base text-stone-900 truncate">Keranjang Kasir</h3>
                   <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono flex-shrink-0" x-text="getCartTotalItems() + ' item'"></span>
                 </div>
-                
-                <!-- Kanan: Tombol Reset & Close (SEKARANG DIKELOMPOKKAN) -->
-                <div class="flex items-center gap-1 flex-shrink-0">
+                <div class="flex flex-row items-center gap-1 flex-shrink-0">
                   <button 
                     type="button" 
                     x-show="cart.length > 0"
@@ -1028,7 +1025,7 @@
               </div>
 
               <!-- List Item Keranjang (Scrollable Container) -->
-              <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 divide-y divide-stone-100">
+              <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 divide-y divide-stone-100 max-h-[calc(100vh-380px)] lg:max-h-none">
                 
                 <!-- State Keranjang Kosong -->
                 <div x-show="cart.length === 0" class="py-12 text-center text-stone-400 space-y-2">
@@ -1245,6 +1242,15 @@
 
             <!-- Tombol Pembayaran Kasir (h-14 emerald) + Simpan Draft -->
             <div class="flex-shrink-0 p-4 border-t bg-white relative z-[99999] pointer-events-auto">
+                <!-- Tombol Bottom Action (Usul Owner) -->
+                <div class="flex gap-2 mb-2">
+                  <button type="button" @click="showCartMobile = false" class="flex-1 min-h-[44px] rounded-xl border border-stone-300 bg-white text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                    <i class="fa-solid fa-arrow-left"></i> Kembali
+                  </button>
+                  <button type="button" @click="clearCart()" class="flex-1 min-h-[44px] rounded-xl border border-red-300 bg-red-50 text-red-700 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                    <i class="fa-solid fa-trash-can"></i> Reset Transaksi
+                  </button>
+                </div>
                 <!-- Tombol [BAYAR] -->
                 <button 
                   type="button" 

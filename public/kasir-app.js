@@ -268,6 +268,7 @@ window.kasirApp = () => ({
     showDraftModal: false,
     showPdfPreviewModal: false,
     previewPdfUrl: '',
+    currentSJUrl: '',
 
     // Fitur Diskon, Pajak & Biaya Lainnya Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
@@ -3480,7 +3481,7 @@ async loadMoreProducts() {
     if (!isReconciliation) {
       if (pm === 'kredit') {
         // ✅ FITUR BARU: Alur Khusus Kredit
-        this.showToast(`✅ Invoice Kredit untuk ${paymentData.customerName} berhasil dibuat. Surat Jalan & Invoice siap dicetak.`, 'success');
+        this.showToast(`✅ Invoice Kredit untuk ${paymentData.customerName || 'Pelanggan'} berhasil dibuat. Surat Jalan & Invoice siap dicetak.`, 'success');
         // Tidak membuka receiptModal, tidak mendownload PDF struk tunai.
         // (User bisa cetak Invoice via tombol "Invoice" di Riwayat Transaksi)
       } else {
@@ -4571,8 +4572,8 @@ async loadMoreProducts() {
     const footerText = 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan. Terima kasih atas kepercayaan Anda berbelanja di ' + brandName + '.';
     docInvoice.text(footerText, 105, footY, { align: 'center' });
 
-    // Simpan Invoice
-    docInvoice.save('Invoice_' + tx.id + '.pdf');
+    // Simpan Invoice (blob url untuk preview)
+    const pdfBlobUrl = docInvoice.output('bloburl');
 
     // ========================================================================
     // 4. DESAIN PDF SURAT JALAN (docSuratJalan)
@@ -4636,9 +4637,11 @@ async loadMoreProducts() {
     docSuratJalan.text('Nopol Kendaraan & Nama Sopir: _________________________________', 10, sjTableBottomY, { align: 'left' });
 
     // Simpan Surat Jalan
-    docSuratJalan.save('SuratJalan_' + tx.id + '.pdf');
+    const sjBlobUrl = docSuratJalan.output('bloburl');
 
-    this.showToast('Invoice & Surat Jalan berhasil dicetak', 'success');
+    this.previewPdfUrl = pdfBlobUrl;
+    this.currentSJUrl = sjBlobUrl;
+    this.showToast('Invoice & Surat Jalan berhasil dibuat', 'success');
   },
 
   /** =========================================================================
@@ -4851,7 +4854,7 @@ async loadMoreProducts() {
 
   // Fungsi Preview PDF (BARU)
   openPdfPreviewModal(tx) {
-    this.previewPdfUrl = 'about:blank';
+    this.cetakInvoiceKredit(tx);
     this.showPdfPreviewModal = true;
   },
   sharePdfToWA() {
