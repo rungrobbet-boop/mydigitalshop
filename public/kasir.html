@@ -311,7 +311,7 @@
   <!-- ===================================================================== -->
   <!-- 1. HEADER (Sticky top-0, z-40)                                         -->
   <!-- ===================================================================== -->
-  <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-sm transition-all">
+  <header class="sticky top-0 z-[9999999] bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-sm transition-all">
     <div class="px-4 sm:px-6 min-h-[64px] py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
       
       <!-- Kiri: Logo Mini + Judul Kasir + Operator Aktif -->
@@ -986,20 +986,16 @@
 
           </div>
 
-<!-- Overlay Gelap Mobile -->
+<!-- Overlay Gelap Mobile (Satu saja) -->
 <div 
   x-show="showCartMobile" 
   x-transition.opacity.duration.200ms
-  class="fixed inset-0 bg-black/50 z-[99990] md:hidden"
+  class="fixed inset-0 bg-black/50 z-[9998] md:hidden"
   @click="showCartMobile = false">
 </div>
 
           <!-- KOLOM KANAN (4 cols desktop, Sticky Top): Keranjang POS Kasir -->
-<!-- Overlay Mobile -->
-<div x-show="showCartMobile" @click="showCartMobile = false" class="fixed inset-0 bg-black/50 z-[9998] lg:hidden"></div>
-
-<!-- Keranjang (Drawer di Mobile, Kolom Sticky di Desktop) -->
-<div class="fixed inset-y-0 right-0 z-[9999] w-full max-w-md h-[100dvh] bg-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:h-auto lg:max-w-none lg:w-auto lg:shadow-none lg:bg-transparent lg:transform-none lg:col-span-4" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full lg:hidden'" x-show="showCartMobile || window.innerWidth >= 1024">
+          <div class="fixed inset-y-0 right-0 z-[9999] w-full max-w-md h-[100dvh] bg-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:h-auto lg:max-w-none lg:w-auto lg:shadow-none lg:bg-transparent lg:transform-none lg:col-span-4" :class="showCartMobile ? 'translate-x-0' : 'translate-x-full lg:hidden'">
             <div class="bg-white rounded-3xl p-5 border border-stone-200 shadow-none flex flex-col space-y-4 pointer-events-auto h-full">
               
               <!-- Header Keranjang: Judul + Hapus Semua -->
@@ -4027,7 +4023,7 @@
   <div 
     x-cloak 
     x-show="cashModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="cashModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4122,7 +4118,7 @@
   <div 
     x-cloak 
     x-show="qrisModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="qrisModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -4228,7 +4224,7 @@
   <div 
     x-cloak 
     x-show="transferModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="transferModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4298,7 +4294,7 @@
   <div 
     x-cloak 
     x-show="ewalletModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="ewalletModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
@@ -4344,7 +4340,7 @@
   <div 
     x-cloak 
     x-show="splitModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="splitModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4433,7 +4429,7 @@
   <div 
     x-cloak 
     x-show="showRekonsiliasiModal || pendingReconcileModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 text-center">
       
@@ -4548,7 +4544,7 @@
   <div 
     x-cloak 
     x-show="receiptModal" 
-    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       style="max-height: 92vh; max-height: 92dvh;"
       class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-stone-200 relative flex flex-col overflow-hidden transition-all">
@@ -4847,7 +4843,7 @@
   <div 
     x-cloak 
     x-show="closeShiftModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="closeShiftModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -4921,7 +4917,7 @@
   <div 
     x-cloak 
     x-show="reconcileModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="reconcileModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5055,7 +5051,7 @@
   <div 
     x-cloak 
     x-show="editStockModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="editStockModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5319,7 +5315,7 @@
   <div 
     x-cloak 
     x-show="addInventoryModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="addInventoryModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5509,7 +5505,7 @@
   <div 
     x-cloak 
     x-show="insufficientCashModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
     <div 
       @click.away="insufficientCashModal = false" 
       class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-2 border-red-200 relative transition-all space-y-5">
@@ -5594,7 +5590,7 @@
   <div 
     x-cloak 
     x-show="productModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="productModal = false" 
       class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-4">
@@ -5764,7 +5760,7 @@
   <div 
     x-cloak 
     x-show="newMenuModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="newMenuModal = false" 
       class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -5952,7 +5948,7 @@
   <div 
     x-cloak 
     x-show="showInventoryLogsModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="showInventoryLogsModal = false" 
       class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5">
@@ -6116,7 +6112,7 @@
   <div 
     x-cloak 
     x-show="confirmLogoutModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div 
       @click.away="confirmLogoutModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative text-center space-y-5">
@@ -6152,7 +6148,7 @@
   <div 
     x-cloak 
     x-show="showItemDiscountModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div 
       @click.away="showItemDiscountModal = false" 
       class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 relative space-y-4">
@@ -6232,7 +6228,7 @@
   <div 
     x-cloak 
     x-show="showOrderDiscountModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div 
       @click.away="showOrderDiscountModal = false" 
       class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 relative space-y-4">
@@ -6310,7 +6306,7 @@
   <div 
     x-cloak 
     x-show="showPrinterModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div 
       @click.away="showPrinterModal = false" 
       class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative space-y-5">
@@ -6426,7 +6422,7 @@
   <div 
     x-cloak 
     x-show="showJournalFormModal" 
-    class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+    class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
     <div 
       @click.away="showJournalFormModal = false" 
       class="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-6 my-8">
@@ -6689,7 +6685,7 @@
   x-cloak 
   x-show="showTxHistoryModal" 
   @click.self="showTxHistoryModal = false"
-  class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+  class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
   <div 
     class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 relative transition-all space-y-5 my-6">
       
@@ -6919,7 +6915,7 @@
     x-show="multiScanModal" 
     x-cloak 
     @click.self="multiScanModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-stone-200 space-y-4 my-8">
 
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
@@ -7141,7 +7137,7 @@
     x-show="barcodeLabelModal" 
     x-cloak 
     @click.self="barcodeLabelModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7252,7 +7248,7 @@
     x-show="supplierModal" 
     x-cloak 
     @click.self="supplierModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7338,7 +7334,7 @@
     x-show="preRegisterModal" 
     x-cloak 
     @click.self="preRegisterModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7474,7 +7470,7 @@
     x-show="scanReceiveModal" 
     x-cloak 
     @click.self="scanReceiveModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-stone-200 space-y-4 my-8 overflow-y-auto" style="max-height: 90vh; max-height: 90dvh;">
 
       <!-- Header -->
@@ -7656,7 +7652,7 @@
     x-show="receiveReceiptModal" 
     x-cloak 
     @click.self="receiveReceiptModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7761,7 +7757,7 @@
     x-show="settlementModal" 
     x-cloak 
     @click.self="settlementModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -7948,7 +7944,7 @@
     x-show="generateMenuModal" 
     x-cloak 
     @click.self="generateMenuModal = false"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    class="fixed inset-0 z-[9999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div class="flex items-center gap-2.5">
@@ -8075,7 +8071,7 @@
   <!-- ===================================================================== -->
 
 <!-- MODAL VOID TRANSAKSI -->
-<div x-show="showVoidModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
+<div x-show="showVoidModal" x-cloak class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/50" style="display: none;">
   <div @click.away="showVoidModal = false" class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
     <h3 class="text-lg font-bold text-stone-800 mb-2">Konfirmasi Void Transaksi</h3>
     <p class="text-sm text-stone-500 mb-4">Order ID: <span x-text="activeVoidTx?.id" class="font-mono font-bold text-stone-800"></span></p>
@@ -8094,7 +8090,7 @@
 </div>
 
 <!-- Modal Generate Saldo Awal -->
-<div x-show="showGenerateSaldoModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
+<div x-show="showGenerateSaldoModal" x-cloak class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/50" style="display: none;">
   <div @click.away="showGenerateSaldoModal = false" class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
     <h3 class="text-lg font-bold text-stone-800 mb-2">Konfirmasi Generate Saldo Awal</h3>
     <p class="text-sm text-stone-500 mb-4">Tindakan ini akan membuat jurnal penyesuaian persediaan. Pastikan data stok dan harga beli sudah benar.</p>
@@ -8378,7 +8374,7 @@
 <div
   x-show="showPelunasanModal"
   x-cloak
-  class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+  class="fixed inset-0 z-[9999999] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
 >
   <div
     @click.self="closePelunasanModal()"
