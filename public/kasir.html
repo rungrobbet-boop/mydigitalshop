@@ -6860,7 +6860,7 @@
 
                 <button 
                   type="button" 
-                  @click="downloadStrukPDF(tx)"
+                  @click="openPdfPreviewModal(tx)"
                   class="px-2.5 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
                   title="Unduh format Thermal 80mm PDF">
                   <i class="fa-solid fa-file-pdf text-red-600 text-xs"></i>
@@ -8510,7 +8510,7 @@
     </div>
     <div class="p-4 border-t flex justify-end gap-2">
       <button @click="window.print()" class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition"><i class="fa-solid fa-print"></i> Cetak</button>
-      <a :href="previewPdfUrl" download class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition"><i class="fa-solid fa-download"></i> Unduh</a>
+      <a :href="previewPdfUrl" download="struk.pdf" class="px-4 py-2 text-sm font-bold text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition"><i class="fa-solid fa-download"></i> Unduh</a>
       <button @click="sharePdfToWA()" class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"><i class="fa-brands fa-whatsapp"></i> Kirim WA</button>
     </div>
   </div>

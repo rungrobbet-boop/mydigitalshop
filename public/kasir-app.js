@@ -3867,7 +3867,7 @@ async loadMoreProducts() {
         doc.text(`Kembali  : ${this.formatRupiah(order.cashChange || 0)}`, 5, y); y += 4;
       }
 
-      doc.text('================================', 40, y, { align: 'center' }); y += 5;
+      doc.text('================================', 40, y, { align: 'center' }); y += 4;
       // FASE 5: footer standar struk (nama outlet dari siteConfig.brandName)
       doc.setFont('courier', 'normal');
       doc.setFontSize(7);
@@ -3876,8 +3876,14 @@ async loadMoreProducts() {
         y += 4;
       });
 
-      doc.save(`struk-${order.id || 'pos'}.pdf`);
-      this.showToast('Struk PDF berhasil diunduh', 'success');
+      if (returnBlob) {
+        // Jika dipanggil untuk preview: kembalikan Blob URL, jangan unduh
+        return doc.output('bloburl');
+      } else {
+        // Alur normal: langsung unduh
+        doc.save(`struk-${order.id || 'pos'}.pdf`);
+        this.showToast('Struk PDF berhasil diunduh', 'success');
+      }
     } catch (err) {
       console.error('Gagal membuat struk PDF:', err);
       this.showToast('Gagal mengunduh struk PDF', 'error');
@@ -4863,8 +4869,15 @@ async loadMoreProducts() {
 
   // Fungsi Preview PDF (BARU)
   openPdfPreviewModal(tx) {
-    this.cetakInvoiceKredit(tx);
-    this.showPdfPreviewModal = true;
+    // Panggil generator PDF (logika di dalam downloadStrukPDF) tapi minta outputnya berupa Blob URL
+    const blobUrl = this.downloadStrukPDF(tx, true);
+
+    if (blobUrl) {
+      this.previewPdfUrl = blobUrl;
+      this.showPdfPreviewModal = true;
+    } else {
+      this.showToast('Gagal memuat preview PDF', 'error');
+    }
   },
   sharePdfToWA() {
     /* Logika WA */
