@@ -270,6 +270,7 @@ window.kasirApp = () => ({
     previewPdfUrl: '',
     currentSJUrl: '',
     viewMode: 'grid-large',
+    isReadOnlyMode: false,
 
     // Fitur Diskon, Pajak & Biaya Lainnya Keranjang
   orderDiscountType: 'percent', // 'percent' | 'nominal'
@@ -3598,9 +3599,18 @@ async loadMoreProducts() {
   estimateStrukHeightPdf(order, measure) {
     let h = 53; // header + blok info order + separator
     (order.items || []).forEach(it => {
-      const name = it.name || (Array.isArray(it) ? it[0] : 'Menu');
+      let itemName;
+      if (it.name) {
+          itemName = it.name;
+      } else if (Array.isArray(it)) {
+          const menuId = it[0];
+          const menu = (this.menuList || []).find(m => String(m.id) === String(menuId));
+          itemName = menu ? menu.name : menuId;
+      } else {
+          itemName = it.id || 'Menu';
+      }
       let lines = 1;
-      try { lines = Math.max(1, measure.splitTextToSize(String(name), 50).length); } catch (e) {}
+      try { lines = Math.max(1, measure.splitTextToSize(String(itemName), 50).length); } catch (e) {}
       h += (lines * 3.5) + 1;
       if (Number(it.itemDiscount) > 0) h += 3;
     });
@@ -3623,9 +3633,18 @@ async loadMoreProducts() {
   estimateStrukHeightPrint(order, measure) {
     let h = 41; // header + No. Order / Tanggal / Kasir + separator
     (order.items || []).forEach(it => {
-      const name = it.name || 'Menu';
+      let itemName;
+        if (it.name) {
+            itemName = it.name;
+        } else if (Array.isArray(it)) {
+            const menuId = it[0];
+            const menu = (this.menuList || []).find(m => String(m.id) === String(menuId));
+            itemName = menu ? menu.name : menuId;
+        } else {
+            itemName = it.id || 'Menu';
+        }
       let lines = 1;
-      try { lines = Math.max(1, measure.splitTextToSize(String(name), 50).length); } catch (e) {}
+      try { lines = Math.max(1, measure.splitTextToSize(String(itemName), 50).length); } catch (e) {}
       h += lines * 4;
       h += 4; // baris harga
       if (Number(it.itemDiscount) > 0) h += 3.5;
@@ -8037,8 +8056,9 @@ async loadMoreProducts() {
   /**
    * Buka modal manajemen resep/bahan baku produk
    */
-  openProductRecipeModal(menu) {
+  openProductRecipeModal(menu, isReadOnly = false) {
     if (!menu) return;
+    this.isReadOnlyMode = isReadOnly;
     this.selectedProductForRecipe = menu;
     const existingRecipe = this.menuRecipes[menu.id] || { ingredients: [] };
     
