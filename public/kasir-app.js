@@ -3748,12 +3748,12 @@ async loadMoreProducts() {
   /**
    * Download Struk format Thermal 80mm PDF menggunakan jsPDF
    */
-  downloadStrukPDF(txData) {
+  downloadStrukPDF(txData, returnBlob = false) {
     try {
       const { jsPDF } = window.jspdf || {};
       if (!jsPDF) {
         this.showToast('Modul jsPDF belum siap', 'error');
-        return;
+        return null;
       }
 
       const order = txData || this.currentOrder || {
@@ -4869,14 +4869,22 @@ async loadMoreProducts() {
 
   // Fungsi Preview PDF (BARU)
   openPdfPreviewModal(tx) {
-    // Panggil generator PDF (logika di dalam downloadStrukPDF) tapi minta outputnya berupa Blob URL
-    const blobUrl = this.downloadStrukPDF(tx, true);
-
-    if (blobUrl) {
-      this.previewPdfUrl = blobUrl;
-      this.showPdfPreviewModal = true;
-    } else {
-      this.showToast('Gagal memuat preview PDF', 'error');
+    if (!tx) return;
+  
+    try {
+      // Panggil generator PDF (logika di dalam downloadStrukPDF) tapi minta outputnya berupa Blob URL
+      const blobUrl = this.downloadStrukPDF(tx, true);
+    
+      if (blobUrl && typeof blobUrl === 'string') {
+        this.previewPdfUrl = blobUrl;
+        this.showPdfPreviewModal = true;
+      } else {
+        console.error('[PDF-PREVIEW] Gagal mendapatkan blobUrl. Nilai return:', blobUrl);
+        this.showToast('Gagal memuat preview PDF. Cek console.', 'error');
+      }
+    } catch (error) {
+      console.error('[PDF-PREVIEW] Exception saat generate PDF:', error);
+      this.showToast('Terjadi error saat membuat PDF', 'error');
     }
   },
   sharePdfToWA() {
